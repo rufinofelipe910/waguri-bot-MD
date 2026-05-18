@@ -3,7 +3,9 @@ import { log } from "./logger.js";
 import { getPlugins } from "./pluginLoader.js";
 import { db } from "../database/db.js";
 
-// ─── EXTRAER JID LIMPIO ───────────────────────────────────
+// ─── CACHE DE METADATA DE GRUPOS ─────────────────────────
+const groupCache = new Map();
+
 function cleanJid(jid = "") {
   return jid?.split(":")[0] + (jid?.includes("@") ? "@" + jid.split("@")[1] : "");
 }
@@ -13,6 +15,8 @@ export async function handleMessage(sock, rawMsg) {
     const msg = rawMsg;
     const from = msg.key?.remoteJid;
     if (!from) return;
+    if (from === "status@broadcast") return;
+    if (msg.key?.fromMe) return;
 
     const isGroup = from.endsWith("@g.us");
     const senderJid = isGroup
@@ -21,11 +25,6 @@ export async function handleMessage(sock, rawMsg) {
 
     const sender = cleanJid(senderJid);
     const botJid = cleanJid(sock.user?.id);
-
-    // Ignorar mensajes propios
-    if (msg.key?.fromMe) return;
-    // Ignorar mensajes de estado
-    if (from === "status@broadcast") return;
 
     // ─── CUERPO DEL MENSAJE ──────────────────────────────
     const body =
@@ -37,28 +36,37 @@ export async function handleMessage(sock, rawMsg) {
       msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
       "";
 
-    // ─── GRUPO INFO ──────────────────────────────────────
-    let groupName = "";
-    let groupMeta = null;
-    if (isGroup) {
-      try {
-        groupMeta = await sock.groupMetadata(from);
-        groupName = groupMeta?.subject || from;
-      } catch {
-        groupName = from;
-      }
-    }
-
-    // ─── DETECTAR COMANDO ────────────────────────────────
+    // ─── DETECTAR COMANDO (antes de groupMetadata) ───────
     const prefixes = Array.isArray(config.prefix) ? config.prefix : [config.prefix];
     const usedPrefix = prefixes.find((p) => body.startsWith(p)) || null;
     const isCmd = !!usedPrefix;
-    const cmdName = isCmd ? body.slice(usedPrefix.length).trim().split(/\s+/)[0].toLowerCase() : null;
-    const args = isCmd ? body.slice(usedPrefix.length + (cmdName?.length || 0)).trim().split(/\s+/) : [];
+
+    // Si no es comando, salir inmediatamente sin consultar grupo ni DB
+    if (!isCmd) return;
+
+    const cmdName = body.slice(usedPrefix.length).trim().split(/\s+/)[0].toLowerCase();
+    const args = body.slice(usedPrefix.length + cmdName.length).trim().split(/\s+/);
     const text = args.join(" ");
 
-    // ─── LOG DE MENSAJE ──────────────────────────────────
-    log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName });
+    // ─── GRUPO INFO (solo si es comando, con caché) ──────
+    let groupName = "";
+    let groupMeta = null;
+    if (isGroup) {
+      if (groupCache.has(from)) {
+        groupMeta = groupCache.get(from);
+        groupName = groupMeta?.subject || from;
+      } else {
+        try {
+          groupMeta = await sock.groupMetadata(from);
+          groupName = groupMeta?.subject || from;
+          groupCache.set(from, groupMeta);
+          // Expirar caché cada 10 minutos
+          setTimeout(() => groupCache.delete(from), 10 * 60 * 1000);
+        } catch {
+          groupName = from;
+        }
+      }
+    }
 
     // ─── PERMISOS ────────────────────────────────────────
     const senderNum = sender.split("@")[0];
@@ -66,6 +74,8 @@ export async function handleMessage(sock, rawMsg) {
     const isCoOwner = config.coOwners.includes(senderNum);
     const isMod = isOwner || isCoOwner || db.hasRole(senderNum, "mod");
     const isPremium = isMod || db.hasRole(senderNum, "premium");
+
+    log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName });
 
     const ctx = {
       sock,
@@ -91,41 +101,28 @@ export async function handleMessage(sock, rawMsg) {
       react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }),
     };
 
-    if (!isCmd) return;
-
     // ─── EJECUTAR COMANDO ────────────────────────────────
     const plugins = getPlugins();
     const plugin = plugins.get(cmdName);
-
     if (!plugin) return;
 
-    // Chequeo de permisos del plugin
-    if (plugin.ownerOnly && !isOwner) {
+    if (plugin.ownerOnly && !isOwner)
       return ctx.reply({ text: "❌ Solo el owner puede usar este comando." });
-    }
-    if (plugin.modOnly && !isMod) {
+    if (plugin.modOnly && !isMod)
       return ctx.reply({ text: "❌ Solo moderadores pueden usar este comando." });
-    }
-    if (plugin.premiumOnly && !isPremium) {
+    if (plugin.premiumOnly && !isPremium)
       return ctx.reply({ text: "⭐ Este comando es exclusivo para premium." });
-    }
-    if (plugin.groupOnly && !isGroup) {
+    if (plugin.groupOnly && !isGroup)
       return ctx.reply({ text: "👥 Este comando solo funciona en grupos." });
-    }
-    if (plugin.privateOnly && isGroup) {
+    if (plugin.privateOnly && isGroup)
       return ctx.reply({ text: "📩 Este comando solo funciona en privado." });
-    }
 
     const start = Date.now();
     try {
-      await ctx.react("⏳");
       await plugin.run(ctx);
-      const ms = Date.now() - start;
-      log.cmdExec({ cmdName, sender: senderNum, success: true, ms });
-      await ctx.react("✅");
+      log.cmdExec({ cmdName, sender: senderNum, success: true, ms: Date.now() - start });
     } catch (e) {
-      const ms = Date.now() - start;
-      log.cmdExec({ cmdName, sender: senderNum, success: false, ms });
+      log.cmdExec({ cmdName, sender: senderNum, success: false, ms: Date.now() - start });
       log.error(`Comando ${cmdName}: ${e.message}`);
       await ctx.react("❌");
       await ctx.reply({ text: `❌ Error ejecutando \`${cmdName}\`:\n${e.message}` });
