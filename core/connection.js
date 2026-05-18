@@ -5,7 +5,7 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
-import { mkdir, rm } from "fs/promises";
+import { mkdir } from "fs/promises";
 import path from "path";
 import readline from "readline";
 import { log } from "./logger.js";
@@ -33,7 +33,6 @@ async function clearSocketFiles(sessionDir) {
     const files = readdirSync(sessionDir);
     let count = 0;
     for (const file of files) {
-      // Solo borrar archivos de pre-keys y sender-keys, NO creds.json
       if (
         file.startsWith("pre-key-") ||
         file.startsWith("sender-key-") ||
@@ -63,11 +62,9 @@ export async function createConnection({
 } = {}) {
   await mkdir(sessionDir, { recursive: true });
 
-  // Si es un reintento, limpiar archivos de socket corruptos
   if (_attempt > 0) {
     log.warn(`[${botLabel}] Limpiando carpeta de sockets antes de reconectar...`);
     await clearSocketFiles(sessionDir);
-    // Esperar antes de reconectar
     const delay = Math.min(config.reconnectDelay * _attempt, 30000);
     log.info(`[${botLabel}] Esperando ${delay / 1000}s para reconectar...`);
     await new Promise((r) => setTimeout(r, delay));
@@ -112,7 +109,6 @@ export async function createConnection({
       syncFullHistory: false,
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
-      // Timeouts para evitar cuelgues
       connectTimeoutMs: 30000,
       keepAliveIntervalMs: 15000,
       retryRequestDelayMs: 2000,
@@ -125,11 +121,12 @@ export async function createConnection({
     return;
   }
 
-  // ─── PEDIR CÓDIGO ──────────────────────────────────────
+  // ─── PEDIR CÓDIGO (lógica estilo Isagi) ───────────────
   if (useCode && !state.creds.registered) {
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 3000));
     try {
-      const code = await sock.requestPairingCode(phone);
+      let code = await sock.requestPairingCode(phone);
+      code = code?.match(/.{1,4}/g)?.join("-") || code;
       console.log(
         `\n  ┌─────────────────────────────┐\n` +
         `  │  🔑 Tu código: ${String(code).padEnd(14)}│\n` +
@@ -140,13 +137,13 @@ export async function createConnection({
     }
   }
 
-  // ─── TIMEOUT DE CONEXIÓN (evita cuelgue infinito) ──────
+  // ─── TIMEOUT DE CONEXIÓN ──────────────────────────────
   let connectionTimeout = setTimeout(() => {
     log.warn(`[${botLabel}] Timeout de conexión alcanzado, reconectando...`);
     try { sock.end(new Error("timeout")); } catch {}
   }, 60000);
 
-  // ─── EVENTOS DE CONEXIÓN ───────────────────────────────
+  // ─── EVENTOS DE CONEXIÓN ─────────────────────────────
   sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "connecting") {
       log.conn(`[${botLabel}] Conectando...`);
@@ -155,7 +152,6 @@ export async function createConnection({
     if (connection === "open") {
       clearTimeout(connectionTimeout);
       log.ok(`[${botLabel}] ✅ Conectado → ${sock.user?.id}`);
-      // Reset de intentos al conectar exitosamente
     }
 
     if (connection === "close") {
@@ -166,19 +162,16 @@ export async function createConnection({
 
       log.warn(`[${botLabel}] ❌ Conexión cerrada → código: ${statusCode} | ${errorMsg}`);
 
-      // Sesión cerrada — no reconectar sin intervención
       if (statusCode === DisconnectReason.loggedOut) {
         log.error(`[${botLabel}] Sesión cerrada (loggedOut). Elimina la carpeta "${path.basename(sessionDir)}" y reinicia.`);
         return;
       }
 
-      // Reconflicto de sesión (otra instancia abierta)
       if (statusCode === DisconnectReason.connectionReplaced) {
         log.error(`[${botLabel}] Sesión reemplazada por otra instancia. Cerrando.`);
         return;
       }
 
-      // Cualquier otro error: reconectar
       if (_attempt < config.maxReconnectAttempts) {
         log.info(`[${botLabel}] Reconectando (intento ${_attempt + 1}/${config.maxReconnectAttempts})...`);
         createConnection({ sessionDir, botLabel, isSubbot, phoneNumber, _attempt: _attempt + 1 });
@@ -188,23 +181,23 @@ export async function createConnection({
     }
   });
 
-  // ─── MANEJO DE ERRORES DE SOCKET ──────────────────────
+  // ─── MANEJO DE ERRORES DE SOCKET ─────────────────────
   sock.ev.on("CB:stream:error", (err) => {
     log.error(`[${botLabel}] Stream error: ${err?.message || err}`);
   });
 
-  // Capturar errores no manejados del websocket interno
   sock.ws?.on?.("error", (err) => {
     log.error(`[${botLabel}] WS error: ${err?.message || err}`);
   });
 
   sock.ev.on("creds.update", saveCreds);
 
-  // ─── MANEJADOR DE MENSAJES ─────────────────────────────
+  // ─── MANEJADOR DE MENSAJES (lógica estilo Isagi) ──────
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
     for (const msg of messages) {
       if (!msg.message) continue;
+      if (msg.key?.remoteJid === "status@broadcast") continue;
       handleMessage(sock, msg).catch((e) =>
         log.error(`[${botLabel}] Error en mensaje: ${e.message}`)
       );
