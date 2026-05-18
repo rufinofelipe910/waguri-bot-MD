@@ -3,26 +3,36 @@ import { mkdirSync } from "fs";
 
 mkdirSync("./database", { recursive: true });
 
-const defaultData = {
-  users: {},
-  groups: {},
-};
-
+const defaultData = { users: {}, groups: {} };
 const db_instance = await JSONFilePreset("./database/yuta.json", defaultData);
 
-function save() {
-  return db_instance.write();
+// ─── ESCRITURA EN BATCH (cada 5s, no en cada operación) ──
+let saveTimer = null;
+function scheduleSave() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    await db_instance.write();
+  }, 5000);
 }
 
+// ─── CACHÉ EN MEMORIA ─────────────────────────────────────
+const userCache = new Map();
+const groupCache = new Map();
+
 function getUser(jid) {
+  if (userCache.has(jid)) return userCache.get(jid);
+
   if (!db_instance.data.users[jid]) {
     db_instance.data.users[jid] = {
       role: "user",
       banned: false,
       registeredAt: new Date().toISOString(),
     };
-    save();
+    scheduleSave(); // no bloquea
   }
+
+  userCache.set(jid, db_instance.data.users[jid]);
   return db_instance.data.users[jid];
 }
 
@@ -39,7 +49,8 @@ export const db = {
   setRole(jid, role) {
     getUser(jid);
     db_instance.data.users[jid].role = role;
-    save();
+    userCache.set(jid, db_instance.data.users[jid]);
+    scheduleSave();
   },
 
   isBanned(jid) {
@@ -49,29 +60,36 @@ export const db = {
   ban(jid) {
     getUser(jid);
     db_instance.data.users[jid].banned = true;
-    save();
+    userCache.set(jid, db_instance.data.users[jid]);
+    scheduleSave();
   },
 
   unban(jid) {
     getUser(jid);
     db_instance.data.users[jid].banned = false;
-    save();
+    userCache.set(jid, db_instance.data.users[jid]);
+    scheduleSave();
   },
 
   getGroup(jid) {
+    if (groupCache.has(jid)) return groupCache.get(jid);
+
     if (!db_instance.data.groups[jid]) {
       db_instance.data.groups[jid] = {
         welcome: false,
         antilink: false,
       };
-      save();
+      scheduleSave();
     }
+
+    groupCache.set(jid, db_instance.data.groups[jid]);
     return db_instance.data.groups[jid];
   },
 
   setGroup(jid, key, value) {
     db_instance.data.groups[jid] = db_instance.data.groups[jid] || {};
     db_instance.data.groups[jid][key] = value;
-    save();
+    groupCache.set(jid, db_instance.data.groups[jid]);
+    scheduleSave();
   },
 };
