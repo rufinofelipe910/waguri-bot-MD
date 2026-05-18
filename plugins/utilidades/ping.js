@@ -5,7 +5,6 @@ export default {
   async run({ reply, react }) {
     const start = Date.now();
     await react("🏓");
-    const ms = Date.now() - start;
-    await reply({ text: `🏓 *Pong!*\n⚡ Latencia: *${ms}ms*` });
+    await reply({ text: `🏓 *Pong!*\n⚡ Latencia: *${Date.now() - start}ms*` });
   },
 };
