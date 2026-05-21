@@ -3,51 +3,51 @@ export default {
   description: "Muestra el menú de comandos",
   ownerOnly: false,
 
-  async run({ reply, react, senderNum, isGroup, groupName, usedPrefix }) {
+  async run({ sock, from, senderNum, isGroup, groupName, usedPrefix, react }) {
     try {
-      // 1. Reaccionar
+      // 1. Reaccionar de forma segura
       await react("🔮");
 
       const hora = new Date().toLocaleTimeString("es-CO", { hour12: false });
       const fecha = new Date().toLocaleDateString("es-CO");
       const lugar = isGroup ? groupName : "Chat Privado";
 
-      // ─── DISEÑO CASILLAS (ESCRITO A MANO) ─────────────────
-      let text = `┌───────────────────\n`;
-      text += `│ 🔥 *YUTA OKOTSU BOT* 🔥\n`;
-      text += `└───────────────────\n\n`;
+      // ─── DISEÑO CASILLAS ESTABLE ───────────────────────
+      let textoMenu = `┌───────────────────\n`;
+      textoMenu += `│ 🔥 *YUTA OKOTSU BOT* 🔥\n`;
+      textoMenu += `└───────────────────\n\n`;
       
-      text += `┌─── 🪐 *INFO GENERAL* 🪐\n`;
-      text += `│ 👤 *Usuario:* @${senderNum}\n`;
-      text += `│ 📍 *Lugar:* ${lugar}\n`;
-      text += `│ ⏰ *Hora:* ${hora}\n`;
-      text += `│ 📅 *Fecha:* ${fecha}\n`;
-      text += `└───────────────────\n\n`;
+      textoMenu += `┌─── 🪐 *INFO GENERAL* 🪐\n`;
+      textoMenu += `│ 👤 *Usuario:* @${senderNum}\n`;
+      textoMenu += `│ 📍 *Lugar:* ${lugar}\n`;
+      textoMenu += `│ ⏰ *Hora:* ${hora}\n`;
+      textoMenu += `│ 📅 *Fecha:* ${fecha}\n`;
+      textoMenu += `└───────────────────\n\n`;
 
-      text += `*LISTA DE COMANDOS* 📝\n`;
-      text += `_Usa el prefijo (${usedPrefix}) antes de cada comando._\n\n`;
+      textoMenu += `*LISTA DE COMANDOS* 📝\n`;
+      textoMenu += `_Usa el prefijo (${usedPrefix}) antes de cada comando._\n\n`;
 
-      // 👥 CATEGORÍA INFORMACIÓN
-      text += `╭───────────────\n`;
-      text += `│ 🪐 *INFO*\n`;
-      text += `├───────────────\n`;
-      text += `│ ➔ ${usedPrefix}menu\n`;
-      text += `│ ➔ ${usedPrefix}ping\n`;
-      text += `╰───────────────\n\n`;
+      // 🪐 CATEGORÍA INFO
+      textoMenu += `╭───────────────\n`;
+      textoMenu += `│ 🪐 *INFO*\n`;
+      textoMenu += `├───────────────\n`;
+      textoMenu += `│ ➔ ${usedPrefix}menu\n`;
+      textoMenu += `│ ➔ ${usedPrefix}ping\n`;
+      textoMenu += `╰───────────────\n\n`;
 
-      // 👑 CATEGORÍA OWNER (Añade o quita según tus comandos reales)
-      text += `╭───────────────\n`;
-      text += `│ 👑 *OWNER*\n`;
-      text += `├───────────────\n`;
-      text += `│ ➔ ${usedPrefix}test\n`;
-      text += `╰───────────────\n\n`;
+      // 👥 CATEGORÍA GRUPOS
+      textoMenu += `╭───────────────\n`;
+      textoMenu += `│ 👥 *GRUPOS*\n`;
+      textoMenu += `├───────────────\n`;
+      textoMenu += `│ ➔ ${usedPrefix}tag\n`;
+      textoMenu += `╰───────────────\n\n`;
 
-      text += `⏳ _Powered by DuarteXV_`;
+      textoMenu += `⏳ _Powered by DuarteXV_`;
 
-      // 2. Enviar el mensaje
-      await reply({ 
-        text, 
-        mentions: [`${senderNum}@s.whatsapp.net`] 
+      // 2. Enviar usando la estructura exacta de tu comando 'tag'
+      await sock.sendMessage(from, {
+        text: textoMenu,
+        mentions: [`${senderNum}@s.whatsapp.net`],
       });
       
     } catch (error) {
