@@ -1,11 +1,25 @@
-import { getPlugins } from "../../core/pluginLoader.js";
+import axios from "axios";
+
+// Función para descargar la imagen usando axios como buffer
+async function getBuffer(url) {
+  try {
+    const res = await axios({
+      method: "get",
+      url: url,
+      responseType: "arraybuffer"
+    });
+    return Buffer.from(res.data);
+  } catch (e) {
+    throw new Error(`Error descargando la imagen con axios: ${e.message}`);
+  }
+}
 
 export default {
   name: ["menu", "help", "ayuda"],
-  description: "Muestra el menú estético de comandos con vista previa de enlace obligatoria",
+  description: "Muestra el menú estético en formato documento banner usando el flujo oficial",
   ownerOnly: false,
 
-  async run({ sock, from, senderNum, isGroup, groupName, usedPrefix, react }) {
+  async run({ sock, from, senderNum, isGroup, groupName, usedPrefix, react, msg }) {
     try {
       await react("⛩️");
 
@@ -41,23 +55,28 @@ export default {
 
       textoMenu += `🔺 _Powered by DuarteXV | Yuta Okotsu MD_ 🔺`;
 
-      // Enviamos el mensaje forzando a Baileys a generar el Link Preview nativo de WhatsApp
-      await sock.sendMessage(from, {
-        text: textoMenu,
-        mentions: [`${senderNum}@s.whatsapp.net`],
-      }, {
-        linkPreview: {
-          title: "🫧 YUTA OKOTSU MD 🫧",
-          body: "Hechicero de Grado Especial",
-          mediaType: 1, // Tipo 1 especifica que es una imagen/enlace web
-          thumbnailUrl: urlFoto,
-          sourceUrl: urlFoto,
-          "render-larger-thumbnail": true // Esto obliga a WhatsApp a hacer la previsualización grande arriba del texto
-        }
-      });
+      // Descargamos el buffer usando axios
+      const thumbBuffer = await getBuffer(urlFoto);
       
+      // Creamos el buffer del documento falso con el texto del menú
+      const fakeDocument = Buffer.from(textoMenu, "utf-8");
+
+      // Enviamos utilizando el método oficial del bot para que sea procesado por el ejecutador
+      await sock.sendMessage(from, {
+        document: fakeDocument,
+        mimetype: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        fileName: "⚔️ Yuta Okotsu System.xlsx",
+        caption: textoMenu,
+        mentions: [`${senderNum}@s.whatsapp.net`],
+        jpegThumbnail: thumbBuffer,
+        thumbnailWidth: 400,
+        thumbnailHeight: 180
+      }, { 
+        quoted: msg // Lo vincula al mensaje que envió el usuario
+      });
+
     } catch (error) {
-      console.error("Error en el comando menu con linkPreview forzado:", error);
+      console.error("Error en el comando menu por flujo oficial:", error);
     }
   }
 };
