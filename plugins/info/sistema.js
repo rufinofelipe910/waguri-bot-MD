@@ -11,21 +11,18 @@ export default {
     try {
       await react("🖥️");
 
-      // ── RAM ──────────────────────────────────
       const ramTotal = os.totalmem();
       const ramLibre  = os.freemem();
       const ramUsada  = ramTotal - ramLibre;
       const ramBot    = process.memoryUsage().heapUsed;
 
-      const toMB = (b) => (b / 1024 / 1024).toFixed(2);
+      const toGB = (b) => (b / 1024 / 1024 / 1024).toFixed(2);
       const pct  = ((ramUsada / ramTotal) * 100).toFixed(1);
 
-      // ── CPU ──────────────────────────────────
       const cpus     = os.cpus();
       const cpuModel = cpus[0]?.model?.trim() || "Desconocido";
       const cpuCores = cpus.length;
 
-      // ── Uptime ───────────────────────────────
       const uptimeSys = os.uptime();
       const uptimeBot = process.uptime();
 
@@ -36,7 +33,6 @@ export default {
         return `${h}h ${m}m ${sec}s`;
       };
 
-      // ── Node ─────────────────────────────────
       const nodeVer    = process.version;
       const plataforma = os.platform();
       const arch       = os.arch();
@@ -50,10 +46,10 @@ export default {
       text += `  ✦ *Plataforma:* ${plataforma} (${arch})\n\n`;
 
       text += `🧠 ─── ❖ *MEMORIA RAM* ❖ ─── 🧠\n`;
-      text += `  ✦ *Total:* ${toMB(ramTotal)} MB\n`;
-      text += `  ✦ *Usada:* ${toMB(ramUsada)} MB (${pct}%)\n`;
-      text += `  ✦ *Libre:* ${toMB(ramLibre)} MB\n`;
-      text += `  ✦ *Bot usa:* ${toMB(ramBot)} MB\n\n`;
+      text += `  ✦ *Total:* ${toGB(ramTotal)} GB\n`;
+      text += `  ✦ *Usada:* ${toGB(ramUsada)} GB (${pct}%)\n`;
+      text += `  ✦ *Libre:* ${toGB(ramLibre)} GB\n`;
+      text += `  ✦ *Bot usa:* ${toGB(ramBot)} GB\n\n`;
 
       text += `⏱️ ─── ❖ *UPTIME* ❖ ─── ⏱️\n`;
       text += `  ✦ *Bot activo:* ${formatTime(uptimeBot)}\n`;
@@ -65,9 +61,7 @@ export default {
 
       text += `🔺 _Powered by DuarteXV | Yuta Okotsu MD_ 🔺`;
 
-      await sock.sendMessage(from, {
-        text,
-      }, { quoted: msg });
+      await sock.sendMessage(from, { text }, { quoted: msg });
 
     } catch (error) {
       console.error("Error en system:", error);
