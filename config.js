@@ -1,21 +1,21 @@
 export default {
   // ─── BOT INFO ───────────────────────────────────────────
   botName: "Yuta Okotsu",
-  prefix: ".",           // Cambia a lo que quieras: !, /, #, etc.
-  
+  prefix: ".",
+
   // ─── OWNER ──────────────────────────────────────────────
-  ownerNumber: ["573135180876"],  // Tu número con código de país, sin +
+  ownerNumber: ["573135180876", "50588112827"],  // Tu número con código de país, sin +
   coOwners: [],
 
   // ─── SESIONES ───────────────────────────────────────────
   sessionDir: "./sessions/main",
 
   // ─── COMPORTAMIENTO ─────────────────────────────────────
-  readMessages: true,        // Marcar mensajes como leídos
+  readMessages: true,
   autoReconnect: true,
   maxReconnectAttempts: 10,
-  reconnectDelay: 5000,      // ms entre reconexiones
+  reconnectDelay: 5000,
 
   // ─── LOGS ───────────────────────────────────────────────
-  logLevel: "info",          // silent | info | debug
+  logLevel: "info",
 };
