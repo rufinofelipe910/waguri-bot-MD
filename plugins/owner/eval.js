@@ -4,7 +4,6 @@ export default {
   ownerOnly: true,
   async run({ reply, text, sock, from, msg }) {
     try {
-      // eslint-disable-next-line no-eval
       let result = await eval(`(async () => { ${text} })()`);
       if (typeof result !== "string") result = JSON.stringify(result, null, 2);
       await reply({ text: `✅ *Resultado:*\n\`\`\`${result}\`\`\`` });
