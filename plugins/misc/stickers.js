@@ -12,7 +12,6 @@ const tmp = path.join(__dirname, '../../tmp')
 if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true })
 
 async function addExif(webpBuffer) {
-  // Usar node-webpmux que ya está en tu package.json con fluent-ffmpeg
   const { default: webp } = await import('node-webpmux')
   const img        = new webp.Image()
   const json       = {
@@ -87,11 +86,20 @@ export default {
       const esSticker = targetType === 'stickerMessage'
 
       let webpBuffer
+
       if (esSticker) {
         const inputP = path.join(tmp, `stk_${Date.now()}.webp`)
         const outP   = path.join(tmp, `stk_${Date.now()}_out.webp`)
         fs.writeFileSync(inputP, buffer)
-        await execAsync(`ffmpeg -i "${inputP}" -c:v libwebp "${outP}" -y`)
+        try {
+          await execAsync(`ffmpeg -i "${inputP}" -vcodec copy "${outP}" -y`)
+        } catch {
+          try {
+            await execAsync(`ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`)
+          } catch {
+            fs.writeFileSync(outP, buffer)
+          }
+        }
         webpBuffer = fs.readFileSync(outP)
         try { fs.unlinkSync(inputP); fs.unlinkSync(outP) } catch {}
       } else {
