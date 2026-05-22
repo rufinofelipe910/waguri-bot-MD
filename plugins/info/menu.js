@@ -1,5 +1,6 @@
 import axios from "axios";
 
+// Función limpia para obtener el buffer de la imagen
 async function getBuffer(url) {
   try {
     const res = await axios({
@@ -15,7 +16,7 @@ async function getBuffer(url) {
 
 export default {
   name: ["menu", "help", "ayuda"],
-  description: "Muestra la lista de comandos disponibles",
+  description: "Muestra el menú forzando Link Preview grande con redimensionamiento al vuelo",
   ownerOnly: false,
 
   async run({ sock, from, senderNum, isGroup, groupName, usedPrefix, react, msg }) {
@@ -26,7 +27,8 @@ export default {
       const fecha = new Date().toLocaleDateString("es-CO");
       const lugar = isGroup ? groupName : "Chat Privado";
 
-      const urlFoto = "https://raw.githubusercontent.com/DuarteXV/Yotsuba-MD-Premium/main/uploads/81af45f44481e159.jpg";
+      // Tu imagen original
+      const urlFotoRaw = "https://raw.githubusercontent.com/DuarteXV/Yotsuba-MD-Premium/main/uploads/81af45f44481e159.jpg";
       const linkMatch = "https://mancosyasiociados.wuaze.com/";
 
       let textoMenu = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`;
@@ -56,7 +58,11 @@ export default {
       textoMenu += `🔺 _Powered by DuarteXV | Yuta Okotsu MD_ 🔺\n`;
       textoMenu += `🔗 ${linkMatch}`;
 
-      const thumbBuffer = await getBuffer(urlFoto);
+      // EL TRUCO: Pasamos la imagen por un proxy para recortarla a horizontal (600x314) y bajarle el peso.
+      // Esto obliga a WhatsApp a reconocerla como un banner válido para Link Preview.
+      const urlLandscape = `https://wsrv.nl/?url=${encodeURIComponent(urlFotoRaw)}&w=600&h=314&fit=cover&output=jpg&q=50`;
+      
+      const thumbBuffer = await getBuffer(urlLandscape);
       const base64Image = thumbBuffer.toString("base64");
 
       const content = {
@@ -69,8 +75,9 @@ export default {
           previewType: 0,
           jpegThumbnail: base64Image, 
           
-          thumbnailHeight: 1080,
-          thumbnailWidth: 1920,
+          // Dimensiones exactas de la imagen generada por el proxy
+          thumbnailHeight: 314,
+          thumbnailWidth: 600,
 
           contextInfo: {
             mentionedJid: [senderNum + "@s.whatsapp.net"],
@@ -88,7 +95,7 @@ export default {
       await sock.relayMessage(from, content, { messageId: msg.key.id });
 
     } catch (error) {
-      console.error("Error en el comando menu:", error);
+      console.error("Error en el comando menu por Link Preview:", error);
     }
   }
 };
