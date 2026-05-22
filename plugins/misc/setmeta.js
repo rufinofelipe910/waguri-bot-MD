@@ -15,13 +15,18 @@ export default {
 
     if (texto.includes('|')) {
       const [p, a] = texto.split('|').map(s => s.trim())
-      userMeta.set(senderNum, { packname: p || defaultMeta.packname, author: a || defaultMeta.author })
+      userMeta.set(senderNum, {
+        packname: p || defaultMeta.packname,
+        author: a || defaultMeta.author
+      })
     } else {
       const current = userMeta.get(senderNum) || defaultMeta
       userMeta.set(senderNum, { ...current, packname: texto })
     }
 
     const meta = userMeta.get(senderNum)
-    await reply({ text: `✅ *Marca actualizada*\n\n📦 *Pack:* ${meta.packname}\n✍️ *Autor:* ${meta.author}` })
+    await reply({
+      text: `✅ *Marca actualizada*\n\n📦 *Pack:* ${meta.packname}\n✍️ *Autor:* ${meta.author}`
+    })
   }
 }
