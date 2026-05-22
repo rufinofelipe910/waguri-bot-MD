@@ -7,14 +7,14 @@ export default {
   category: "info",
   ownerOnly: false,
 
-  async run({ sock, from, usedPrefix, react, msg }) {
+  async run({ sock, from, react, msg }) {
     try {
-      await react("🖥️");
+      await react("⚔️");
 
       const ramTotal = os.totalmem();
-      const ramLibre  = os.freemem();
-      const ramUsada  = ramTotal - ramLibre;
-      const ramBot    = process.memoryUsage().heapUsed;
+      const ramLibre = os.freemem();
+      const ramUsada = ramTotal - ramLibre;
+      const ramBot   = process.memoryUsage().heapUsed;
 
       const toGB = (b) => (b / 1024 / 1024 / 1024).toFixed(2);
       const pct  = ((ramUsada / ramTotal) * 100).toFixed(1);
@@ -23,8 +23,8 @@ export default {
       const cpuModel = cpus[0]?.model?.trim() || "Desconocido";
       const cpuCores = cpus.length;
 
-      const uptimeSys = os.uptime();
       const uptimeBot = process.uptime();
+      const uptimeSys = os.uptime();
 
       const formatTime = (s) => {
         const h = Math.floor(s / 3600);
@@ -38,28 +38,29 @@ export default {
       const arch       = os.arch();
 
       let text = "";
-      text += `🖥️ *SISTEMA — YUTA OKOTSU* 🖥️\n\n`;
+      text += `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`;
+      text += `⚔️ _Sistema del Hechicero de Grado Especial_\n\n`;
 
       text += `⚡ ─── ❖ *CPU* ❖ ─── ⚡\n`;
-      text += `  ✦ *Modelo:* ${cpuModel}\n`;
-      text += `  ✦ *Núcleos:* ${cpuCores}\n`;
-      text += `  ✦ *Plataforma:* ${plataforma} (${arch})\n\n`;
+      text += `  ❀ *Modelo:* ${cpuModel}\n`;
+      text += `  ❖ *Núcleos:* ${cpuCores}\n`;
+      text += `  ᰔ *Plataforma:* ${plataforma} (${arch})\n\n`;
 
       text += `🧠 ─── ❖ *MEMORIA RAM* ❖ ─── 🧠\n`;
-      text += `  ✦ *Total:* ${toGB(ramTotal)} GB\n`;
-      text += `  ✦ *Usada:* ${toGB(ramUsada)} GB (${pct}%)\n`;
-      text += `  ✦ *Libre:* ${toGB(ramLibre)} GB\n`;
-      text += `  ✦ *Bot usa:* ${toGB(ramBot)} GB\n\n`;
+      text += `  ᰔ *Total:* ${toGB(ramTotal)} GB\n`;
+      text += `  ✐ *Usada:* ${toGB(ramUsada)} GB (${pct}%)\n`;
+      text += `  ᰔ *Libre:* ${toGB(ramLibre)} GB\n`;
+      text += `  ✐ *Bot usa:* ${toGB(ramBot)} GB\n\n`;
 
-      text += `⏱️ ─── ❖ *UPTIME* ❖ ─── ⏱️\n`;
-      text += `  ✦ *Bot activo:* ${formatTime(uptimeBot)}\n`;
-      text += `  ✦ *Servidor:* ${formatTime(uptimeSys)}\n\n`;
+      text += `ೱ ─── ❖ *UPTIME* ❖ ─── ೱ\n`;
+      text += `  ✐ *Bot activo:* ${formatTime(uptimeBot)}\n`;
+      text += `  ✐ *Servidor:* ${formatTime(uptimeSys)}\n\n`;
 
-      text += `🔧 ─── ❖ *ENTORNO* ❖ ─── 🔧\n`;
-      text += `  ✦ *Node.js:* ${nodeVer}\n`;
-      text += `  ✦ *PID:* ${process.pid}\n\n`;
+      text += `ᰔ ─── ❖ *ENTORNO* ❖ ─── ᰔ\n`;
+      text += `  ✐ *Node.js:* ${nodeVer}\n`;
+      text += `  ✐ *PID:* ${process.pid}\n\n`;
 
-      text += `🔺 _Powered by DuarteXV | Yuta Okotsu MD_ 🔺`;
+      text += `> ⚔️ _Powered by || DuarteXV | Yuta Okotsu MD_ ⚔️`;
 
       await sock.sendMessage(from, { text }, { quoted: msg });
 
