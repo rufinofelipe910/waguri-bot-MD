@@ -11,10 +11,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const tmp = path.join(__dirname, '../../tmp')
 if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true })
 
-export const defaultMeta = { packname: '⚔️ Yuta Okotsu MD', author: 'DuarteXV' }
+export const defaultMeta = {
+  packname: '⚔️ Yuta Okotsu MD',
+  author: 'DuarteXV'
+}
+
 export const userMeta = new Map()
 
-export async function addExif(webpBuffer, packname, author) {
+async function addExif(webpBuffer, packname, author) {
   const { default: webp } = await import('node-webpmux')
   const img        = new webp.Image()
   const json       = {
@@ -32,7 +36,7 @@ export async function addExif(webpBuffer, packname, author) {
   return await img.save(null)
 }
 
-export async function convertirWebp(buffer, esVideo = false) {
+async function convertirWebp(buffer, esVideo = false) {
   const ext    = esVideo ? 'mp4' : 'jpg'
   const inputP = path.join(tmp, `stk_${Date.now()}.${ext}`)
   const outP   = path.join(tmp, `stk_${Date.now()}.webp`)
@@ -63,7 +67,7 @@ export default {
     try {
       await react('🕒')
 
-      const meta = userMeta.get(senderNum) || defaultMeta
+      const meta   = userMeta.get(senderNum) || defaultMeta
       let packname = meta.packname
       let author   = meta.author
 
