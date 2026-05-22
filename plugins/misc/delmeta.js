@@ -9,6 +9,8 @@ export default {
   async run({ senderNum, react, reply }) {
     await react('🗑️')
     userMeta.delete(senderNum)
-    await reply({ text: `✅ *Marca reseteada*\n\n📦 *Pack:* ${defaultMeta.packname}\n✍️ *Autor:* ${defaultMeta.author}` })
+    await reply({
+      text: `✅ *Marca reseteada*\n\n📦 *Pack:* ${defaultMeta.packname}\n✍️ *Autor:* ${defaultMeta.author}`
+    })
   }
 }
