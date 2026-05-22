@@ -5,26 +5,20 @@ import { fileURLToPath } from 'url'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { db } from '../../database/db.js'
 
 const execAsync = promisify(exec)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const tmp = path.join(__dirname, '../../tmp')
 if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true })
 
-export const defaultMeta = {
-  packname: '⚔️ Yuta Okotsu MD',
-  author: 'DuarteXV'
-}
-
-export const userMeta = new Map()
-
 async function addExif(webpBuffer, packname, author) {
   const { default: webp } = await import('node-webpmux')
   const img        = new webp.Image()
   const json       = {
     'sticker-pack-id': crypto.randomBytes(32).toString('hex'),
-    'sticker-pack-name': packname || defaultMeta.packname,
-    'sticker-pack-publisher': author || defaultMeta.author,
+    'sticker-pack-name': packname,
+    'sticker-pack-publisher': author,
     'emojis': ['⚔️']
   }
   const exifAttr   = Buffer.from([0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x01,0x00,0x41,0x57,0x07,0x00,0x00,0x00,0x00,0x00,0x16,0x00,0x00,0x00])
@@ -67,9 +61,9 @@ export default {
     try {
       await react('🕒')
 
-      const meta   = userMeta.get(senderNum) || defaultMeta
-      let packname = meta.packname
-      let author   = meta.author
+      const user     = db.getUser(senderNum)
+      let packname   = user.text1 || '⚔️ Yuta Okotsu MD'
+      let author     = user.text2 || 'DuarteXV'
 
       if (args.length > 0) {
         const texto = args.join(' ')
