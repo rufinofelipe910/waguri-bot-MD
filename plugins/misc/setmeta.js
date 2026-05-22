@@ -1,4 +1,4 @@
-import { userMeta, defaultMeta } from './Sticker.js'
+import { db } from '../../database/db.js'
 
 export default {
   name: ['setmeta'],
@@ -8,25 +8,27 @@ export default {
 
   async run({ senderNum, args, react, reply }) {
     await react('⚙️')
+
     const texto = args.join(' ')
     if (!texto) return await reply({
       text: `❌ Uso: *.setmeta Pack | Autor*\n\nEjemplo:\n*.setmeta Mi Pack | Mi Nombre*`
     })
 
-    if (texto.includes('|')) {
-      const [p, a] = texto.split('|').map(s => s.trim())
-      userMeta.set(senderNum, {
-        packname: p || defaultMeta.packname,
-        author: a || defaultMeta.author
-      })
-    } else {
-      const current = userMeta.get(senderNum) || defaultMeta
-      userMeta.set(senderNum, { ...current, packname: texto })
-    }
+    const partes = texto.split(/[\u2022|]/).map(s => s.trim())
+    if (partes.length < 2) return await reply({
+      text: `❌ Separa pack y autor con *|*\n\nEjemplo:\n*.setmeta Mi Pack | Mi Nombre*`
+    })
 
-    const meta = userMeta.get(senderNum)
+    const user = db.getUser(senderNum)
+    if (user.text1 || user.text2) return await reply({
+      text: `⚠️ Ya tienes una marca establecida.\nUsa *.delmeta* para eliminarla primero.`
+    })
+
+    user.text1 = partes[0]
+    user.text2 = partes[1]
+
     await reply({
-      text: `✅ *Marca actualizada*\n\n📦 *Pack:* ${meta.packname}\n✍️ *Autor:* ${meta.author}`
+      text: `✅ *Marca actualizada*\n\n📦 *Pack:* ${user.text1}\n✍️ *Autor:* ${user.text2}`
     })
   }
 }
