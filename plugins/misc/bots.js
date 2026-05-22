@@ -12,21 +12,23 @@ export default {
     const hora  = new Date().toLocaleTimeString('es-CO', { hour12: false })
     const fecha = new Date().toLocaleDateString('es-CO')
 
+    const botsActivos = [...activeBots.entries()].filter(([, bot]) =>
+      bot.status === 'online'
+    )
+
     let text = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`
     text += `🤖 _Bots conectados al sistema_\n\n`
 
-    if (activeBots.size === 0) {
-      text += `❌ No hay bots registrados.\n`
+    if (botsActivos.length === 0) {
+      text += `❌ No hay bots conectados.\n`
     } else {
       let i = 1
-      for (const [id, bot] of activeBots) {
-        const status = bot.status === 'online' ? '🟢' : '🔴'
-        const tipo   = bot.isMain ? '👑 *PRINCIPAL*' : '🤖 Subbot'
-        const num    = bot.jid?.split(':')[0] || bot.jid?.split('@')[0] || 'N/A'
-        text += `${status} *${i}. ${bot.label}*\n`
+      for (const [, bot] of botsActivos) {
+        const tipo = bot.isMain ? '👑 *PRINCIPAL*' : '🤖 Subbot'
+        const num  = bot.jid?.split(':')[0] || bot.jid?.split('@')[0] || 'N/A'
+        text += `🟢 *${i}. ${bot.label}*\n`
         text += `   ✦ Tipo: ${tipo}\n`
-        text += `   ✦ Número: ${num}\n`
-        text += `   ✦ Estado: ${bot.status}\n\n`
+        text += `   ✦ Número: ${num}\n\n`
         i++
       }
     }
