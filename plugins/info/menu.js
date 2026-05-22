@@ -1,5 +1,4 @@
 import axios from "axios";
-import { prepareWAMessageMedia } from "@whiskeysockets/baileys";
 
 async function getBuffer(url) {
   try {
@@ -58,13 +57,7 @@ export default {
       textoMenu += `🔗 ${linkMatch}`;
 
       const thumbBuffer = await getBuffer(urlFoto);
-
-      const imageUpload = await prepareWAMessageMedia(
-        { image: thumbBuffer },
-        { upload: sock.waUploadToServer }
-      );
-
-      const imageMessage = imageUpload.imageMessage;
+      const base64Image = thumbBuffer.toString("base64");
 
       const content = {
         extendedTextMessage: {
@@ -74,19 +67,14 @@ export default {
           description: "Developed by JonathanG ❄",
           title: "LEON-KENNEDY",
           previewType: 0,
-          jpegThumbnail: thumbBuffer.toString("base64"), 
+          jpegThumbnail: base64Image, 
           
-          thumbnailDirectPath: imageMessage.directPath,
-          thumbnailSha256: imageMessage.fileSha256,
-          thumbnailEncSha256: imageMessage.fileEncSha256,
-          mediaKey: imageMessage.mediaKey,
-          mediaKeyTimestamp: imageMessage.mediaKeyTimestamp,
           thumbnailHeight: 1080,
           thumbnailWidth: 1920,
 
           contextInfo: {
             mentionedJid: [senderNum + "@s.whatsapp.net"],
-            forwardingScore: -1,
+            forwardingScore: 9999,
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
               newsletterJid: "120363368618055639@newsletter", 
