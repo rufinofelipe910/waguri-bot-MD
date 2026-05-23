@@ -70,83 +70,9 @@ export default {
     try {
       await react('🕒')
 
-      const user     = db.getUser(senderNum)
-      let packname   = user.text1 || config.packname
-      let author     = user.text2 || config.wm
-
-      if (args.length > 0) {
-        const texto = args.join(' ')
-        if (texto.includes('|')) {
-          const [p, a] = texto.split('|').map(s => s.trim())
-          packname = p || packname
-          author   = a || author
-        } else {
-          packname = texto
-          author   = texto
-        }
-      }
-
-      const msgType    = Object.keys(msg.message || {})[0]
-      const quoted     = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
-      const quotedType = quoted ? Object.keys(quoted)[0] : null
-
-      const mediaMsg  = ['imageMessage', 'videoMessage', 'stickerMessage'].includes(msgType) ? msg : null
-      const quotedMsg = quoted && ['imageMessage', 'videoMessage', 'stickerMessage'].includes(quotedType)
-        ? {
-            key: {
-              remoteJid: from,
-              id: msg.message.extendedTextMessage.contextInfo.stanzaId,
-              participant: msg.message.extendedTextMessage?.contextInfo?.participant,
-            },
-            message: quoted,
-          }
-        : null
-
-      const targetMsg  = mediaMsg || quotedMsg
-      const targetType = mediaMsg ? msgType : quotedType
-
-      if (!targetMsg) return await reply({
-        text: `❌ Envía o responde una imagen, video (máx 15s) o sticker.\n\n💡 *${usedPrefix}s* ➔ sticker normal\n💡 *${usedPrefix}s MiMarca* ➔ marca personalizada`
-      })
-
-      const buffer    = await downloadMediaMessage(targetMsg, 'buffer', {}, { sock })
-      const esVideo   = targetType === 'videoMessage'
-      const esSticker = targetType === 'stickerMessage'
-
-      let webpBuffer
-      if (esSticker) {
-        const inputP = path.join(tmp, `stk_${Date.now()}.webp`)
-        const outP   = path.join(tmp, `stk_${Date.now()}_out.webp`)
-        fs.writeFileSync(inputP, buffer)
-        try {
-          await execAsync(`ffmpeg -i "${inputP}" -vcodec copy "${outP}" -y`)
-        } catch {
-          try {
-            await execAsync(`ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`)
-          } catch {
-            fs.writeFileSync(outP, buffer)
-          }
-        }
-        webpBuffer = fs.readFileSync(outP)
-        try { fs.unlinkSync(inputP); fs.unlinkSync(outP) } catch {}
-      } else {
-        webpBuffer = await convertirWebp(buffer, esVideo)
-      }
-
-      const exifResult = await addExif(webpBuffer, packname, author)
-
-      // ─── DEBUG EN CHAT ───────────────────────────────────
-      await reply({
-        text: `🔍 *DEBUG EXIF*\n\n` +
-          `📦 *Pack:* ${exifResult.packname}\n` +
-          `✍️ *Author:* ${exifResult.author}\n` +
-          `📏 *Antes:* ${exifResult.sizeBefore} bytes\n` +
-          `📏 *Después:* ${exifResult.sizeAfter} bytes\n` +
-          `${exifResult.sizeAfter > exifResult.sizeBefore ? '✅ Exif aplicado' : '❌ Exif NO aplicado'}`
-      })
-
-      await sock.sendMessage(from, { sticker: exifResult.buffer }, { quoted: msg })
-      await react('✅')
+      // ─── DEBUG TEMPORAL ──────────────────────────────────
+      await reply({ text: `config.packname: "${config.packname}"\nconfig.wm: "${config.wm}"` })
+      return
 
     } catch (error) {
       await react('❌')
