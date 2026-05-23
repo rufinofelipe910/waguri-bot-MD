@@ -72,8 +72,8 @@ export default {
       await react('🕒')
 
       const user     = db.getUser(senderNum)
-      let packname   = user.text1 || '⚔️ Yuta Okotsu MD'
-      let author     = user.text2 || 'Yuta Okotsu MD•DuarteXV'
+      let packname   = user.text1 || 'Yuta Okotsu MD•DuarteXV'
+      let author     = user.text2 || 'DuarteXV'
 
       if (args.length > 0) {
         const texto = args.join(' ')
@@ -82,7 +82,7 @@ export default {
           packname = p || packname
           author   = a || author
         } else {
-          author = texto
+          packname = texto
         }
       }
 
