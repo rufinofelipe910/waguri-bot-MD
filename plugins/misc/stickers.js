@@ -17,8 +17,8 @@ async function addExif(webpBuffer, packname, author) {
   const img = new webp.Image()
   const json = {
     'sticker-pack-id': crypto.randomBytes(32).toString('hex'),
-    'sticker-pack-name': author,
-    'sticker-pack-publisher': packname,
+    'sticker-pack-name': packname,
+    'sticker-pack-publisher': author,
     'emojis': ['⚔️']
   }
   const exifAttr   = Buffer.from([0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x01,0x00,0x41,0x57,0x07,0x00,0x00,0x00,0x00,0x00,0x16,0x00,0x00,0x00])
@@ -61,9 +61,12 @@ export default {
     try {
       await react('🕒')
 
-      const user     = db.getUser(senderNum)
-      let packname   = user.text1 || 'Yuta Okotsu MD•DuarteXV'
-      let author     = user.text2 || 'Yuta Okotsu MD•DuarteXV'
+      const hora  = new Date().toLocaleTimeString('es-CO', { hour12: false })
+      const fecha = new Date().toLocaleDateString('es-CO')
+
+      const user   = db.getUser(senderNum)
+      let packname = user.text1 || `⏤͟͞ू⃪ ✦ ⚔️ ✦ ⏤͟͞ू⃪\n𖤓 Yuta Okotsu MD\n𖤓 By DuarteXV\n𖤓 ${fecha}\n𖤓 ${hora}`
+      let author   = user.text2 || `⚔️ Yuta Okotsu MD ⚔️\n「 DuarteXV 」`
 
       if (args.length > 0) {
         const texto = args.join(' ')
