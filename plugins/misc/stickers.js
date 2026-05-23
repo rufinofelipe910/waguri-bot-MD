@@ -32,7 +32,8 @@ async function addExif(webpBuffer, packname, author) {
     await img.load(tmpExif)
     img.exif = exif
     await img.save(tmpExif)
-    return fs.readFileSync(tmpExif)
+    const result = fs.readFileSync(tmpExif)
+    return { buffer: result, packname, author, sizeBefore: webpBuffer.length, sizeAfter: result.length }
   } finally {
     try { fs.unlinkSync(tmpExif) } catch {}
   }
@@ -132,8 +133,19 @@ export default {
         webpBuffer = await convertirWebp(buffer, esVideo)
       }
 
-      const stickerFinal = await addExif(webpBuffer, packname, author)
-      await sock.sendMessage(from, { sticker: stickerFinal }, { quoted: msg })
+      const exifResult = await addExif(webpBuffer, packname, author)
+
+      // ─── DEBUG EN CHAT ───────────────────────────────────
+      await reply({
+        text: `🔍 *DEBUG EXIF*\n\n` +
+          `📦 *Pack:* ${exifResult.packname}\n` +
+          `✍️ *Author:* ${exifResult.author}\n` +
+          `📏 *Antes:* ${exifResult.sizeBefore} bytes\n` +
+          `📏 *Después:* ${exifResult.sizeAfter} bytes\n` +
+          `${exifResult.sizeAfter > exifResult.sizeBefore ? '✅ Exif aplicado' : '❌ Exif NO aplicado'}`
+      })
+
+      await sock.sendMessage(from, { sticker: exifResult.buffer }, { quoted: msg })
       await react('✅')
 
     } catch (error) {
