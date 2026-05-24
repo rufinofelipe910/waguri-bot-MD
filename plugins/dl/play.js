@@ -15,11 +15,11 @@ export default {
     try {
       if (!text.trim()) {
         return reply({
-          text: "⚽ Ingresa el nombre o enlace del video.",
+          text: "﹒escribe el nombre o link del video",
         });
       }
 
-      await react("🔍");
+      await react("🎧");
 
       const search = await yts(text);
 
@@ -29,7 +29,7 @@ export default {
 
       if (!yt) {
         return reply({
-          text: "✧ No se encontraron resultados.",
+          text: "﹒no encontré resultados",
         });
       }
 
@@ -49,12 +49,10 @@ export default {
         {
           image: { url: thumbnail },
           caption:
-            `⚽ 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱\n` +
-            `> 🎬 *${title}*\n` +
-            `> 👁️ *${vistas}*\n` +
-            `> ⏱️ *${timestamp}*\n` +
-            `> 📅 *${ago}*\n\n` +
-            `⚽ Procesando archivo...`
+            `﹒${title}\n\n` +
+            `꒰ ${vistas} vistas\n` +
+            `꒰ ${timestamp}\n` +
+            `꒰ ${ago}`
         },
         { quoted: msg }
       );
@@ -79,7 +77,7 @@ export default {
 
       if (!json?.status || !json?.data?.download?.url) {
         return reply({
-          text: "❌ No se pudo descargar el archivo",
+          text: "﹒no pude obtener el archivo",
         });
       }
 
@@ -148,7 +146,7 @@ export default {
       await react("❌");
 
       await reply({
-        text: `⚠︎ Error: ${e.message}`,
+        text: `﹒${e.message}`,
       });
     }
   },
