@@ -4,11 +4,10 @@ import yts from 'yt-search'
 const API_KEY = 'free_key' // API KEY
 
 export default {
-  name: ['play'],
-  description: 'Descarga música de YouTube',
-  category: 'downloader',
+  name: ["play"],
+  description: "Descarga música de YouTube",
   ownerOnly: false,
-
+  
   async run({ sock, from, msg, react, reply, text }) {
     try {
       if (!text) return reply({ text: '✧ Ingresa un nombre o link' })
@@ -63,5 +62,5 @@ export default {
       await react('❌')
       await reply({ text: `❌ Error: ${error.message}` })
     }
-  }
-}
+  },
+};
