@@ -12,7 +12,7 @@ export default {
     try {
       if (!text.trim()) {
         return reply({
-          text: "˖ ࣪ 𐙚 escribe el nombre o link del video",
+          text: "⛧ escribe el nombre o link del video",
         });
       }
 
@@ -26,7 +26,7 @@ export default {
 
       if (!yt) {
         return reply({
-          text: "˖ ࣪ 𐙚 no encontré resultados",
+          text: "⛧ no encontré resultados",
         });
       }
 
@@ -41,7 +41,7 @@ export default {
 
       if (!data?.status || !data?.download_url) {
         return reply({
-          text: "˖ ࣪ 𐙚 no pude obtener el audio",
+          text: "⛧ no pude obtener el audio",
         });
       }
 
@@ -60,12 +60,12 @@ export default {
         {
           image: { url: thumbnail || yt.thumbnail },
           caption:
-            `「✦」Descargando *<${title}>*\n\n` +
-            `> ✐ Vistas » *${vistas}*\n` +
-            `> ⴵ Duracion » *${formatDuration(duration)}*\n` +
-            `> ✰ Calidad » *128 kbps*\n` +
-            `> ❒ Formato » *mp3*\n` +
-            `> 🜸 Link » ${youtube_url}`
+            `⛧ ${title}\n\n` +
+            `⛧ vistas › ${vistas}\n` +
+            `⛧ duración › ${formatDuration(duration)}\n` +
+            `⛧ calidad › 128 kbps\n` +
+            `⛧ formato › mp3\n` +
+            `⛧ link › ${youtube_url}`
         },
         { quoted: msg }
       );
@@ -88,7 +88,7 @@ export default {
       await react("❌");
 
       await reply({
-        text: `˖ ࣪ 𐙚 ${e.message}`,
+        text: `⛧ ${e.message}`,
       });
     }
   },
