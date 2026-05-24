@@ -4,15 +4,16 @@ import yts from "yt-search";
 const API_KEY = "free_key";
 
 export default {
-  name: ["play"],
+  name: ["play", "music"],
   description: "Descarga música de YouTube",
+  category: "downloader",
   ownerOnly: false,
 
   async run({ sock, from, msg, text, reply, react }) {
     try {
       if (!text) {
         return reply({
-          text: "✧ Ingresa un nombre o link",
+          text: "✧ Ingresa un nombre o link de YouTube",
         });
       }
 
@@ -20,55 +21,70 @@ export default {
 
       let videoUrl = text;
 
-      // Buscar en YouTube si no es link
+      // ─── BUSCAR VIDEO SI NO ES LINK ───────────────────
       if (
         !text.includes("youtube.com") &&
         !text.includes("youtu.be")
       ) {
         const search = await yts(text);
 
-        if (!search.videos.length) {
+        if (!search?.videos?.length) {
           return reply({
-            text: "❌ Sin resultados",
+            text: "❌ No encontré resultados",
           });
         }
 
         videoUrl = search.videos[0].url;
       }
 
-      // API
+      // ─── API ──────────────────────────────────────────
       const api = `https://yosoyyo-api-ofc.onrender.com/api/youtube?q=${encodeURIComponent(
         videoUrl
       )}&apiKey=${API_KEY}`;
 
-      const res = await axios.get(api, {
+      const { data } = await axios.get(api, {
         timeout: 30000,
       });
 
-      const data = res.data?.result?.[0];
+      // ─── VALIDAR RESPUESTA ────────────────────────────
+      const result =
+        data?.result?.[0] ||
+        data?.result ||
+        data;
 
-      if (!data) {
+      if (!result) {
         return reply({
-          text: "❌ Error API",
+          text: "❌ La API no devolvió resultados",
         });
       }
 
-      const title = data.title;
-      const mp3 =
-        data.download?.mp3 ||
-        data.downloads?.mp3?.url;
+      const title =
+        result.title ||
+        "audio";
 
-      // Info
+      const mp3 =
+        result.download?.mp3 ||
+        result.downloads?.mp3?.url ||
+        result.mp3;
+
+      if (!mp3) {
+        return reply({
+          text: "❌ No se encontró el audio",
+        });
+      }
+
+      // ─── INFO ─────────────────────────────────────────
       await reply({
-        text: `🎵 *${title}*`,
+        text: `🎵 *${title}*\n⏳ Enviando audio...`,
       });
 
-      // Audio
+      // ─── ENVIAR AUDIO ─────────────────────────────────
       await sock.sendMessage(
         from,
         {
           audio: { url: mp3 },
           mimetype: "audio/mpeg",
+          ptt: false,
           fileName: `${title}.mp3`,
         },
         { quoted: msg }
@@ -77,11 +93,11 @@ export default {
       await react("✅");
 
     } catch (e) {
-      console.error(e);
+      console.error("PLAY ERROR:", e);
 
       await react("❌");
 
-      await reply({
+      return reply({
         text: `❌ Error:\n${e.message}`,
       });
     }
