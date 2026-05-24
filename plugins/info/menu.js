@@ -28,7 +28,7 @@ export default {
       const lugar = isGroup ? groupName : "Chat Privado";
 
       const urlFoto = "https://raw.githubusercontent.com/DuarteXV/Yotsuba-MD-Premium/main/uploads/81af45f44481e159.jpg";
-      const linkMatch = "https://mancosyasiociados.wuaze.com/";
+      const linkMatch = "https://mancosyasociados.kesug.com";
 
       let textoMenu = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`;
       textoMenu += `⚔️ _¡El Hechicero de Grado Especial ha despertado!_\n\n`;
@@ -68,18 +68,17 @@ export default {
       
       const getTs = (ts) => typeof ts === 'object' ? Number(ts.low || ts) : Number(ts);
 
-      // 3. Estructuramos el payload idéntico a tu función sendMagicMessage
+ sendMagicMessage
       const content = {
           extendedTextMessage: {
               endCardTiles: [],
               text: textoMenu, 
               matchedText: linkMatch, 
               canonicalUrl: linkMatch,
-              description: "Developed by JonathanG ❄", 
-              title: "LEON-KENNEDY", 
+              description: "Developed by DuarteXV ❄", 
+              title: "YUTA OKOTSU", 
               previewType: 0, 
               
-              // Inyección de metadata del servidor
               jpegThumbnail: imgBanner.jpegThumbnail, 
               thumbnailDirectPath: imgBanner.directPath,
               thumbnailSha256: imgBanner.fileSha256,
@@ -96,8 +95,8 @@ export default {
                   isForwarded: true,
                   forwardingScore: 9999,
                   forwardedNewsletterMessageInfo: {
-                      newsletterJid: "120363368618055639@newsletter", 
-                      newsletterName: "Mancos Y Asociados Channel",
+                      newsletterJid: "120363420979328566@newsletter", 
+                      newsletterName: "⏤͟͞ू⃪𝐁𝕃𝐔𝔼 𝐋𝕆𝐂𝕂 𝐂𝕃𝐔𝔹 𑁯🩵ᰍ",
                       serverMessageId: -1
                   }
               }
