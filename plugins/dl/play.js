@@ -30,30 +30,6 @@ export default {
         });
       }
 
-      const {
-        title,
-        thumbnail,
-        timestamp,
-        views,
-        ago
-      } = yt;
-
-      const vistas = formatViews(views);
-
-      await sock.sendMessage(
-        from,
-        {
-          image: { url: thumbnail },
-          caption:
-            `*❐ _Nombre_*: ${title}\n` +
-            `*❐ _Vistas_*: ${vistas}\n` +
-            `*❐ _Duración_*: ${timestamp}\n` +
-            `*❐ _Fecha_*: ${ago}\n\n` +
-            `₊ ⊹ obteniendo audio`
-        },
-        { quoted: msg }
-      );
-
       const api =
         `https://systemzone.store/v2/player?apikey=${API_KEY}&text=${encodeURIComponent(text)}`;
 
@@ -69,12 +45,35 @@ export default {
         });
       }
 
-      const audioUrl = data.download_url;
+      const {
+        title,
+        thumbnail,
+        duration,
+        youtube_url,
+        download_url
+      } = data;
+
+      const vistas = formatViews(yt.views);
 
       await sock.sendMessage(
         from,
         {
-          audio: { url: audioUrl },
+          image: { url: thumbnail || yt.thumbnail },
+          caption:
+            `「✦」Descargando *<${title}>*\n\n` +
+            `> ✐ Vistas » *${vistas}*\n` +
+            `> ⴵ Duracion » *${formatDuration(duration)}*\n` +
+            `> ✰ Calidad » *128 kbps*\n` +
+            `> ❒ Formato » *mp3*\n` +
+            `> 🜸 Link » ${youtube_url}`
+        },
+        { quoted: msg }
+      );
+
+      await sock.sendMessage(
+        from,
+        {
+          audio: { url: download_url },
           mimetype: "audio/mpeg",
           ptt: false,
         },
@@ -111,4 +110,17 @@ function formatViews(views) {
   }
 
   return views.toString();
+}
+
+function formatDuration(seconds) {
+  seconds = Number(seconds);
+
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  if (minutes <= 0) {
+    return `${secs} segundos`;
+  }
+
+  return `${minutes} minuto${minutes > 1 ? "s" : ""} ${secs} segundos`;
 }
