@@ -1,14 +1,14 @@
 import axios from "axios";
 import yts from "yt-search";
 
-const API_KEY = "Zyzz-1234";
+const API_KEY = "Irokz444";
 
 export default {
   name: ["play", "yta", "ytmp3", "playaudio"],
   description: "Descarga música de YouTube",
   ownerOnly: false,
 
-  async run({ sock, from, msg, text, cmdName, reply, react }) {
+  async run({ sock, from, msg, text, reply, react }) {
     try {
       if (!text.trim()) {
         return reply({
@@ -35,8 +35,7 @@ export default {
         thumbnail,
         timestamp,
         views,
-        ago,
-        url
+        ago
       } = yt;
 
       const vistas = formatViews(views);
@@ -55,52 +54,32 @@ export default {
         { quoted: msg }
       );
 
-      const type = [
-        "play",
-        "yta",
-        "ytmp3",
-        "playaudio"
-      ].includes(cmdName)
-        ? "audio"
-        : "video";
-
       const api =
-        `https://rest.apicausas.xyz/api/v1/descargas/youtube?url=${encodeURIComponent(url)}&type=${type}&apikey=${API_KEY}`;
+        `https://systemzone.store/v2/player?apikey=${API_KEY}&text=${encodeURIComponent(text)}`;
 
       const res = await axios.get(api, {
         timeout: 90000,
       });
 
-      const json = res.data;
+      const data = res.data;
 
-      if (!json?.status || !json?.data?.download?.url) {
+      if (!data?.status || !data?.download_url) {
         return reply({
-          text: "˖ ࣪ 𐙚 no pude obtener el archivo",
+          text: "˖ ࣪ 𐙚 no pude obtener el audio",
         });
       }
 
-      const dlUrl = json.data.download.url;
+      const audioUrl = data.download_url;
 
-      if (type === "audio") {
-        await sock.sendMessage(
-          from,
-          {
-            audio: { url: dlUrl },
-            mimetype: "audio/mpeg",
-            ptt: false,
-          },
-          { quoted: msg }
-        );
-      } else {
-        await sock.sendMessage(
-          from,
-          {
-            video: { url: dlUrl },
-            mimetype: "video/mp4",
-          },
-          { quoted: msg }
-        );
-      }
+      await sock.sendMessage(
+        from,
+        {
+          audio: { url: audioUrl },
+          mimetype: "audio/mpeg",
+          ptt: false,
+        },
+        { quoted: msg }
+      );
 
       await react("✅");
 
