@@ -16,7 +16,7 @@ if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true })
 
 const clean = (value) => typeof value === 'string' ? value.trim() : ''
 
-function getStickerMeta(senderNum) {
+function getStickerMeta(senderNum, pushName) {
   const user = db.getUser(senderNum) || {}
 
   const userPack = clean(user.text1)
@@ -24,10 +24,12 @@ function getStickerMeta(senderNum) {
 
   const hasUserMeta = Boolean(userPack || userAuthor)
 
+  const nombre = pushName || senderNum
+
   return {
     hasUserMeta,
-    packname: userPack || clean(config.packname) || '⚔️ Yuta Okotsu MD',
-    author: userAuthor || clean(config.wm) || 'DuarteXV'
+    packname: userPack || clean(config.botname) || '⚔️ Yuta Okotsu MD',
+    author: userAuthor || `@${nombre}`
   }
 }
 
@@ -39,7 +41,6 @@ function parseTempMeta(args, packname, author) {
 
   if (texto.includes('|')) {
     const [p, a] = texto.split('|').map(s => s.trim())
-
     return {
       packname: p || packname,
       author: a || author
@@ -158,9 +159,9 @@ export default {
     try {
       await react('🕒')
 
-      let { hasUserMeta, packname, author } = getStickerMeta(senderNum)
+      const pushName = msg.pushName || senderNum
+      let { hasUserMeta, packname, author } = getStickerMeta(senderNum, pushName)
 
-     
       if (!hasUserMeta) {
         const tempMeta = parseTempMeta(args, packname, author)
         packname = tempMeta.packname
