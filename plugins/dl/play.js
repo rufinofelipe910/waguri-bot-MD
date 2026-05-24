@@ -45,10 +45,10 @@ export default {
         {
           image: { url: thumbnail },
           caption:
-            `˖ ࣪ 𐙚 ${title}\n\n` +
-            `︶꒦꒷ ${vistas} vistas\n` +
-            `︶꒦꒷ ${timestamp}\n` +
-            `︶꒦꒷ ${ago}\n\n` +
+            `*❐ _Nombre_*: ${title}\n` +
+            `*❐ _Vistas_*: ${vistas}\n` +
+            `*❐ _Duración_*: ${timestamp}\n` +
+            `*❐ _Fecha_*: ${ago}\n\n` +
             `₊ ⊹ obteniendo audio`
         },
         { quoted: msg }
