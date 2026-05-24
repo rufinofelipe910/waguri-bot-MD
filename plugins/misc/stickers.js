@@ -11,40 +11,136 @@ import config from '../../config.js'
 const execAsync = promisify(exec)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const tmp = path.join(__dirname, '../../tmp')
+
 if (!fs.existsSync(tmp)) fs.mkdirSync(tmp, { recursive: true })
+
+const clean = (value) => typeof value === 'string' ? value.trim() : ''
+
+function getStickerMeta(senderNum) {
+  const user = db.getUser(senderNum) || {}
+
+  const userPack = clean(user.text1)
+  const userAuthor = clean(user.text2)
+
+  const hasUserMeta = Boolean(userPack || userAuthor)
+
+  return {
+    hasUserMeta,
+    packname: userPack || clean(config.packname) || '⚔️ Yuta Okotsu MD',
+    author: userAuthor || clean(config.wm) || 'DuarteXV'
+  }
+}
+
+function parseTempMeta(args, packname, author) {
+  if (!args.length) return { packname, author }
+
+  const texto = args.join(' ').trim()
+  if (!texto) return { packname, author }
+
+  if (texto.includes('|')) {
+    const [p, a] = texto.split('|').map(s => s.trim())
+
+    return {
+      packname: p || packname,
+      author: a || author
+    }
+  }
+
+  return {
+    packname: texto,
+    author: texto
+  }
+}
 
 async function addExif(webpBuffer, packname, author) {
   const { default: webp } = await import('node-webpmux')
   const img = new webp.Image()
+
   const json = {
     'sticker-pack-id': crypto.randomBytes(32).toString('hex'),
     'sticker-pack-name': packname,
     'sticker-pack-publisher': author,
-    'emojis': ['⚔️']
+    emojis: ['⚔️']
   }
-  const exifAttr   = Buffer.from([0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x01,0x00,0x41,0x57,0x07,0x00,0x00,0x00,0x00,0x00,0x16,0x00,0x00,0x00])
+
+  const exifAttr = Buffer.from([
+    0x49, 0x49, 0x2A, 0x00,
+    0x08, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x41, 0x57,
+    0x07, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x16, 0x00,
+    0x00, 0x00
+  ])
+
   const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8')
-  const exif       = Buffer.concat([exifAttr, jsonBuffer])
+  const exif = Buffer.concat([exifAttr, jsonBuffer])
+
   exif.writeUIntLE(jsonBuffer.length, 14, 4)
+
   await img.load(webpBuffer)
   img.exif = exif
+
   return await img.save(null)
 }
 
 async function convertirWebp(buffer, esVideo = false) {
-  const ext    = esVideo ? 'mp4' : 'jpg'
-  const inputP = path.join(tmp, `stk_${Date.now()}.${ext}`)
-  const outP   = path.join(tmp, `stk_${Date.now()}.webp`)
+  const id = crypto.randomBytes(8).toString('hex')
+  const ext = esVideo ? 'mp4' : 'jpg'
+
+  const inputP = path.join(tmp, `stk_${id}.${ext}`)
+  const outP = path.join(tmp, `stk_${id}.webp`)
+
   fs.writeFileSync(inputP, buffer)
+
   try {
     if (esVideo) {
-      const { stdout } = await execAsync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputP}"`)
+      const { stdout } = await execAsync(
+        `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${inputP}"`
+      )
+
       const dur = parseFloat(stdout.trim())
-      if (dur > 15) throw new Error(`El video dura *${dur.toFixed(1)}s*, máximo *15 segundos*`)
-      await execAsync(`ffmpeg -i "${inputP}" -t 15 -vf "fps=15,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`)
+
+      if (dur > 15) {
+        throw new Error(`El video dura *${dur.toFixed(1)}s*, máximo *15 segundos*`)
+      }
+
+      await execAsync(
+        `ffmpeg -i "${inputP}" -t 15 -vf "fps=15,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`
+      )
     } else {
-      await execAsync(`ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp "${outP}" -y`)
+      await execAsync(
+        `ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 80 "${outP}" -y`
+      )
     }
+
+    return fs.readFileSync(outP)
+  } finally {
+    try { fs.unlinkSync(inputP) } catch {}
+    try { fs.unlinkSync(outP) } catch {}
+  }
+}
+
+async function limpiarSticker(buffer) {
+  const id = crypto.randomBytes(8).toString('hex')
+
+  const inputP = path.join(tmp, `stk_${id}.webp`)
+  const outP = path.join(tmp, `stk_${id}_out.webp`)
+
+  fs.writeFileSync(inputP, buffer)
+
+  try {
+    try {
+      await execAsync(`ffmpeg -i "${inputP}" -vcodec copy "${outP}" -y`)
+    } catch {
+      try {
+        await execAsync(
+          `ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`
+        )
+      } catch {
+        fs.writeFileSync(outP, buffer)
+      }
+    }
+
     return fs.readFileSync(outP)
   } finally {
     try { fs.unlinkSync(inputP) } catch {}
@@ -62,73 +158,63 @@ export default {
     try {
       await react('🕒')
 
-      const user     = db.getUser(senderNum)
-      let packname   = user.text1 || config.packname
-      let author     = user.text2 || config.wm
+      let { hasUserMeta, packname, author } = getStickerMeta(senderNum)
 
-      if (args.length > 0) {
-        const texto = args.join(' ')
-        if (texto.includes('|')) {
-          const [p, a] = texto.split('|').map(s => s.trim())
-          packname = p || packname
-          author   = a || author
-        } else {
-          packname = texto
-          author   = texto
-        }
+     
+      if (!hasUserMeta) {
+        const tempMeta = parseTempMeta(args, packname, author)
+        packname = tempMeta.packname
+        author = tempMeta.author
       }
 
-      const msgType    = Object.keys(msg.message || {})[0]
-      const quoted     = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+      const msgType = Object.keys(msg.message || {})[0]
+
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quoted = contextInfo?.quotedMessage
       const quotedType = quoted ? Object.keys(quoted)[0] : null
 
-      const mediaMsg  = ['imageMessage', 'videoMessage', 'stickerMessage'].includes(msgType) ? msg : null
-      const quotedMsg = quoted && ['imageMessage', 'videoMessage', 'stickerMessage'].includes(quotedType)
+      const validTypes = ['imageMessage', 'videoMessage', 'stickerMessage']
+
+      const mediaMsg = validTypes.includes(msgType) ? msg : null
+
+      const quotedMsg = quoted && validTypes.includes(quotedType)
         ? {
             key: {
               remoteJid: from,
-              id: msg.message.extendedTextMessage.contextInfo.stanzaId,
-              participant: msg.message.extendedTextMessage?.contextInfo?.participant,
+              id: contextInfo?.stanzaId,
+              participant: contextInfo?.participant
             },
-            message: quoted,
+            message: quoted
           }
         : null
 
-      const targetMsg  = mediaMsg || quotedMsg
+      const targetMsg = mediaMsg || quotedMsg
       const targetType = mediaMsg ? msgType : quotedType
 
-      if (!targetMsg) return await reply({
-        text: `❌ Envía o responde una imagen, video (máx 15s) o sticker.\n\n💡 *${usedPrefix}s* ➔ sticker normal\n💡 *${usedPrefix}s MiMarca* ➔ marca personalizada`
-      })
-
-      const buffer    = await downloadMediaMessage(targetMsg, 'buffer', {}, { sock })
-      const esVideo   = targetType === 'videoMessage'
-      const esSticker = targetType === 'stickerMessage'
-
-      let webpBuffer
-      if (esSticker) {
-        const inputP = path.join(tmp, `stk_${Date.now()}.webp`)
-        const outP   = path.join(tmp, `stk_${Date.now()}_out.webp`)
-        fs.writeFileSync(inputP, buffer)
-        try {
-          await execAsync(`ffmpeg -i "${inputP}" -vcodec copy "${outP}" -y`)
-        } catch {
-          try {
-            await execAsync(`ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`)
-          } catch {
-            fs.writeFileSync(outP, buffer)
-          }
-        }
-        webpBuffer = fs.readFileSync(outP)
-        try { fs.unlinkSync(inputP); fs.unlinkSync(outP) } catch {}
-      } else {
-        webpBuffer = await convertirWebp(buffer, esVideo)
+      if (!targetMsg) {
+        return await reply({
+          text:
+            `❌ Envía o responde una imagen, video máx 15s o sticker.\n\n` +
+            `💡 *${usedPrefix}s* ➔ sticker normal\n` +
+            `💡 *${usedPrefix}s MiMarca* ➔ marca temporal\n` +
+            `💡 *${usedPrefix}setmeta MiMarca* ➔ marca fija`
+        })
       }
 
-      const stickerFinal = await addExif(webpBuffer, packname, author)
-      await sock.sendMessage(from, { sticker: stickerFinal }, { quoted: msg })
-      await react('✅')
+      const buffer = await downloadMediaMessage(targetMsg, 'buffer', {}, { sock })
 
+      const esVideo = targetType === 'videoMessage'
+      const esSticker = targetType === 'stickerMessage'
+
+      const webpBuffer = esSticker
+        ? await limpiarSticker(buffer)
+        : await convertirWebp(buffer, esVideo)
+
+      const stickerFinal = await addExif(webpBuffer, packname, author)
+
+      await sock.sendMessage(from, { sticker: stickerFinal }, { quoted: msg })
+
+      await react('✅')
     } catch (error) {
       await react('❌')
       await reply({ text: `❌ ${error.message}` })
