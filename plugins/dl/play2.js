@@ -2,6 +2,7 @@ import axios from 'axios'
 import yts from 'yt-search'
 
 const API_KEY = 'free_key' // API KEY
+const LIMIT_MB = 80
 
 const handler = async (m, { conn, text, usedPrefix, command }) => {
   if (!text) {
@@ -53,8 +54,12 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
     const title = data.title
     const mp4 = data.download?.mp4 || data.downloads?.mp4?.url
 
+    const head = await axios.head(mp4)
+    const size = Number(head.headers['content-length']) || 0
+    const sizeMB = size / 1024 / 1024
+
     await conn.sendMessage(m.chat, {
-      text: `🎬 ${title}`,
+      text: `🎬 ${title}\n📦 ${sizeMB.toFixed(2)} MB`,
       contextInfo: {
         externalAdReply: {
           title,
@@ -68,12 +73,20 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       }
     }, { quoted: m })
 
-    await conn.sendMessage(m.chat, {
-      video: { url: mp4 },
-      mimetype: 'video/mp4',
-      fileName: `${title}.mp4`,
-      caption: title
-    }, { quoted: m })
+    if (sizeMB >= LIMIT_MB) {
+      await conn.sendMessage(m.chat, {
+        document: { url: mp4 },
+        mimetype: 'video/mp4',
+        fileName: `${title}.mp4`
+      }, { quoted: m })
+    } else {
+      await conn.sendMessage(m.chat, {
+        video: { url: mp4 },
+        mimetype: 'video/mp4',
+        fileName: `${title}.mp4`,
+        caption: title
+      }, { quoted: m })
+    }
 
   } catch (e) {
     m.reply(`❌ ${e.message}`)
