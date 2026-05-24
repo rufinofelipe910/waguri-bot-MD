@@ -58,10 +58,14 @@ export default {
           `⏳ Enviando audio...`,
       });
 
+      const audio = await axios.get(mp3, {
+        responseType: "arraybuffer",
+      });
+
       await sock.sendMessage(
         from,
         {
-          audio: { url: mp3 },
+          audio: audio.data,
           mimetype: "audio/mpeg",
           fileName: `${video.title}.mp3`,
         },
