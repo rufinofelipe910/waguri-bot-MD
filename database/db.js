@@ -6,7 +6,6 @@ mkdirSync("./database", { recursive: true });
 const defaultData = { users: {}, groups: {} };
 const db_instance = await JSONFilePreset("./database/yuta.json", defaultData);
 
-// ─── ESCRITURA EN BATCH (cada 5s, no en cada operación) ──
 let saveTimer = null;
 function scheduleSave() {
   if (saveTimer) return;
@@ -16,22 +15,19 @@ function scheduleSave() {
   }, 5000);
 }
 
-// ─── CACHÉ EN MEMORIA ─────────────────────────────────────
-const userCache = new Map();
+const userCache  = new Map();
 const groupCache = new Map();
 
 function getUser(jid) {
   if (userCache.has(jid)) return userCache.get(jid);
-
   if (!db_instance.data.users[jid]) {
     db_instance.data.users[jid] = {
       role: "user",
       banned: false,
       registeredAt: new Date().toISOString(),
     };
-    scheduleSave(); // no bloquea
+    scheduleSave();
   }
-
   userCache.set(jid, db_instance.data.users[jid]);
   return db_instance.data.users[jid];
 }
@@ -53,9 +49,7 @@ export const db = {
     scheduleSave();
   },
 
-  isBanned(jid) {
-    return getUser(jid).banned === true;
-  },
+  isBanned(jid) { return getUser(jid).banned === true; },
 
   ban(jid) {
     getUser(jid);
@@ -73,15 +67,10 @@ export const db = {
 
   getGroup(jid) {
     if (groupCache.has(jid)) return groupCache.get(jid);
-
     if (!db_instance.data.groups[jid]) {
-      db_instance.data.groups[jid] = {
-        welcome: false,
-        antilink: false,
-      };
+      db_instance.data.groups[jid] = { welcome: false, antilink: false };
       scheduleSave();
     }
-
     groupCache.set(jid, db_instance.data.groups[jid]);
     return db_instance.data.groups[jid];
   },
@@ -91,5 +80,27 @@ export const db = {
     db_instance.data.groups[jid][key] = value;
     groupCache.set(jid, db_instance.data.groups[jid]);
     scheduleSave();
+  },
+
+  // ─── PRIMARY BOT ─────────────────────────────────────
+  setPrimary(groupJid, botId) {
+    if (!db_instance.data.groups[groupJid]) {
+      db_instance.data.groups[groupJid] = { welcome: false, antilink: false };
+    }
+    db_instance.data.groups[groupJid].primaryBot = botId;
+    groupCache.set(groupJid, db_instance.data.groups[groupJid]);
+    scheduleSave();
+  },
+
+  getPrimary(groupJid) {
+    return db_instance.data.groups[groupJid]?.primaryBot || null;
+  },
+
+  delPrimary(groupJid) {
+    if (db_instance.data.groups[groupJid]) {
+      delete db_instance.data.groups[groupJid].primaryBot;
+      groupCache.set(groupJid, db_instance.data.groups[groupJid]);
+      scheduleSave();
+    }
   },
 };
