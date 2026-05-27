@@ -75,6 +75,19 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
     const isMod     = isOwner || isCoOwner || db.hasRole(senderNum, "mod");
     const isPremium = isMod || db.hasRole(senderNum, "premium");
 
+    // ─── ADMIN DEL GRUPO ────────────────────────────────
+    let isAdmin = false;
+
+    if (isGroup && groupMeta?.participants) {
+      const participant = groupMeta.participants.find(
+        (p) => cleanJid(p.id) === sender
+      );
+
+      isAdmin =
+        participant?.admin === "admin" ||
+        participant?.admin === "superadmin";
+    }
+
     log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName });
 
     const ctx = {
@@ -98,30 +111,82 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
       isCoOwner,
       isMod,
       isPremium,
-      reply: (content) => sock.sendMessage(from, content, { quoted: msg }),
-      react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }),
+      isAdmin,
+
+      reply: (content) =>
+        sock.sendMessage(from, content, { quoted: msg }),
+
+      react: (emoji) =>
+        sock.sendMessage(from, {
+          react: { text: emoji, key: msg.key }
+        }),
     };
 
     const plugins = getPlugins();
     const plugin  = plugins.get(cmdName);
     if (!plugin) return;
 
-    if (plugin.ownerOnly   && !isOwner)   return ctx.reply({ text: "❌ Solo el owner puede usar este comando." });
-    if (plugin.modOnly     && !isMod)     return ctx.reply({ text: "❌ Solo moderadores pueden usar este comando." });
-    if (plugin.premiumOnly && !isPremium) return ctx.reply({ text: "⭐ Este comando es exclusivo para premium." });
-    if (plugin.groupOnly   && !isGroup)   return ctx.reply({ text: "👥 Este comando solo funciona en grupos." });
-    if (plugin.privateOnly && isGroup)    return ctx.reply({ text: "📩 Este comando solo funciona en privado." });
+    if (plugin.ownerOnly && !isOwner)
+      return ctx.reply({
+        text: "❌ Solo el owner puede usar este comando."
+      });
+
+    if (plugin.modOnly && !isMod)
+      return ctx.reply({
+        text: "❌ Solo moderadores pueden usar este comando."
+      });
+
+    // ─── SOLO ADMINS DEL GRUPO ──────────────────────────
+    if (plugin.adminOnly && isGroup && !isAdmin && !isOwner) {
+      return ctx.reply({
+        text: "❌ Solo admins del grupo pueden usar este comando."
+      });
+    }
+
+    if (plugin.premiumOnly && !isPremium)
+      return ctx.reply({
+        text: "⭐ Este comando es exclusivo para premium."
+      });
+
+    if (plugin.groupOnly && !isGroup)
+      return ctx.reply({
+        text: "👥 Este comando solo funciona en grupos."
+      });
+
+    if (plugin.privateOnly && isGroup)
+      return ctx.reply({
+        text: "📩 Este comando solo funciona en privado."
+      });
 
     const start = Date.now();
+
     try {
       await plugin.run(ctx);
-      log.cmdExec({ cmdName, sender: senderNum, success: true, ms: Date.now() - start });
+
+      log.cmdExec({
+        cmdName,
+        sender: senderNum,
+        success: true,
+        ms: Date.now() - start
+      });
+
     } catch (e) {
-      log.cmdExec({ cmdName, sender: senderNum, success: false, ms: Date.now() - start });
+      log.cmdExec({
+        cmdName,
+        sender: senderNum,
+        success: false,
+        ms: Date.now() - start
+      });
+
       log.error(`Comando ${cmdName}: ${e.message}`);
+
       await ctx.react("❌");
-      await ctx.reply({ text: `❌ Error ejecutando \`${cmdName}\`:\n${e.message}` });
+
+      await ctx.reply({
+        text: `❌ Error ejecutando \`${cmdName}\`:\n${e.message}`
+      });
     }
+
   } catch (e) {
     log.error(`handleMessage: ${e.message}`);
   }
