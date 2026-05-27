@@ -2,7 +2,7 @@ export default {
   name: ["tag", "tagall"],
   description: "Menciona a todos en el grupo",
   groupOnly: true,
-  modOnly: true,
+  adminOnly: true,
 
   async run({ sock, from, msg, groupMeta, text, reply, react }) {
     await react('📢')
