@@ -12,7 +12,6 @@ import { log } from "./logger.js";
 import config from "../config.js";
 import { handleMessage } from "./messageHandler.js";
 
-// ─── READLINE LIMPIO ──────────────────────────────────────
 function question(prompt) {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -26,7 +25,6 @@ function question(prompt) {
   });
 }
 
-// ─── LIMPIAR CARPETA DE SOCKETS (sin borrar credenciales) ─
 async function clearSocketFiles(sessionDir) {
   try {
     const { readdirSync, unlinkSync } = await import("fs");
@@ -45,14 +43,11 @@ async function clearSocketFiles(sessionDir) {
       }
     }
     if (count > 0) {
-      log.warn(`🗑️  Limpiados ${count} archivos de socket en [${path.basename(sessionDir)}]`);
+      log.warn(`🗑️ Limpiados ${count} archivos de socket en [${path.basename(sessionDir)}]`);
     }
-  } catch (e) {
-    // carpeta no existe aún, no pasa nada
-  }
+  } catch (e) {}
 }
 
-// ─── CREAR CONEXIÓN ───────────────────────────────────────
 export async function createConnection({
   sessionDir = config.sessionDir,
   botLabel = "MAIN",
@@ -90,8 +85,6 @@ export async function createConnection({
       let rawPhone = await question(
         "  Digita el número de teléfono (ej: 521XXXXXXXXXX): "
       );
-
-      // Normalización igual que Isagi (fix prefijo mexicano +521 → +52)
       rawPhone = rawPhone.replace(/\D/g, "");
       if (!rawPhone.startsWith("+")) rawPhone = `+${rawPhone}`;
       if (rawPhone.startsWith("+521")) {
@@ -132,7 +125,6 @@ export async function createConnection({
     return;
   }
 
-  // ─── PEDIR CÓDIGO (estilo Isagi) ──────────────────────
   if (useCode && !state.creds.registered) {
     await new Promise((r) => setTimeout(r, 3000));
     try {
@@ -148,13 +140,11 @@ export async function createConnection({
     }
   }
 
-  // ─── TIMEOUT DE CONEXIÓN ──────────────────────────────
   let connectionTimeout = setTimeout(() => {
     log.warn(`[${botLabel}] Timeout de conexión alcanzado, reconectando...`);
     try { sock.end(new Error("timeout")); } catch {}
   }, 60000);
 
-  // ─── EVENTOS DE CONEXIÓN ─────────────────────────────
   sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "connecting") {
       log.conn(`[${botLabel}] Conectando...`);
@@ -192,7 +182,6 @@ export async function createConnection({
     }
   });
 
-  // ─── MANEJO DE ERRORES DE SOCKET ─────────────────────
   sock.ev.on("CB:stream:error", (err) => {
     log.error(`[${botLabel}] Stream error: ${err?.message || err}`);
   });
@@ -203,13 +192,12 @@ export async function createConnection({
 
   sock.ev.on("creds.update", saveCreds);
 
-  // ─── MANEJADOR DE MENSAJES ────────────────────────────
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
     for (const msg of messages) {
       if (!msg.message) continue;
       if (msg.key?.remoteJid === "status@broadcast") continue;
-      handleMessage(sock, msg).catch((e) =>
+      handleMessage(sock, msg, botLabel).catch((e) =>
         log.error(`[${botLabel}] Error en mensaje: ${e.message}`)
       );
     }
