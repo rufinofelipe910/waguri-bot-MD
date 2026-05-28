@@ -1,5 +1,6 @@
 import axios from "axios";
 import { prepareWAMessageMedia, generateWAMessageFromContent } from "@whiskeysockets/baileys";
+import { getPlugins } from "../../core/pluginLoader.js";
 
 async function getBuffer(url) {
   try {
@@ -8,6 +9,16 @@ async function getBuffer(url) {
   } catch (e) {
     throw new Error(`Error descargando imagen: ${e.message}`);
   }
+}
+
+const catIcons = {
+  info:    "🗺️",
+  misc:    "🎴",
+  dl:      "🎵",
+  grupos:  "👥",
+  owner:   "👑",
+  media:   "🎬",
+  util:    "🔧",
 }
 
 export default {
@@ -26,6 +37,17 @@ export default {
       const urlFoto   = "https://cdn.adoolab.xyz/dl/3d42f230.jpg";
       const linkMatch = "https://mancosyasociados.kesug.com";
 
+      // ─── AGRUPAR PLUGINS POR CATEGORÍA ───────────────
+      const plugins    = getPlugins()
+      const categories = {}
+
+      for (const [, plugin] of plugins) {
+        const cat = plugin.category || "misc"
+        if (!categories[cat]) categories[cat] = new Set()
+        const names = Array.isArray(plugin.name) ? plugin.name : [plugin.name]
+        categories[cat].add(names[0])
+      }
+
       let textoMenu = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`;
       textoMenu += `⚔️ _¡El Hechicero de Grado Especial ha despertado!_\n\n`;
 
@@ -39,36 +61,14 @@ export default {
       textoMenu += `*📜 LISTA DE COMANDOS* 📜\n`;
       textoMenu += `_Recuerda usar el prefijo [ ${usedPrefix} ] antes de cada orden._\n\n`;
 
-      textoMenu += `🗺️ ─── ❖ *INFORMACIÓN* ❖ ─── 🗺️\n`;
-      textoMenu += `✦ ${usedPrefix}menu ➔ _Despliega este menú_\n`;
-      textoMenu += `✦ ${usedPrefix}ping ➔ _Verifica la latencia del bot_\n`;
-      textoMenu += `✦ ${usedPrefix}system ➔ _Estado del sistema_\n`;
-      textoMenu += `✦ ${usedPrefix}bots ➔ _Bots conectados_\n`;
-      textoMenu += `✦ ${usedPrefix}lid ➔ _Ver JID de un usuario_\n\n`;
-
-      textoMenu += `🎴 ─── ❖ *MISC* ❖ ─── 🎴\n`;
-      textoMenu += `✦ ${usedPrefix}s ➔ _Crear sticker_\n`;
-      textoMenu += `✦ ${usedPrefix}setmeta ➔ _Cambiar marca de sticker_\n`;
-      textoMenu += `✦ ${usedPrefix}delmeta ➔ _Resetear marca_\n`;
-      textoMenu += `✦ ${usedPrefix}cdn ➔ _Subir archivo al CDN_\n`;
-      textoMenu += `✦ ${usedPrefix}anime ➔ _Imagen random de anime_\n`;
-      textoMenu += `✦ ${usedPrefix}code ➔ _Vincular como subbot_\n`;
-      textoMenu += `✦ ${usedPrefix}delbot ➔ _Desvincular subbot_\n\n`;
-
-      textoMenu += `🎵 ─── ❖ *DESCARGAS* ❖ ─── 🎵\n`;
-      textoMenu += `✦ ${usedPrefix}scsearch ➔ _Buscar en SoundCloud_\n`;
-      textoMenu += `✦ ${usedPrefix}scdl ➔ _Descargar de SoundCloud_\n\n`;
-
-      textoMenu += `👥 ─── ❖ *GRUPOS* ❖ ─── 👥\n`;
-      textoMenu += `✦ ${usedPrefix}tag ➔ _Mencionar a todos_\n`;
-      textoMenu += `✦ ${usedPrefix}setprimary ➔ _Establecer bot primario_\n`;
-      textoMenu += `✦ ${usedPrefix}delprimary ➔ _Quitar bot primario_\n\n`;
-
-      textoMenu += `👑 ─── ❖ *OWNER* ❖ ─── 👑\n`;
-      textoMenu += `✦ ${usedPrefix}eval ➔ _Ejecutar código_\n`;
-      textoMenu += `✦ ${usedPrefix}r ➔ _Ejecutar shell_\n`;
-      textoMenu += `✦ ${usedPrefix}check ➔ _Verificar sistema_\n`;
-      textoMenu += `✦ ${usedPrefix}update ➔ _Actualizar bot_\n\n`;
+      for (const [cat, cmds] of Object.entries(categories)) {
+        const icon = catIcons[cat] || "🎴"
+        textoMenu += `${icon} ─── ❖ *${cat.toUpperCase()}* ❖ ─── ${icon}\n`
+        for (const cmd of cmds) {
+          textoMenu += `✦ ${usedPrefix}${cmd}\n`
+        }
+        textoMenu += "\n"
+      }
 
       textoMenu += `🔺 _Powered by DuarteXV | Yuta Okotsu MD_ 🔺\n`;
       textoMenu += `🔗 ${linkMatch}`;
