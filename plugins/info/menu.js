@@ -12,15 +12,15 @@ async function getBuffer(url) {
 }
 
 const catIcons = {
-  info:       "🗺️",
-  misc:       "🎴",
-  dl:         "🎵",
-  grupos:     "👥",
-  owner:      "👑",
-  media:      "🎬",
-  util:       "🔧",
-  downloader: "📥",
-}
+  ꒰ 𝐈𝐧𝐟𝐨 ꒱:       "🌀",
+  ꒰ 𝐌𝐢𝐬𝐜 ꒱:       "💠",
+  ꒰ 𝐃𝐥 ꒱:         "☁",
+  ꒰ 𝐆𝐫𝐮𝐩𝐨𝐬 ꒱:     "❄",
+  ꒰ 𝐎𝐰𝐧𝐞𝐫 ꒱:      "👑",
+  ꒰ 𝐌𝐞𝐝𝐢𝐚 ꒱:      "💫",
+  ꒰ 𝐔𝐭𝐢𝐥 ꒱:       "🪽",
+  ꒰ 𝐃𝐨𝐰𝐧𝐥𝐨𝐚𝐝𝐞𝐫 ꒱: "🪐",
+} 
 
 export default {
   name: ["menu", "help", "ayuda"],
@@ -49,18 +49,18 @@ export default {
         categories[cat].add(names[0])
       }
 
-      let textoMenu = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`;
-      textoMenu += `⚔️ _¡El Hechicero de Grado Especial ha despertado!_\n\n`;
+      let textoMenu = `✨ ═══ 🫧 *𝐘𝐔𝐓𝐀 𝐎𝐊𝐎𝐓𝐒𝐔* 🫧 ═══ ✨\n`;
+      textoMenu += `⚔️ _*𝓔𝐥 𝐇𝐞𝐜𝐡𝐢𝐜𝐞𝐫𝐨 𝐝𝐞 𝐆𝐫𝐚𝐝𝐨 𝐄𝐬𝐩𝐞𝐜𝐢𝐚𝐥 𝐡𝐚 𝐝𝐞𝐬𝐩𝐞𝐫𝐭𝐚𝐝𝐨*_\n\n`;
 
-      textoMenu += `╔════ 🪐 *INFO DEL SISTEMA* 🪐 ════╗\n`;
-      textoMenu += `┃ 👤 *Usuario:* @${senderNum}\n`;
-      textoMenu += `┃ 📍 *Canal:* ${lugar}\n`;
-      textoMenu += `┃ ⏰ *Hora:* ${hora}\n`;
-      textoMenu += `┃ 📅 *Fecha:* ${fecha}\n`;
+      textoMenu += `╔════ 🪐 *𝗜𝗡𝗙𝗢 𝗗𝗘𝗟 𝗦𝗜𝗦𝗧𝗘𝗠𝗔* 🪐 ════╗\n`;
+      textoMenu += `┃ 👤 *⎯꯭♱𝆬       ְ ⃝𝐔𝐬𝐮𝐚𝐫𝐢𝐨:* @${senderNum}\n`;
+      textoMenu += `┃ 📍 *⎯꯭♱𝆬       ְ ⃝𝐂𝐚𝐧𝐚𝐥:* ${lugar}\n`;
+      textoMenu += `┃ ⏰ *⎯꯭♱𝆬       ְ ⃝𝐇𝐨𝐫𝐚:* ${hora}\n`;
+      textoMenu += `┃ 📅 *⎯꯭♱𝆬       ְ ⃝𝐅𝐞𝐜𝐡𝐚:* ${fecha}\n`;
       textoMenu += `╚════════════════════════╝\n\n`;
 
-      textoMenu += `*📜 LISTA DE COMANDOS* 📜\n`;
-      textoMenu += `_Recuerda usar el prefijo [ ${usedPrefix} ] antes de cada orden._\n\n`;
+      textoMenu += `*📜 ㅤ𔗁꯭᭮֔   𝗟𝗜𝗦𝗧𝗔 𝗗𝗘 𝗖𝗢𝗠𝗔𝗡𝗗𝗢𝗦* 📜\n`;
+      textoMenu += `_𝐑𝐞𝐜𝐮𝐞𝐫𝐝𝐚 𝐔𝐬𝐚𝐫 𝐄𝐥 𝐏𝐫𝐞𝐟𝐢𝐣𝐨 [ ${usedPrefix} ] 𝐚𝐧𝐭𝐞𝐬 𝐝𝐞 𝐜𝐚𝐝𝐚 𝐨𝐫𝐝𝐞𝐧._\n\n`;
 
       for (const [cat, cmds] of Object.entries(categories)) {
         const icon = catIcons[cat] || "🎴"
@@ -71,7 +71,7 @@ export default {
         textoMenu += "\n"
       }
 
-      textoMenu += `🔺 _Powered by DuarteXV | Yuta Okotsu MD_ 🔺\n`;
+      textoMenu += `🪼 _⎯꯭♱𝆬       ְ𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐃𝐮𝐚𝐫𝐭𝐞𝐗𝐕 | 𝐘𝐮𝐭𝐚 𝐎𝐤𝐨𝐭𝐬𝐮 𝐌𝐃_ 🪼\n`;
       textoMenu += `🔗 ${linkMatch}`;
 
       const bufferBanner = await getBuffer(urlFoto);
@@ -81,7 +81,7 @@ export default {
       );
       const imgBanner = mediaBanner.imageMessage;
       const getTs = (ts) => typeof ts === "object" ? Number(ts.low || ts) : Number(ts);
-
+𝐭
       const content = {
         extendedTextMessage: {
           endCardTiles: [],
