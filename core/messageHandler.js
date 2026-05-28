@@ -39,10 +39,8 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
     const usedPrefix = prefixes.find((p) => body.startsWith(p)) || null;
     const isCmd      = !!usedPrefix;
 
-    if (!isCmd) return;
-
-    const cmdName = body.slice(usedPrefix.length).trim().split(/\s+/)[0].toLowerCase();
-    const args    = body.slice(usedPrefix.length + cmdName.length).trim().split(/\s+/);
+    const cmdName = isCmd ? body.slice(usedPrefix.length).trim().split(/\s+/)[0].toLowerCase() : "";
+    const args    = isCmd ? body.slice(usedPrefix.length + cmdName.length).trim().split(/\s+/) : [];
     const text    = args.join(" ");
 
     // ─── GRUPO INFO ──────────────────────────────────────
@@ -93,7 +91,10 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
       isBotAdmin = botParticipant?.admin === "admin" || botParticipant?.admin === "superadmin";
     }
 
+    // ─── LOG ANTES DEL FILTRO ────────────────────────────
     log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel });
+
+    if (!isCmd) return;
 
     const ctx = {
       sock,
@@ -127,13 +128,13 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
     if (!plugin) return;
 
     // ─── VALIDACIONES ───────────────────────────────────
-    if (plugin.ownerOnly   && !isOwner)                    return ctx.reply({ text: "❌ Solo el owner puede usar este comando." });
-    if (plugin.modOnly     && !isMod)                      return ctx.reply({ text: "❌ Solo moderadores pueden usar este comando." });
+    if (plugin.ownerOnly   && !isOwner)                        return ctx.reply({ text: "❌ Solo el owner puede usar este comando." });
+    if (plugin.modOnly     && !isMod)                          return ctx.reply({ text: "❌ Solo moderadores pueden usar este comando." });
     if (plugin.adminOnly   && isGroup && !isAdmin && !isOwner) return ctx.reply({ text: "❌ Solo admins del grupo pueden usar este comando." });
-    if (plugin.botAdmin    && isGroup && !isBotAdmin)      return ctx.reply({ text: "❌ El bot necesita ser admin del grupo." });
-    if (plugin.premiumOnly && !isPremium)                  return ctx.reply({ text: "⭐ Este comando es exclusivo para premium." });
-    if (plugin.groupOnly   && !isGroup)                    return ctx.reply({ text: "👥 Este comando solo funciona en grupos." });
-    if (plugin.privateOnly && isGroup)                     return ctx.reply({ text: "📩 Este comando solo funciona en privado." });
+    if (plugin.botAdmin    && isGroup && !isBotAdmin)          return ctx.reply({ text: "❌ El bot necesita ser admin del grupo." });
+    if (plugin.premiumOnly && !isPremium)                      return ctx.reply({ text: "⭐ Este comando es exclusivo para premium." });
+    if (plugin.groupOnly   && !isGroup)                        return ctx.reply({ text: "👥 Este comando solo funciona en grupos." });
+    if (plugin.privateOnly && isGroup)                         return ctx.reply({ text: "📩 Este comando solo funciona en privado." });
 
     // ─── EJECUTAR ────────────────────────────────────────
     const start = Date.now();
