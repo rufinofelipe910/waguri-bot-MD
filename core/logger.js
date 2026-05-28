@@ -5,7 +5,6 @@ import { promisify } from "util";
 
 const figletAsync = promisify(figlet);
 
-// ─── PALETA YUTA ──────────────────────────────────────────
 const yuta = gradient(["#7B2FBE", "#E040FB", "#00E5FF"]);
 const separator = chalk.hex("#7B2FBE")("─".repeat(55));
 
@@ -13,12 +12,8 @@ export async function printBanner() {
   const art = await figletAsync("YUTA", { font: "ANSI Shadow" });
   console.clear();
   console.log("\n" + yuta(art));
-  console.log(
-    chalk.hex("#E040FB").bold("        ⚡  Yuta Okotsu Bot  ⚡")
-  );
-  console.log(
-    chalk.hex("#00E5FF")("        ✦  Jujutsu Kaisen Edition  ✦")
-  );
+  console.log(chalk.hex("#E040FB").bold("        ⚡  Yuta Okotsu Bot  ⚡"));
+  console.log(chalk.hex("#00E5FF")("        ✦  Jujutsu Kaisen Edition  ✦"));
   console.log(separator);
   console.log(
     chalk.white("        Powered by ") +
@@ -28,20 +23,19 @@ export async function printBanner() {
   console.log(separator + "\n");
 }
 
-// ─── TAGS DE LOG ──────────────────────────────────────────
 const tag = {
-  info:    chalk.bgHex("#7B2FBE").white.bold("  INFO  "),
-  ok:      chalk.bgHex("#00C853").white.bold("   OK   "),
-  warn:    chalk.bgHex("#FF6F00").white.bold("  WARN  "),
-  error:   chalk.bgHex("#D50000").white.bold(" ERROR  "),
-  msg:     chalk.bgHex("#00E5FF").black.bold("  MSG   "),
-  cmd:     chalk.bgHex("#E040FB").black.bold("  CMD   "),
-  conn:    chalk.bgHex("#1A237E").white.bold("  CONN  "),
-  bot:     chalk.bgHex("#263238").white.bold("  BOT   "),
+  info:  chalk.bgHex("#7B2FBE").white.bold("  INFO  "),
+  ok:    chalk.bgHex("#00C853").white.bold("   OK   "),
+  warn:  chalk.bgHex("#FF6F00").white.bold("  WARN  "),
+  error: chalk.bgHex("#D50000").white.bold(" ERROR  "),
+  msg:   chalk.bgHex("#00E5FF").black.bold("  MSG   "),
+  cmd:   chalk.bgHex("#E040FB").black.bold("  CMD   "),
+  conn:  chalk.bgHex("#1A237E").white.bold("  CONN  "),
+  bot:   chalk.bgHex("#263238").white.bold("  BOT   "),
 };
 
 function ts() {
-  return chalk.gray(`[${new Date().toLocaleTimeString()}]`);
+  return chalk.gray(`[${new Date().toLocaleTimeString("es-CO", { hour12: false })}]`);
 }
 
 export const log = {
@@ -52,30 +46,33 @@ export const log = {
   conn:  (msg) => console.log(`${ts()} ${tag.conn}  ${chalk.cyan(msg)}`),
   bot:   (msg) => console.log(`${ts()} ${tag.bot}  ${chalk.hex("#B0BEC5")(msg)}`),
 
-  // ─── LOG DE MENSAJE ─────────────────────────────────────
-  message({ from, sender, isGroup, groupName, body, isCmd, cmdName }) {
-    const lugar = isGroup
-      ? chalk.hex("#E040FB")(`[${groupName}]`)
-      : chalk.hex("#00E5FF")("[DM]");
-
-    const remitente = chalk.hex("#B0BEC5")(sender);
+  message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel = "MAIN" }) {
+    const botTag    = chalk.bgHex("#263238").white.bold(` ${botLabel} `)
+    const lugarTag  = isGroup
+      ? chalk.bgHex("#7B2FBE").white.bold(" GRUPO ")
+      : chalk.bgHex("#1A237E").white.bold("  DM   ")
+    const numero    = chalk.hex("#00E5FF").bold(sender.split("@")[0].split(":")[0])
+    const lugar     = isGroup ? chalk.hex("#E040FB")(`${groupName}`) : chalk.hex("#00E5FF")("Privado")
     const contenido = isCmd
       ? `${tag.cmd} ${chalk.hex("#E040FB").bold(cmdName)} ${chalk.gray("→")} ${chalk.white(body)}`
-      : `${tag.msg} ${chalk.white(body)}`;
+      : `${tag.msg} ${chalk.gray(body?.slice(0, 60))}${body?.length > 60 ? "…" : ""}`
 
     console.log(
-      `${ts()} ${lugar} ${remitente}\n` +
+      `${ts()} ${botTag} ${lugarTag} ` +
+      `${chalk.gray("Bot:")} ${botTag} ` +
+      `${chalk.gray("Grupo:")} ${lugar} ` +
+      `${chalk.gray("Número:")} ${numero}\n` +
       `         ${contenido}`
     );
   },
 
-  // ─── EJECUCIÓN DE COMANDO ────────────────────────────────
-  cmdExec({ cmdName, sender, success, ms }) {
+  cmdExec({ cmdName, sender, success, ms, botLabel = "MAIN" }) {
+    const botTag = chalk.bgHex("#263238").white.bold(` ${botLabel} `)
     const status = success
       ? chalk.greenBright("✔ Ejecutado")
-      : chalk.red("✘ Fallido");
+      : chalk.red("✘ Fallido")
     console.log(
-      `${ts()} ${tag.cmd}  ${chalk.hex("#E040FB").bold(cmdName)} ` +
+      `${ts()} ${botTag} ${tag.cmd}  ${chalk.hex("#E040FB").bold(cmdName)} ` +
       `${chalk.gray("por")} ${chalk.cyan(sender)} ` +
       `${status} ${chalk.gray(`(${ms}ms)`)}`
     );
