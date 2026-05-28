@@ -35,6 +35,21 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
       msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
       "";
 
+    // ─── TIPO DE MENSAJE ─────────────────────────────────
+    const msgType = Object.keys(msg.message || {})[0] || "unknown"
+    const msgTypeLabel =
+      msgType === "conversation"        ? "Texto" :
+      msgType === "extendedTextMessage" ? "Texto" :
+      msgType === "imageMessage"        ? "🖼️ Imagen" :
+      msgType === "videoMessage"        ? "🎥 Video" :
+      msgType === "audioMessage"        ? "🎵 Audio" :
+      msgType === "stickerMessage"      ? "🎴 Sticker" :
+      msgType === "documentMessage"     ? "📄 Documento" :
+      msgType === "ptvMessage"          ? "📹 Nota de video" :
+      msgType === "reactionMessage"     ? "🔥 Reacción" :
+      msgType === "contactMessage"      ? "👤 Contacto" :
+      msgType === "locationMessage"     ? "📍 Ubicación" : "Otro"
+
     const prefixes   = Array.isArray(config.prefix) ? config.prefix : [config.prefix];
     const usedPrefix = prefixes.find((p) => body.startsWith(p)) || null;
     const isCmd      = !!usedPrefix;
@@ -91,8 +106,8 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
       isBotAdmin = botParticipant?.admin === "admin" || botParticipant?.admin === "superadmin";
     }
 
-    // ─── LOG ANTES DEL FILTRO ────────────────────────────
-    log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel });
+    // ─── LOG TODOS LOS MENSAJES ──────────────────────────
+    log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel, msgTypeLabel });
 
     if (!isCmd) return;
 
