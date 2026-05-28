@@ -12,14 +12,14 @@ async function getBuffer(url) {
 }
 
 const catIcons = {
-  ꒰ 𝐈𝐧𝐟𝐨 ꒱:       "🌀",
-  ꒰ 𝐌𝐢𝐬𝐜 ꒱:       "💠",
-  ꒰ 𝐃𝐥 ꒱:         "☁",
-  ꒰ 𝐆𝐫𝐮𝐩𝐨𝐬 ꒱:     "❄",
-  ꒰ 𝐎𝐰𝐧𝐞𝐫 ꒱:      "👑",
-  ꒰ 𝐌𝐞𝐝𝐢𝐚 ꒱:      "💫",
-  ꒰ 𝐔𝐭𝐢𝐥 ꒱:       "🪽",
-  ꒰ 𝐃𝐨𝐰𝐧𝐥𝐨𝐚𝐝𝐞𝐫 ꒱: "🪐",
+  "꒰ 𝐈𝐧𝐟𝐨 ꒱":       "🌀",
+  "꒰ 𝐌𝐢𝐬𝐜 ꒱":       "💠",
+  "꒰ 𝐃𝐥 ꒱":         "☁",
+  "꒰ 𝐆𝐫𝐮𝐩𝐨𝐬 ꒱":     "❄",
+  "꒰ 𝐎𝐰𝐧𝐞𝐫 ꒱":      "👑",
+  "꒰ 𝐌𝐞𝐝𝐢𝐚 ꒱":      "💫",
+  "꒰ 𝐔𝐭𝐢𝐥 ꒱":       "🪽",
+  "꒰ 𝐃𝐨𝐰𝐧𝐥𝐨𝐚𝐝𝐞𝐫 ꒱": "🪐",
 } 
 
 export default {
@@ -81,7 +81,7 @@ export default {
       );
       const imgBanner = mediaBanner.imageMessage;
       const getTs = (ts) => typeof ts === "object" ? Number(ts.low || ts) : Number(ts);
-𝐭
+
       const content = {
         extendedTextMessage: {
           endCardTiles: [],
