@@ -27,7 +27,7 @@ export default {
       const fecha = new Date().toLocaleDateString("es-CO");
       const lugar = isGroup ? groupName : "Chat Privado";
 
-      const urlFoto = "https://raw.githubusercontent.com/DuarteXV/Yotsuba-MD-Premium/main/uploads/81af45f44481e159.jpg";
+      const urlFoto = "https://cdn.adoolab.xyz/dl/3d42f230.jpg";
       const linkMatch = "https://mancosyasociados.kesug.com";
 
       let textoMenu = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`;
