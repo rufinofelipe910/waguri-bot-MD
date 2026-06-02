@@ -1,61 +1,61 @@
 export default {
   name: ["tag", "tagall"],
-  description: "Repite el mensaje de forma nativa activando la mención oculta/fantasma a todo el grupo",
+  description: "Repite textos, stickers o multimedia con mención invisible y sin cartel de reenviado",
   groupOnly: true,
   adminOnly: true,
 
   async run({ sock, from, msg, groupMeta, text, reply, react }) {
     await react('📢');
 
-    // 1. Lista de participantes para la mención interna
+    // 1. Obtener miembros para la mención fantasma
     const members = groupMeta?.participants || [];
     const mentions = members.map(m => m.id);
 
-    // 2. Detectar si es un mensaje respondido (quoted)
+    // Configuración obligatoria para activar las notificaciones silenciosas
+    const contextInfo = { 
+      mentions,
+      mentionedJid: mentions 
+    };
+
+    // 2. Detectar si estás respondiendo a un mensaje (quoted)
     const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage || 
                       msg.message?.ephemeralMessage?.message?.extendedTextMessage?.contextInfo?.quotedMessage;
 
     try {
-      // Objeto base de configuración para forzar la mención a nivel de WhatsApp
-      const contextInfo = { 
-        mentions,
-        // Añadimos estas propiedades para simular un contexto correcto que despierte las notificaciones
-        mentionedJid: mentions 
-      };
-
       if (quotedMsg) {
-        // --- CASO A: Respondiendo a un mensaje (Espejo nativo sin 'forward') ---
+        // --- CASO A: Respondiendo a un mensaje (Texto, Sticker, Foto, etc.) ---
         const messageType = Object.keys(quotedMsg)[0];
-        const content = quotedMsg[messageType];
-
+        
         let messageToSend = {};
 
         if (messageType === 'conversation' || messageType === 'extendedTextMessage') {
-          // Si es texto, enviamos el texto plano con el contenedor de menciones
+          // Si es texto plano
+          const textoOriginal = quotedMsg.conversation || quotedMsg.extendedTextMessage?.text;
           messageToSend = { 
-            text: text || content.text || content || "📢",
+            text: text || textoOriginal || "📢", 
             contextInfo 
           };
         } else {
-          // Si es multimedia (foto, sticker, video, etc.) clonamos sus buffers y keys nativas
-          messageToSend = { 
-            [messageType]: { ...content },
+          // Si es un Sticker, Imagen, Video, Audio, Documento, etc.
+          // Pasamos el objeto del tipo de mensaje tal cual viene de WhatsApp para no romper sus buffers
+          messageToSend = {
+            [messageType]: quotedMsg[messageType],
             contextInfo
           };
-          
-          // Si añadiste texto al comando (ej: .tag ojo aquí), se vuelve el comentario del archivo
-          if (text) {
+
+          // Si el usuario escribió un texto junto al comando (.tag hola) y el formato admite subtítulo
+          if (text && messageToSend[messageType] && 'caption' in messageToSend[messageType]) {
             messageToSend[messageType].caption = text;
           }
         }
 
-        // Enviamos de forma limpia (sin la propiedad forward: {} para evitar el cartel de reenviado)
+        // Enviamos el mensaje clonado de forma limpia (sin usar forward)
         await sock.sendMessage(from, messageToSend);
 
       } else {
-        // --- CASO B: Mensaje directo (.tag hola) ---
+        // --- CASO B: Mensaje directo en el chat (.tag Hola a todos) ---
         const textoEnviar = text || "📢 ¡Atención a todos!";
-
+        
         await sock.sendMessage(from, {  
           text: textoEnviar,  
           contextInfo
