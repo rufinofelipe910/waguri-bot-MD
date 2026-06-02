@@ -109,7 +109,6 @@ async function convertirWebp(buffer, esVideo = false) {
         `ffmpeg -i "${inputP}" -t 15 -vf "fps=15,scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`
       )
     } else {
-      // AQUÍ SE CORRIGIÓ: Se añadió 'format=rgba' antes del pad para evitar el fondo negro en imágenes
       await execAsync(
         `ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 80 "${outP}" -y`
       )
@@ -135,7 +134,6 @@ async function limpiarSticker(buffer) {
       await execAsync(`ffmpeg -i "${inputP}" -vcodec copy "${outP}" -y`)
     } catch {
       try {
-        // AQUÍ TAMBIÉN SE CORRIGIÓ: Por si el sticker original necesita rediseñarse sin fondo negro
         await execAsync(
           `ffmpeg -i "${inputP}" -vf "scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -c:v libwebp -lossless 0 -q:v 70 -loop 0 -an -vsync 0 "${outP}" -y`
         )
