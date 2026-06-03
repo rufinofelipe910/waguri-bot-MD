@@ -24,8 +24,7 @@ export default {
     await reply({
       text:
         `✅ *Bot primario eliminado*\n\n` +
-        `🤖 El bot *${primary}* ya no es primario.\n` +
-        `Todos los bots responderán en este grupo.\n\n` +
+        `🤖 Todos los bots responderán en este grupo.\n\n` +
         `⚔️ _Yuta Okotsu MD | DuarteXV_`
     })
   }
