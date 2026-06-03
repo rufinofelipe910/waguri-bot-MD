@@ -36,7 +36,6 @@ async function main() {
 
   log.info("Cargando plugins...");
   await loadPlugins();
-  watchPlugins();
 
   log.info("Iniciando bot principal...");
   const sock = await createConnection({
@@ -45,7 +44,15 @@ async function main() {
     isSubbot: false,
   });
 
-  if (sock) registerMainBot(sock, "MAIN");
+  if (sock) {
+    // Registrar cuando conecte para tener el JID correcto
+    sock.ev.on("connection.update", ({ connection }) => {
+      if (connection === "open") {
+        registerMainBot(sock, "MAIN")
+        log.info("[MAIN] Registrado en activeBots")
+      }
+    })
+  }
 
   // ─── Relanzar subbots existentes ─────────────────────
   launchAllSubbots();
