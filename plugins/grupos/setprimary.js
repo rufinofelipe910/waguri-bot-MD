@@ -11,7 +11,7 @@ export default {
   async run({ from, msg, react, reply }) {
     await react('⚙️')
 
-    const quoted     = msg.message?.extendedTextMessage?.contextInfo
+    const quoted       = msg.message?.extendedTextMessage?.contextInfo
     const quotedSender = quoted?.participant || null
 
     // ─── SIN RESPONDER → MOSTRAR BOTS DISPONIBLES ───────
