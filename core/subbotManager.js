@@ -10,12 +10,28 @@ export const activeBots = new Map();
 const workers = new Map();
 
 export function registerMainBot(sock, label = "MAIN") {
+  // Esperar a que el JID esté disponible
+  const jid = sock.user?.id || ""
   activeBots.set("main", {
     label,
-    jid: sock.user?.id || "Conectando...",
-    status: "online",
+    jid,
+    status: jid ? "online" : "connecting",
     isMain: true,
   });
+
+  // Actualizar cuando conecte si aún no tenía JID
+  if (!jid) {
+    sock.ev.on("connection.update", ({ connection }) => {
+      if (connection === "open") {
+        activeBots.set("main", {
+          label,
+          jid: sock.user?.id || "",
+          status: "online",
+          isMain: true,
+        })
+      }
+    })
+  }
 }
 
 export function updateBotStatus(id, data) {
@@ -104,7 +120,6 @@ export async function requestSubbotCode(id, phoneNumber) {
       reject(new Error("Timeout esperando código"))
     }, 15000)
 
-    // Limpiar si nunca se conecta en 2 minutos
     const cleanupTimeout = setTimeout(() => {
       const bot = activeBots.get(id)
       if (!bot || bot.status !== "online") {
