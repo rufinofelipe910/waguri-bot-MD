@@ -2,6 +2,12 @@ import axios from "axios";
 import { prepareWAMessageMedia, generateWAMessageFromContent } from "@whiskeysockets/baileys";
 import { getPlugins } from "../../core/pluginLoader.js";
 
+// ─── CACHÉ ───────────────────────────────────────────────
+let bannerCache    = null
+let bannerCacheTime = 0
+let mediaCache     = null
+let mediaCacheTime  = 0
+
 async function getBuffer(url) {
   try {
     const res = await axios({ method: "get", url, responseType: "arraybuffer" });
@@ -9,6 +15,13 @@ async function getBuffer(url) {
   } catch (e) {
     throw new Error(`Error descargando imagen: ${e.message}`);
   }
+}
+
+async function getBannerBuffer(url) {
+  if (bannerCache && Date.now() - bannerCacheTime < 3600000) return bannerCache
+  bannerCache = await getBuffer(url)
+  bannerCacheTime = Date.now()
+  return bannerCache
 }
 
 const catIcons = {
@@ -64,7 +77,6 @@ export default {
         const categoriaLimped = cat.toLowerCase().trim();
         const icon = catIcons[categoriaLimped] || "🎴";
         const nombreFormateado = categoriaLimped.charAt(0).toUpperCase() + categoriaLimped.slice(1);
-
         textoMenu += `${icon} ─── ❖ *꒰ ${nombreFormateado} ꒱* ❖ ─── ${icon}\n`;
         for (const cmd of cmds) {
           textoMenu += `✦ ${usedPrefix}${cmd}\n`;
@@ -75,12 +87,21 @@ export default {
       textoMenu += `🪼 _⎯꯭♱𝆬       ְ𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐃𝐮𝐚𝐫𝐭𝐞𝐗𝐕 | 𝐘𝐮𝐭𝐚 𝐎𝐤𝐨𝐭𝐬𝐮 𝐌𝐃_ 🪼\n`;
       textoMenu += `🔗 ${linkMatch}`;
 
-      const bufferBanner = await getBuffer(urlFoto);
-      const mediaBanner  = await prepareWAMessageMedia(
-        { image: bufferBanner },
-        { upload: sock.waUploadToServer, mediaTypeOverride: "thumbnail-link" }
-      );
-      const imgBanner = mediaBanner.imageMessage;
+      // ─── CACHÉ DE MEDIA ──────────────────────────────────
+      let imgBanner
+      if (mediaCache && Date.now() - mediaCacheTime < 3600000) {
+        imgBanner = mediaCache
+      } else {
+        const bufferBanner = await getBannerBuffer(urlFoto)
+        const mediaBanner  = await prepareWAMessageMedia(
+          { image: bufferBanner },
+          { upload: sock.waUploadToServer, mediaTypeOverride: "thumbnail-link" }
+        )
+        imgBanner      = mediaBanner.imageMessage
+        mediaCache     = imgBanner
+        mediaCacheTime = Date.now()
+      }
+
       const getTs = (ts) => typeof ts === "object" ? Number(ts.low || ts) : Number(ts);
 
       const content = {
