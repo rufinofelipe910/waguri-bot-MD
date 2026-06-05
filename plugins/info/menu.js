@@ -46,7 +46,7 @@ export default {
       const fecha = new Date().toLocaleDateString("es-CO");
       const lugar = isGroup ? groupName : "Chat Privado";
 
-      const urlFoto   = "https://cdn.adoolab.xyz/dl/3d42f230.jpg";
+      const urlFoto   = "https://files.evogb.win/1oU31I.jpg";
       const linkMatch = "https://mancosyasociados.kesug.com";
 
       const plugins    = getPlugins()
