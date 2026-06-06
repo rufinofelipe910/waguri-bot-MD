@@ -18,11 +18,12 @@ export default {
       const hora  = new Date().toLocaleTimeString('es-CO', { hour12: false })
       const fecha = new Date().toLocaleDateString('es-CO')
 
-      // ─── OBTENER INFO ────────────────────────────────
-      const [status, foto, biz] = await Promise.allSettled([
+      // ─── OBTENER INFO EN PARALELO ────────────────────
+      const [status, foto, biz, devices] = await Promise.allSettled([
         sock.fetchStatus(target),
         sock.profilePictureUrl(target, 'image'),
         sock.getBusinessProfile(target),
+        sock.getUSyncDevices([target], true, false),
       ])
 
       const statusText = status.status === 'fulfilled'
@@ -31,8 +32,19 @@ export default {
 
       const tieneFoto = foto.status === 'fulfilled' && foto.value
 
-      const bizData = biz.status === 'fulfilled' && biz.value
+      const bizData   = biz.status === 'fulfilled' && biz.value
       const esBusiness = bizData && Object.keys(bizData).length > 0
+
+      // ─── DISPOSITIVOS ────────────────────────────────
+      let dispositivosTxt = 'No disponible'
+      if (devices.status === 'fulfilled' && devices.value) {
+        const devList = devices.value
+        if (devList.length > 0) {
+          dispositivosTxt = `${devList.length} dispositivo(s) vinculado(s)`
+        } else {
+          dispositivosTxt = 'Sin dispositivos vinculados'
+        }
+      }
 
       let text = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`
       text += `🔍 _Información de Usuario_\n\n`
@@ -42,7 +54,8 @@ export default {
       text += `  ✦ *JID:* ${target}\n`
       text += `  ✦ *Tipo:* ${esBusiness ? '🏢 Business' : '👤 Normal'}\n`
       text += `  ✦ *Foto:* ${tieneFoto ? '✅ Tiene' : '❌ No tiene'}\n`
-      text += `  ✦ *Estado:* ${statusText}\n\n`
+      text += `  ✦ *Estado:* ${statusText}\n`
+      text += `  ✦ *Dispositivos:* ${dispositivosTxt}\n\n`
 
       if (esBusiness) {
         text += `🏢 ─── ❖ *BUSINESS* ❖ ─── 🏢\n`
@@ -57,7 +70,6 @@ export default {
       text += `_${hora} • ${fecha}_\n`
       text += `⚔️ _Yuta Okotsu MD | DuarteXV_`
 
-      // ─── ENVIAR CON FOTO SI TIENE ────────────────────
       if (tieneFoto) {
         await sock.sendMessage(from, {
           image: { url: foto.value },
