@@ -7,22 +7,30 @@ export default {
   botAdmin: true,
 
   async run({ sock, from, msg, reply }) {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo
+    const contextInfo =
+      msg.message?.extendedTextMessage?.contextInfo ||
+      msg.message?.imageMessage?.contextInfo ||
+      msg.message?.videoMessage?.contextInfo
 
-    if (!quoted?.stanzaId) {
-      return await reply({ text: `❌ Responde al mensaje que quieres eliminar.` })
-    }
-
-    const quotedKey = {
-      remoteJid: from,
-      id: quoted.stanzaId,
-      participant: quoted.participant || null,
+    if (!contextInfo?.stanzaId) {
+      return await reply({
+        text: '❌ Responde al mensaje que quieres eliminar.'
+      })
     }
 
     try {
-      await sock.sendMessage(from, { delete: quotedKey })
+      await sock.sendMessage(from, {
+        delete: {
+          remoteJid: from,
+          fromMe: false,
+          id: contextInfo.stanzaId,
+          participant: contextInfo.participant
+        }
+      })
     } catch (e) {
-      await reply({ text: `❌ No se pudo eliminar: ${e.message}` })
+      await reply({
+        text: `❌ No se pudo eliminar: ${e.message}`
+      })
     }
   }
 }
