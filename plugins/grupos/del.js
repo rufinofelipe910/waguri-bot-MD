@@ -1,36 +1,35 @@
+import { jidNormalizedUser } from "@whiskeysockets/baileys";
+
 export default {
-  name: ['del', 'delete', 'eliminar'],
-  description: 'Elimina un mensaje respondiendo a él',
-  category: 'grupos',
+  name: ["del", "delete", "eliminar"],
+  description: "Elimina un mensaje respondiendo a él",
+  category: "grupos",
   groupOnly: true,
   adminOnly: true,
   botAdmin: true,
 
   async run({ sock, from, msg, reply }) {
-    const contextInfo =
-      msg.message?.extendedTextMessage?.contextInfo ||
-      msg.message?.imageMessage?.contextInfo ||
-      msg.message?.videoMessage?.contextInfo
+    const quoted = msg.message?.extendedTextMessage?.contextInfo;
 
-    if (!contextInfo?.stanzaId) {
+    if (!quoted?.stanzaId) {
       return await reply({
-        text: '❌ Responde al mensaje que quieres eliminar.'
-      })
+        text: "❌ Responde al mensaje que quieres eliminar."
+      });
     }
 
     try {
       await sock.sendMessage(from, {
         delete: {
           remoteJid: from,
-          fromMe: false,
-          id: contextInfo.stanzaId,
-          participant: contextInfo.participant
+          id: quoted.stanzaId,
+          participant: jidNormalizedUser(quoted.participant),
+          fromMe: false
         }
-      })
+      });
     } catch (e) {
       await reply({
-        text: `❌ No se pudo eliminar: ${e.message}`
-      })
+        text: `❌ No se pudo eliminar:\n${e.message}`
+      });
     }
   }
 }
