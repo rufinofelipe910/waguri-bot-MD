@@ -1,6 +1,6 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import axios from 'axios'
-import { FormData } from 'formdata-node'
+import { FormData, Blob } from 'formdata-node'
 import { fileTypeFromBuffer } from 'file-type'
 
 const API_URL = 'https://cdn.dix.lat'
@@ -23,10 +23,9 @@ function getContentType(message) {
 async function subirDix(buffer, filename, mimetype, esTemporal = false, ttl = 86400) {
   const form = new FormData()
 
-  form.append('file', buffer, {
-    filename: filename,
-    contentType: mimetype
-  })
+  const blob = new Blob([buffer], { type: mimetype })
+
+  form.append('file', blob, filename)
 
   const endpoint = esTemporal 
     ? `${API_URL}/upload/tmp?ttl=${ttl}`
