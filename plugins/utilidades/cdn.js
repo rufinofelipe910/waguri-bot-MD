@@ -17,8 +17,7 @@ const MEDIA_TYPES = {
 function getContentType(message) {
   if (!message) return null
   const keys = Object.keys(message)
-  const type = keys.find(key => key !== 'messageContextInfo' && key !== 'senderKeyDistributionMessage')
-  return type
+  return keys.find(key => key !== 'messageContextInfo' && key !== 'senderKeyDistributionMessage')
 }
 
 async function subirDix(buffer, filename, mimetype) {
@@ -30,6 +29,7 @@ async function subirDix(buffer, filename, mimetype) {
     filename
   )
 
+  // Separación correcta de endpoints según el tipo de archivo
   const endpoint = mimetype.startsWith('image/')
     ? `${API_URL}/upload1`
     : `${API_URL}/upload2`
@@ -52,7 +52,7 @@ async function subirDix(buffer, filename, mimetype) {
 
 export default {
   name: ['cdn', 'subir', 'upload'],
-  description: 'Sube archivos a Dix mostrando estructura JSON',
+  description: 'Sube archivos multimedia al CDN de Dix',
   category: 'misc',
   ownerOnly: false,
 
@@ -60,6 +60,7 @@ export default {
     try {
       await react('⏳')
 
+      // 1. Extraer el mensaje base (manejando mensajes efímeros)
       let rawMessage = msg.message
       if (rawMessage?.ephemeralMessage) {
         rawMessage = rawMessage.ephemeralMessage.message
@@ -67,6 +68,7 @@ export default {
 
       const msgType = getContentType(rawMessage)
 
+      // 2. Extraer el mensaje citado si existe (manejando mensajes efímeros)
       const quotedContext = rawMessage?.extendedTextMessage?.contextInfo
       let quotedMessage = quotedContext?.quotedMessage
       if (quotedMessage?.ephemeralMessage) {
@@ -103,6 +105,7 @@ export default {
         })
       }
 
+      // Descargar el archivo desde los servidores de WhatsApp
       const buffer = await downloadMediaMessage(
         targetMsg,
         'buffer',
@@ -119,24 +122,18 @@ export default {
       const mime = detected?.mime || mediaInfo.mime
       const filename = `file_${Date.now()}.${ext}`
 
+      // Realizar la petición a la API
       const result = await subirDix(buffer, filename, mime)
 
-      // --- DEBUG: VER ESTRUCTURA DEL JSON ---
-      // Esto mandará textualmente la respuesta completa al chat para analizarla
-      await reply({
-        text: `📦 *Estructura completa de la respuesta:* \n\`\`\`${JSON.stringify(result, null, 2)}\`\`\``
-      })
-      // ---------------------------------------
-
-      if (!result || !result.data) {
-        throw new Error('El servidor de Dix no devolvió una respuesta válida.')
+      // Validación basada estrictamente en el formato de tu respuesta confirmada
+      if (!result || !result.status || !result.data) {
+        throw new Error('El servidor de Dix rechazó la subida o devolvió un formato incorrecto.')
       }
 
       const data = result.data
 
-      // Fallback temporal mientras inspeccionamos el JSON
-      const folder = (mime.startsWith('image/') && !mime.includes('webp')) ? 'media' : 'upload'
-      const finalUrl = data.url || result.url || data.link || `https://api.dix.lat/${folder}/${data.id || filename}`
+      // Mapeo exacto de la URL devuelta por el backend del servidor
+      const finalUrl = data.url
 
       await reply({
         text:
@@ -145,7 +142,7 @@ export default {
           `🆔 *ID:* \`${data.id || '-'}\`\n` +
           `📏 *Tamaño:* \`${data.size || '-'}\`\n` +
           `📦 *Mime:* \`${data.mime || mime}\`\n\n` +
-          `🔗 *URL:* (A verificar con el JSON)\n${finalUrl}`
+          `🔗 *URL:*\n${finalUrl}`
       })
 
       await react('✅')
