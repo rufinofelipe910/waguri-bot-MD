@@ -30,8 +30,9 @@ async function subirDix(buffer, filename, mimetype) {
     filename
   )
 
-  // Tu opinión es totalmente correcta: upload1 fotos, upload2 lo demás
-  const endpoint = mimetype.startsWith('image/') && !mimetype.includes('webp')
+  // Lógica segura para la API: Todo lo que sea imagen (incluyendo webp/stickers) va a upload1. 
+  // Videos, audios y documentos van a upload2.
+  const endpoint = mimetype.startsWith('image/')
     ? `${API_URL}/upload1`
     : `${API_URL}/upload2`
 
@@ -53,7 +54,7 @@ async function subirDix(buffer, filename, mimetype) {
 
 export default {
   name: ['cdn', 'subir', 'upload'],
-  description: 'Sube archivos a Dix de forma correcta',
+  description: 'Sube archivos a Dix sin errores 500 o 404',
   category: 'misc',
   ownerOnly: false,
 
@@ -128,21 +129,13 @@ export default {
 
       const data = result.data
 
-      // --- DETERMINACIÓN DE LA URL FINAL ---
-      let finalUrl = ''
+      // --- ASIGNACIÓN DE CARPETA DEFINITIVA ---
+      // El servidor guarda las imágenes normales (jpg, png) en /media/
+      // Pero los stickers (webp), videos y demás van a /upload/
+      const folder = (mime.startsWith('image/') && !mime.includes('webp')) ? 'media' : 'upload'
 
-      if (data.url) finalUrl = data.url
-      else if (result.url) finalUrl = result.url
-      else if (data.link) finalUrl = data.link
-      else {
-        // Si la API no te da una URL directa, armamos el fallback usando la lógica de endpoints:
-        // Si fue por upload1 (imágenes) usa /media/, si fue por upload2 (videos/stickers) usa /upload/
-        if (mime.startsWith('image/') && !mime.includes('webp')) {
-          finalUrl = `https://api.dix.lat/media/${data.id || filename}`
-        } else {
-          finalUrl = `https://api.dix.lat/upload/${data.id || filename}`
-        }
-      }
+      // Construcción final de la URL usando la respuesta o el fallback exacto
+      const finalUrl = data.url || result.url || data.link || `https://api.dix.lat/${folder}/${data.id || filename}`
 
       await reply({
         text:
