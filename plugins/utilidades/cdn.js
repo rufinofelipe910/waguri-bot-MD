@@ -14,11 +14,10 @@ const MEDIA_TYPES = {
   ptvMessage:      { ext: 'mp4',  mime: 'video/mp4' }
 }
 
-// Función auxiliar para limpiar y obtener el tipo real del mensaje de Baileys
+// Función auxiliar para obtener el tipo real del mensaje de Baileys limpiando metadatos
 function getContentType(message) {
   if (!message) return null
   const keys = Object.keys(message)
-  // Filtrar propiedades comunes de Baileys que no son tipos de mensajes reales
   const type = keys.find(key => key !== 'messageContextInfo' && key !== 'senderKeyDistributionMessage')
   return type
 }
@@ -54,7 +53,7 @@ async function subirDix(buffer, filename, mimetype) {
 
 export default {
   name: ['cdn', 'subir', 'upload'],
-  description: 'Sube archivos a Dix con Debug',
+  description: 'Sube archivos a Dix de forma correcta',
   category: 'misc',
   ownerOnly: false,
 
@@ -62,7 +61,7 @@ export default {
     try {
       await react('⏳')
 
-      // 1. Extraer el mensaje real (manejando mensajes efímeros si aplica)
+      // 1. Extraer el mensaje base (manejando mensajes efímeros)
       let rawMessage = msg.message
       if (rawMessage?.ephemeralMessage) {
         rawMessage = rawMessage.ephemeralMessage.message
@@ -70,7 +69,7 @@ export default {
 
       const msgType = getContentType(rawMessage)
 
-      // 2. Extraer el mensaje citado si existe
+      // 2. Extraer el mensaje citado si existe (manejando mensajes efímeros)
       const quotedContext = rawMessage?.extendedTextMessage?.contextInfo
       let quotedMessage = quotedContext?.quotedMessage
       if (quotedMessage?.ephemeralMessage) {
@@ -79,23 +78,15 @@ export default {
       
       const quotedType = getContentType(quotedMessage)
 
-      // --- SECCIÓN DE DEBUG ---
-      let debugText = `🔍 *[DEBUG INFO]*\n`
-      debugText += `• Tipo de mensaje actual: \`${msgType || 'Ninguno'}\`\n`
-      debugText += `• ¿Tiene citado?: \`${quotedMessage ? 'Sí' : 'No'}\`\n`
-      debugText += `• Tipo de mensaje citado: \`${quotedType || 'Ninguno'}\`\n`
-      await reply({ text: debugText })
-      // -------------------------
-
       let targetMsg = null
       let mediaInfo = null
 
-      // Validar si el mensaje actual contiene multimedia admitida
+      // Validar si el mensaje principal contiene la multimedia
       if (msgType && MEDIA_TYPES[msgType]) {
         targetMsg = msg
         mediaInfo = { type: msgType, ...MEDIA_TYPES[msgType] }
       } 
-      // Validar si el mensaje citado contiene multimedia admitida
+      // Validar si el mensaje citado contiene la multimedia
       else if (quotedMessage && quotedType && MEDIA_TYPES[quotedType]) {
         targetMsg = {
           key: {
@@ -114,12 +105,11 @@ export default {
 
       if (!targetMsg || !mediaInfo) {
         return reply({
-          text: '❌ Responde a un archivo válido o envía uno junto al comando.\nFormatos soportados: Imágenes, Videos, Audios, Documentos, Stickers.'
+          text: '❌ Responde a un archivo válido o envía uno junto al comando.\n\n*Formatos:* Imágenes, Videos, Audios, Documentos, Stickers.'
         })
       }
 
-      await reply({ text: `📥 Descargando multimedia tipo: \`${mediaInfo.type}\`...` })
-
+      // Descarga del buffer
       const buffer = await downloadMediaMessage(
         targetMsg,
         'buffer',
@@ -128,24 +118,26 @@ export default {
       )
 
       if (!buffer || buffer.length === 0) {
-        throw new Error('El buffer descargado está vacío o es inválido.')
+        throw new Error('No se pudo obtener el archivo (Buffer vacío)')
       }
 
-      // Detectar tipo real por seguridad
+      // Analizar tipo de archivo real para evitar extensiones incorrectas
       const detected = await fileTypeFromBuffer(buffer)
       const ext = detected?.ext || mediaInfo.ext
       const mime = detected?.mime || mediaInfo.mime
       const filename = `file_${Date.now()}.${ext}`
 
-      await reply({ text: `🚀 Subiendo \`${filename}\` a los servidores...` })
-
+      // Petición a la API externa
       const result = await subirDix(buffer, filename, mime)
 
       if (!result || !result.data) {
-        throw new Error('El servidor externo no devolvió una estructura `data` válida.')
+        throw new Error('El servidor de Dix no devolvió una respuesta válida.')
       }
 
       const data = result.data
+
+      // Construcción inteligente de la URL usando los datos reales de la API
+      const finalUrl = data.url || result.url || data.link || `https://api.dix.lat/media/${data.id || filename}`
 
       await reply({
         text:
@@ -154,7 +146,7 @@ export default {
           `🆔 *ID:* \`${data.id || '-'}\`\n` +
           `📏 *Tamaño:* \`${data.size || '-'}\`\n` +
           `📦 *Mime:* \`${data.mime || mime}\`\n\n` +
-          `🔗 *URL:*\n${data.url || result.url || 'No provista'}`
+          `🔗 *URL:*\n${finalUrl}`
       })
 
       await react('✅')
@@ -162,7 +154,7 @@ export default {
     } catch (e) {
       await react('❌')
       await reply({
-        text: `❌ *Error en el proceso:* ${e.message}\n\n_Revisa la consola del servidor para más detalles._`
+        text: `❌ *Error:* ${e.message}`
       })
       console.error(e)
     }
