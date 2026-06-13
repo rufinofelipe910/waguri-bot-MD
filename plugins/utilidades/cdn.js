@@ -1,8 +1,9 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import axios from 'axios'
 import { FormData, Blob } from 'formdata-node'
+import { fileTypeFromBuffer } from 'file-type'
 
-const CDN_URL = 'https://cdn.dix.lat'
+const API_URL = 'https://api.dix.lat'
 
 const MEDIA_TYPES = {
   imageMessage:    { ext: 'jpg',  mime: 'image/jpeg' },
@@ -10,50 +11,55 @@ const MEDIA_TYPES = {
   audioMessage:    { ext: 'm4a',  mime: 'audio/mp4' },
   documentMessage: { ext: 'bin',  mime: 'application/octet-stream' },
   stickerMessage:  { ext: 'webp', mime: 'image/webp' },
-  ptvMessage:      { ext: 'mp4',  mime: 'video/mp4' },
+  ptvMessage:      { ext: 'mp4',  mime: 'video/mp4' }
 }
 
-async function subirCDN(buffer, filename, mimetype, expiration = 'never') {
+async function subirDix(buffer, filename, mimetype) {
   const form = new FormData()
-  const blob = new Blob([buffer], { type: mimetype })
 
-  const uploadPath = expiration === 'never' ? '/upload' : `/upload?ttl=${expiration}`
+  form.append(
+    'file',
+    new Blob([buffer], { type: mimetype }),
+    filename
+  )
 
-  form.append('file', blob, filename)
+  const endpoint = mimetype.startsWith('image/')
+    ? `${API_URL}/upload1`
+    : `${API_URL}/upload2`
 
-  const res = await axios.post(`${CDN_URL}${uploadPath}`, form, {
-    timeout: 120000,
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-    headers: { 'User-Agent': 'Drive-Client' }
-  })
+  const { data } = await axios.post(
+    endpoint,
+    form,
+    {
+      timeout: 120000,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      headers: {
+        'User-Agent': 'Drive-Client'
+      }
+    }
+  )
 
-  return res.data
+  return data
 }
 
 export default {
   name: ['cdn', 'subir', 'upload'],
-  description: 'Sube un archivo al CDN y te da el enlace',
+  description: 'Sube archivos a Dix',
   category: 'misc',
   ownerOnly: false,
 
-  async run({ sock, from, msg, args, usedPrefix, react, reply }) {
+  async run({ sock, from, msg, react, reply }) {
     try {
       await react('⏳')
 
-      const expiraciones = {
-        'nunca': 'never', 'never': 'never',
-        '1m': '1m', '5m': '5m', '10m': '10m', '30m': '30m',
-        '1h': '1h', '6h': '6h', '12h': '12h',
-        '1d': '1d', '3d': '3d', '7d': '7d', '30d': '30d'
-      }
+      const msgType = Object.keys(msg.message || {})[0]
 
-      const expArg     = args[0]?.toLowerCase()
-      const expiration = expiraciones[expArg] || 'never'
+      const quoted =
+        msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
-      const msgType    = Object.keys(msg.message || {})[0]
-      const quoted     = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
-      const quotedType = quoted ? Object.keys(quoted)[0] : null
+      const quotedType =
+        quoted ? Object.keys(quoted)[0] : null
 
       let targetMsg = null
       let mediaInfo = null
@@ -66,65 +72,79 @@ export default {
           key: {
             remoteJid: from,
             id: msg.message.extendedTextMessage.contextInfo.stanzaId,
-            participant: msg.message.extendedTextMessage?.contextInfo?.participant,
+            participant:
+              msg.message.extendedTextMessage.contextInfo.participant
           },
-          message: quoted,
+          message: quoted
         }
-        mediaInfo = { type: quotedType, ...MEDIA_TYPES[quotedType] }
-      } else if (quoted) {
-        for (const [key, info] of Object.entries(MEDIA_TYPES)) {
-          if (quoted[key] || quoted.buttonsMessage?.[key] || quoted.templateMessage?.hydratedTemplate?.[key]) {
-            targetMsg = {
-              key: {
-                remoteJid: from,
-                id: msg.message.extendedTextMessage.contextInfo.stanzaId,
-                participant: msg.message.extendedTextMessage?.contextInfo?.participant,
-              },
-              message: quoted,
-            }
-            mediaInfo = { type: key, ...info }
-            break
-          }
+
+        mediaInfo = {
+          type: quotedType,
+          ...MEDIA_TYPES[quotedType]
         }
       }
 
       if (!targetMsg || !mediaInfo) {
-        return await reply({
-          text:
-            `❌ Responde o envía un archivo para subirlo al CDN.\n\n` +
-            `💡 *${usedPrefix}cdn* ➔ subir permanente\n` +
-            `💡 *${usedPrefix}cdn 1d* ➔ expira en 1 día\n` +
-            `💡 *${usedPrefix}cdn 7d* ➔ expira en 7 días\n\n` +
-            `⏱️ *Expiraciones:* never, 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 3d, 7d, 30d`
+        return reply({
+          text: '❌ Responde o envía un archivo.'
         })
       }
 
-      const buffer   = await downloadMediaMessage(targetMsg, 'buffer', {}, { sock })
-      const filename = `${Date.now()}.${mediaInfo.ext}`
+      const buffer = await downloadMediaMessage(
+        targetMsg,
+        'buffer',
+        {},
+        { sock }
+      )
 
-      const resultado = await subirCDN(buffer, filename, mediaInfo.mime, expiration)
+      if (!buffer?.length) {
+        throw new Error('No se pudo obtener el archivo')
+      }
 
-      const url = resultado?.data?.url || resultado?.url 
+      const detected = await fileTypeFromBuffer(buffer)
 
-      if (!url) throw new Error('No se obtuvo URL del CDN')
+      const ext =
+        detected?.ext ||
+        mediaInfo.ext
 
-      const exp = expiration === 'never' ? '♾️ Permanente' : `⏱️ Expira en: ${expiration}`
+      const mime =
+        detected?.mime ||
+        mediaInfo.mime
+
+      const filename =
+        `file_${Date.now()}.${ext}`
+
+      const result = await subirDix(
+        buffer,
+        filename,
+        mime
+      )
+
+      if (!result?.status || !result?.data) {
+        throw new Error(
+          'Respuesta inválida del servidor'
+        )
+      }
+
+      const data = result.data
 
       await reply({
         text:
-          `✅ *Archivo subido al CDN*\n\n` +
-          `📎 *Tipo:* ${mediaInfo.type.replace('Message', '')}\n` +
-          `📏 *Tamaño:* ${(buffer.length / 1024).toFixed(1)} KB\n` +
-          `${exp}\n\n` +
-          `🔗 *URL:*\n${url}`
+          `✅ *Archivo subido*\n\n` +
+          `📄 *Nombre:* ${filename}\n` +
+          `🆔 *ID:* ${data.id || '-'}\n` +
+          `📏 *Tamaño:* ${data.size || '-'}\n` +
+          `📦 *Mime:* ${data.mime || mime}\n\n` +
+          `🔗 *URL:*\n${data.url}`
       })
 
       await react('✅')
 
-    } catch (error) {
+    } catch (e) {
       await react('❌')
-      await reply({ text: `❌ Error: ${error.message}` })
-      console.error('Error en cdn:', error)
+      await reply({
+        text: `❌ Error: ${e.message}`
+      })
     }
   }
 }
