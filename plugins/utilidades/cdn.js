@@ -30,8 +30,6 @@ async function subirDix(buffer, filename, mimetype) {
     filename
   )
 
-  // Lógica segura para la API: Todo lo que sea imagen (incluyendo webp/stickers) va a upload1. 
-  // Videos, audios y documentos van a upload2.
   const endpoint = mimetype.startsWith('image/')
     ? `${API_URL}/upload1`
     : `${API_URL}/upload2`
@@ -54,7 +52,7 @@ async function subirDix(buffer, filename, mimetype) {
 
 export default {
   name: ['cdn', 'subir', 'upload'],
-  description: 'Sube archivos a Dix sin errores 500 o 404',
+  description: 'Sube archivos a Dix mostrando estructura JSON',
   category: 'misc',
   ownerOnly: false,
 
@@ -123,18 +121,21 @@ export default {
 
       const result = await subirDix(buffer, filename, mime)
 
+      // --- DEBUG: VER ESTRUCTURA DEL JSON ---
+      // Esto mandará textualmente la respuesta completa al chat para analizarla
+      await reply({
+        text: `📦 *Estructura completa de la respuesta:* \n\`\`\`${JSON.stringify(result, null, 2)}\`\`\``
+      })
+      // ---------------------------------------
+
       if (!result || !result.data) {
         throw new Error('El servidor de Dix no devolvió una respuesta válida.')
       }
 
       const data = result.data
 
-      // --- ASIGNACIÓN DE CARPETA DEFINITIVA ---
-      // El servidor guarda las imágenes normales (jpg, png) en /media/
-      // Pero los stickers (webp), videos y demás van a /upload/
+      // Fallback temporal mientras inspeccionamos el JSON
       const folder = (mime.startsWith('image/') && !mime.includes('webp')) ? 'media' : 'upload'
-
-      // Construcción final de la URL usando la respuesta o el fallback exacto
       const finalUrl = data.url || result.url || data.link || `https://api.dix.lat/${folder}/${data.id || filename}`
 
       await reply({
@@ -144,7 +145,7 @@ export default {
           `🆔 *ID:* \`${data.id || '-'}\`\n` +
           `📏 *Tamaño:* \`${data.size || '-'}\`\n` +
           `📦 *Mime:* \`${data.mime || mime}\`\n\n` +
-          `🔗 *URL:*\n${finalUrl}`
+          `🔗 *URL:* (A verificar con el JSON)\n${finalUrl}`
       })
 
       await react('✅')
