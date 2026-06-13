@@ -14,7 +14,6 @@ const MEDIA_TYPES = {
   ptvMessage:      { ext: 'mp4',  mime: 'video/mp4' }
 }
 
-// Función auxiliar para obtener el tipo real del mensaje de Baileys limpiando metadatos
 function getContentType(message) {
   if (!message) return null
   const keys = Object.keys(message)
@@ -31,8 +30,8 @@ async function subirDix(buffer, filename, mimetype) {
     filename
   )
 
-  // Volvemos a la lógica original exacta de subida que no daba error 500
-  const endpoint = mimetype.startsWith('image/')
+  // Tu opinión es totalmente correcta: upload1 fotos, upload2 lo demás
+  const endpoint = mimetype.startsWith('image/') && !mimetype.includes('webp')
     ? `${API_URL}/upload1`
     : `${API_URL}/upload2`
 
@@ -62,7 +61,6 @@ export default {
     try {
       await react('⏳')
 
-      // 1. Extraer el mensaje base (manejando mensajes efímeros)
       let rawMessage = msg.message
       if (rawMessage?.ephemeralMessage) {
         rawMessage = rawMessage.ephemeralMessage.message
@@ -70,7 +68,6 @@ export default {
 
       const msgType = getContentType(rawMessage)
 
-      // 2. Extraer el mensaje citado si existe (manejando mensajes efímeros)
       const quotedContext = rawMessage?.extendedTextMessage?.contextInfo
       let quotedMessage = quotedContext?.quotedMessage
       if (quotedMessage?.ephemeralMessage) {
@@ -82,13 +79,10 @@ export default {
       let targetMsg = null
       let mediaInfo = null
 
-      // Validar si el mensaje principal contiene la multimedia admisible
       if (msgType && MEDIA_TYPES[msgType]) {
         targetMsg = msg
         mediaInfo = { type: msgType, ...MEDIA_TYPES[msgType] }
-      } 
-      // Validar si el mensaje citado contiene la multimedia admisible
-      else if (quotedMessage && quotedType && MEDIA_TYPES[quotedType]) {
+      } else if (quotedMessage && quotedType && MEDIA_TYPES[quotedType]) {
         targetMsg = {
           key: {
             remoteJid: from,
@@ -110,7 +104,6 @@ export default {
         })
       }
 
-      // Descarga del buffer desde los servidores de WhatsApp
       const buffer = await downloadMediaMessage(
         targetMsg,
         'buffer',
@@ -122,13 +115,11 @@ export default {
         throw new Error('No se pudo obtener el archivo (Buffer vacío)')
       }
 
-      // Analizar tipo de archivo real para evitar extensiones incorrectas
       const detected = await fileTypeFromBuffer(buffer)
       const ext = detected?.ext || mediaInfo.ext
       const mime = detected?.mime || mediaInfo.mime
       const filename = `file_${Date.now()}.${ext}`
 
-      // Petición HTTP a la API externa
       const result = await subirDix(buffer, filename, mime)
 
       if (!result || !result.data) {
@@ -137,12 +128,21 @@ export default {
 
       const data = result.data
 
-      // Corrección del enlace: Las imágenes normales (jpg, png) van a /media/
-      // Los stickers (webp) y demás archivos van a /upload/
-      const folder = (mime.startsWith('image/') && !mime.includes('webp')) ? 'media' : 'upload'
+      // --- DETERMINACIÓN DE LA URL FINAL ---
+      let finalUrl = ''
 
-      // Construcción de la URL
-      const finalUrl = data.url || result.url || data.link || `https://api.dix.lat/${folder}/${data.id || filename}`
+      if (data.url) finalUrl = data.url
+      else if (result.url) finalUrl = result.url
+      else if (data.link) finalUrl = data.link
+      else {
+        // Si la API no te da una URL directa, armamos el fallback usando la lógica de endpoints:
+        // Si fue por upload1 (imágenes) usa /media/, si fue por upload2 (videos/stickers) usa /upload/
+        if (mime.startsWith('image/') && !mime.includes('webp')) {
+          finalUrl = `https://api.dix.lat/media/${data.id || filename}`
+        } else {
+          finalUrl = `https://api.dix.lat/upload/${data.id || filename}`
+        }
+      }
 
       await reply({
         text:
