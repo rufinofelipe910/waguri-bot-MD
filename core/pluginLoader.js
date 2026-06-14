@@ -1,4 +1,4 @@
-import { readdirSync, statSync, watch } from "fs";
+import { readdirSync, watch } from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
 import { log } from "./logger.js";
@@ -6,7 +6,6 @@ import { log } from "./logger.js";
 const plugins = new Map();
 const PLUGINS_DIR = path.resolve("./plugins");
 
-// ─── CARGAR TODOS LOS PLUGINS ─────────────────────────────
 export async function loadPlugins() {
   plugins.clear();
   await loadDir(PLUGINS_DIR);
@@ -15,22 +14,22 @@ export async function loadPlugins() {
 
 async function loadDir(dir) {
   let entries;
-  try { entries = readdirSync(dir); } catch { return; }
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
 
+  const tasks = [];
   for (const entry of entries) {
-    const full = path.join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) {
-      await loadDir(full);
-    } else if (entry.endsWith(".js")) {
-      await loadPlugin(full);
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      tasks.push(loadDir(full));
+    } else if (entry.name.endsWith(".js")) {
+      tasks.push(loadPlugin(full));
     }
   }
+  await Promise.all(tasks);
 }
 
 async function loadPlugin(filePath) {
   try {
-    // Forzar recarga limpia con timestamp para evitar caché
     const url = pathToFileURL(filePath).href + `?t=${Date.now()}`;
     const mod = await import(url);
 
@@ -48,7 +47,6 @@ async function loadPlugin(filePath) {
   }
 }
 
-// ─── HOT RELOAD ───────────────────────────────────────────
 export function watchPlugins() {
   watch(PLUGINS_DIR, { recursive: true }, async (event, filename) => {
     if (!filename?.endsWith(".js")) return;
