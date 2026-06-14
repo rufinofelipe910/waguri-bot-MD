@@ -1,7 +1,7 @@
 export default {
   name: ["tagall", "todos", "invocar", "mentionall"],
   description: "Mencionar a todos los participantes del grupo",
-  category: "group",
+  category: "grupos",
   adminOnly: true,
   groupOnly: true,
 
