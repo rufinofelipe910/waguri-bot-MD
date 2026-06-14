@@ -8,11 +8,15 @@ export default {
 
   async run({ reply, text, sock, from, msg }) {
     try {
-      let result = await eval(`(async () => { return ${text} })()`);
+      let result = await eval(`(async () => {
+        ${text}
+      })()`);
 
       if (result === undefined) result = "undefined";
-      if (typeof result !== "string")
+
+      if (typeof result !== "string") {
         result = JSON.stringify(result, null, 2);
+      }
 
       await reply({
         text: `✅ *Resultado:*\n\`\`\`${result}\`\`\``
@@ -22,5 +26,5 @@ export default {
         text: `❌ *Error:*\n\`\`\`${e.message}\`\`\``
       });
     }
-  },
-};
+  }
+}
