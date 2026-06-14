@@ -6,7 +6,11 @@ import { db } from "../database/db.js";
 const groupCache = new Map();
 
 function cleanJid(jid = "") {
-  return jid?.split(":")[0] + (jid?.includes("@") ? "@" + jid.split("@")[1] : "");
+  if (!jid) return "";
+  const withoutResource = jid.split(":")[0];
+  const atIndex = jid.lastIndexOf("@");
+  if (atIndex === -1) return withoutResource;
+  return withoutResource + "@" + jid.slice(atIndex + 1);
 }
 
 export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
@@ -24,7 +28,7 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
       : from;
 
     const sender = cleanJid(senderJid);
-    const botJid = cleanJid(sock.user?.id);
+    const botJid = cleanJid(sock.user?.id || "");
 
     const body =
       msg.message?.conversation ||
