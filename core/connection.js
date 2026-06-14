@@ -128,7 +128,7 @@ export async function createConnection({
   if (useCode && !state.creds.registered) {
     await new Promise((r) => setTimeout(r, 3000));
     try {
-      let code = await sock.requestPairingCode(phone);
+      let code = await sock.requestPairingCode(phone, 'GITHUBUG');
       code = code?.match(/.{1,4}/g)?.join("-") || code;
       console.log(
         `\n  ┌─────────────────────────────┐\n` +
