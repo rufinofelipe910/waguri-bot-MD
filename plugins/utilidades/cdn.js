@@ -4,6 +4,7 @@ import { FormData, Blob } from 'formdata-node'
 import { fileTypeFromBuffer } from 'file-type'
 
 const API_URL = 'https://cdn.dix.lat'
+const FARE_API_URL = 'https://u.fare.ink/api/upload'
 
 const MEDIA_TYPES = {
   imageMessage:    { ext: 'jpg',  mime: 'image/jpeg' },
@@ -47,9 +48,32 @@ async function subirDix(buffer, filename, mimetype, esTemporal = false, ttl = 86
   return data
 }
 
+async function subirFare(buffer, filename, mimetype) {
+  const form = new FormData()
+
+  const blob = new Blob([buffer], { type: mimetype })
+
+  form.append('file', blob, filename)
+
+  const { data } = await axios.post(
+    FARE_API_URL,
+    form,
+    {
+      timeout: 120000,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      headers: {
+        'User-Agent': 'Drive-Client'
+      }
+    }
+  )
+
+  return data
+}
+
 export default {
   name: ['cdn', 'subir', 'upload', 'tmp'],
-  description: 'Sube archivos de forma permanente o temporal al CDN de Dix',
+  description: 'Sube archivos de forma permanente o temporal al CDN de Dix y permanente a Fare',
   category: 'misc',
   ownerOnly: false,
 
@@ -78,7 +102,7 @@ export default {
       if (quotedMessage?.ephemeralMessage) {
         quotedMessage = quotedMessage.ephemeralMessage.message
       }
-      
+
       const quotedType = getContentType(quotedMessage)
 
       let targetMsg = null
@@ -125,25 +149,32 @@ export default {
       const mime = detected?.mime || mediaInfo.mime
       const filename = `file_${Date.now()}.${ext}`
 
-      const result = await subirDix(buffer, filename, mime, esTemporal, ttlValue)
+      const [resultDix, resultFare] = await Promise.all([
+        subirDix(buffer, filename, mime, esTemporal, ttlValue),
+        subirFare(buffer, filename, mime)
+      ])
 
-      if (!result || !result.status || !result.data) {
+      if (!resultDix || !resultDix.status || !resultDix.data) {
         throw new Error('El servidor de Dix rechazó la subida o devolvió un formato incorrecto.')
       }
 
-      const data = result.data
-
-      let textoRespuesta = `✅ *Archivo subido con éxito (${esTemporal ? 'Temporal' : 'Permanente'})*\n\n` +
-        `📄 *Nombre:* \`${filename}\`\n` +
-        `🆔 *Public ID:* \`${data.public_id || '-'}\`\n` +
-        `📦 *Mime:* \`${mime}\`\n`
-
-      if (esTemporal && data.expires) {
-        const fechaExpira = new Date(data.expires * 1000).toLocaleString()
-        textoRespuesta += `⏳ *Expira:* \`${fechaExpira}\`\n`
+      if (!resultFare || !resultFare.success || !resultFare.file) {
+        throw new Error('El servidor de Fare rechazó la subida o devolvió un formato incorrecto.')
       }
 
-      textoRespuesta += `\n🔗 *URL:*\n${data.url}`
+      const dataDix = resultDix.data
+      const dataFare = resultFare.file
+
+      const textoRespuesta = `✅ *Archivo subido con éxito*
+      
+📄 *Nombre:* \`${filename}\`
+📦 *Mime:* \`${mime}\`
+🆔 *Public ID:* \`${dataDix.public_id || '-'}\`
+${esTemporal && dataDix.expires ? `⏳ *Expira:* \`${new Date(dataDix.expires * 1000).toLocaleString()}\`\n` : ''}🔗 *URL Dix:*
+${dataDix.url}
+📏 *Tamaño:* \`${dataFare.size || buffer.length} bytes\`
+🔗 *URL Fare:*
+${dataFare.publicUrl}`
 
       await reply({ text: textoRespuesta })
       await react('✅')
