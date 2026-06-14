@@ -143,8 +143,18 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
       isPremium,
       isAdmin,
       isBotAdmin,
-      reply: (content) => sock.sendMessage(from, content, { quoted: msg }),
-      react: (emoji)   => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }),
+      reply: async (content) => {
+        try {
+          return await sock.sendMessage(from, content, { quoted: msg });
+        } catch {
+          return await sock.sendMessage(from, content);
+        }
+      },
+      react: async (emoji) => {
+        try {
+          return await sock.sendMessage(from, { react: { text: emoji, key: msg.key } });
+        } catch {}
+      },
     };
 
     const plugins = getPlugins();
