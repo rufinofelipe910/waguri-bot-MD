@@ -1,106 +1,179 @@
-import { JSONFilePreset } from "lowdb/node";
+import Database from "better-sqlite3";
 import { mkdirSync } from "fs";
+import config from "../config.js"; // Asegúrate de que la ruta hacia tu config.js sea la correcta
 
 mkdirSync("./database", { recursive: true });
 
-const defaultData = { users: {}, groups: {} };
-const db_instance = await JSONFilePreset("./database/yuta.json", defaultData);
+const db_instance = new Database("./database/yuta.sqlite");
+db_instance.pragma("journal_mode = WAL");
 
-let saveTimer = null;
-function scheduleSave() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(async () => {
-    saveTimer = null;
-    await db_instance.write();
-  }, 5000);
-}
+// Creamos las tablas usando el principio dinámico JSON
+db_instance.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    jid TEXT PRIMARY KEY,
+    data TEXT DEFAULT '{}'
+  );
+  
+  CREATE TABLE IF NOT EXISTS groups (
+    jid TEXT PRIMARY KEY,
+    data TEXT DEFAULT '{}'
+  );
 
-const userCache  = new Map();
-const groupCache = new Map();
-
-function getUser(jid) {
-  if (userCache.has(jid)) return userCache.get(jid);
-  if (!db_instance.data.users[jid]) {
-    db_instance.data.users[jid] = {
-      role: "user",
-      banned: false,
-      registeredAt: new Date().toISOString(),
-    };
-    scheduleSave();
-  }
-  userCache.set(jid, db_instance.data.users[jid]);
-  return db_instance.data.users[jid];
-}
+  CREATE TABLE IF NOT EXISTS bots (
+    jid TEXT PRIMARY KEY,
+    data TEXT DEFAULT '{}'
+  );
+`);
 
 const hierarchy = ["user", "premium", "mod", "coowner", "owner"];
 
+const stmts = {
+  getUser: db_instance.prepare("SELECT data FROM users WHERE jid = ?"),
+  insertUser: db_instance.prepare("INSERT INTO users (jid, data) VALUES (?, ?)"),
+  updateUser: db_instance.prepare("UPDATE users SET data = ? WHERE jid = ?"),
+
+  getGroup: db_instance.prepare("SELECT data FROM groups WHERE jid = ?"),
+  insertGroup: db_instance.prepare("INSERT INTO groups (jid, data) VALUES (?, ?)"),
+  updateGroup: db_instance.prepare("UPDATE groups SET data = ? WHERE jid = ?"),
+
+  // Consultas preparadas para la gestión de bots
+  getBot: db_instance.prepare("SELECT data FROM bots WHERE jid = ?"),
+  insertBot: db_instance.prepare("INSERT INTO bots (jid, data) VALUES (?, ?)"),
+  updateBot: db_instance.prepare("UPDATE bots SET data = ? WHERE jid = ?"),
+  getAllBots: db_instance.prepare("SELECT jid, data FROM bots")
+};
+
+function getUser(jid) {
+  const row = stmts.getUser.get(jid);
+  if (!row) {
+    const defaultUser = {
+      role: "user",
+      banned: false,
+      registeredAt: new Date().toISOString()
+    };
+    // Corregido: Se pasa tanto el 'jid' como la data JSON para la inserción limpia
+    stmts.insertUser.run(jid, JSON.stringify(defaultUser));
+    return defaultUser;
+  }
+  return JSON.parse(row.data);
+}
+
+function getGroup(jid) {
+  const row = stmts.getGroup.get(jid);
+  if (!row) {
+    const defaultGroup = {
+      welcome: false,
+      antilink: false,
+      primaryBot: null
+    };
+    // Corregido: Se pasa tanto el 'jid' como la data JSON
+    stmts.insertGroup.run(jid, JSON.stringify(defaultGroup));
+    return defaultGroup;
+  }
+  return JSON.parse(row.data);
+}
+
+// Obtener un bot de forma dinámica
+function getBot(jid) {
+  const row = stmts.getBot.get(jid);
+  if (!row) {
+    const defaultBot = {
+      label: "Subbot",
+      isMain: false,
+      status: "offline"
+    };
+    // Corregido: Se pasa tanto el 'jid' como la data JSON
+    stmts.insertBot.run(jid, JSON.stringify(defaultBot));
+    return defaultBot;
+  }
+  return JSON.parse(row.data);
+}
+
 export const db = {
   getUser,
+  getGroup,
+  getBot,
 
+  setUser(jid, dataObject) {
+    const currentData = getUser(jid);
+    const updatedData = { ...currentData, ...dataObject };
+    stmts.updateUser.run(JSON.stringify(updatedData), jid);
+  },
+
+  setGroup(jid, dataObject) {
+    const currentData = getGroup(jid);
+    const updatedData = { ...currentData, ...dataObject };
+    stmts.updateGroup.run(JSON.stringify(updatedData), jid);
+  },
+
+  // 🤖 Guarda o actualiza cualquier propiedad de cualquier bot en tiempo real
+  setBot(jid, dataObject, force = false) {
+    if (force) {
+      stmts.updateBot.run(JSON.stringify(dataObject), jid);
+    } else {
+      const currentData = getBot(jid);
+      const updatedData = { ...currentData, ...dataObject };
+      stmts.updateBot.run(JSON.stringify(updatedData), jid);
+    }
+  },
+
+  // Retorna una lista con TODOS los bots registrados y sus objetos JSON limpios
+  getAllBots() {
+    const rows = stmts.getAllBots.all();
+    return rows.map(row => ({
+      jid: row.jid,
+      ...JSON.parse(row.data)
+    }));
+  },
+
+  // 🌟 PARCHE: Filtra directamente los bots activos desde la DB dinámica
+  getOnlineBots() {
+    return this.getAllBots().filter(bot => bot.status === 'online');
+  },
+
+  // 🛡️ CONTROL DE ROLES: Verifica de forma prioritaria el config.js y luego la DB
   hasRole(jid, role) {
+    const numeroLimpio = jid.split('@')[0]; // Remueve el '@s.whatsapp.net' o '@g.us'
+
+    // 1. Validaciones globales prioritarias basadas en tu config.js
+    const esOwnerGlobal = config.ownerNumber?.includes(numeroLimpio);
+    const esCoOwnerGlobal = config.coOwners?.includes(numeroLimpio);
+
+    if (esOwnerGlobal) return true; // El owner principal tiene acceso total a todo rango
+    if (esCoOwnerGlobal && hierarchy.indexOf("coowner") >= hierarchy.indexOf(role)) return true;
+
+    // 2. Si no es owner global por archivo, procedemos a evaluar los roles de la base de datos
     const user = getUser(jid);
     return hierarchy.indexOf(user.role) >= hierarchy.indexOf(role);
   },
 
   setRole(jid, role) {
-    getUser(jid);
-    db_instance.data.users[jid].role = role;
-    userCache.set(jid, db_instance.data.users[jid]);
-    scheduleSave();
+    db.setUser(jid, { role });
   },
 
-  isBanned(jid) { return getUser(jid).banned === true; },
+  isBanned(jid) {
+    return getUser(jid).banned === true;
+  },
 
   ban(jid) {
-    getUser(jid);
-    db_instance.data.users[jid].banned = true;
-    userCache.set(jid, db_instance.data.users[jid]);
-    scheduleSave();
+    db.setUser(jid, { banned: true });
   },
 
   unban(jid) {
-    getUser(jid);
-    db_instance.data.users[jid].banned = false;
-    userCache.set(jid, db_instance.data.users[jid]);
-    scheduleSave();
+    db.setUser(jid, { banned: false });
   },
 
-  getGroup(jid) {
-    if (groupCache.has(jid)) return groupCache.get(jid);
-    if (!db_instance.data.groups[jid]) {
-      db_instance.data.groups[jid] = { welcome: false, antilink: false };
-      scheduleSave();
-    }
-    groupCache.set(jid, db_instance.data.groups[jid]);
-    return db_instance.data.groups[jid];
-  },
-
-  setGroup(jid, key, value) {
-    db_instance.data.groups[jid] = db_instance.data.groups[jid] || {};
-    db_instance.data.groups[jid][key] = value;
-    groupCache.set(jid, db_instance.data.groups[jid]);
-    scheduleSave();
-  },
-
-  // ─── PRIMARY BOT ─────────────────────────────────────
   setPrimary(groupJid, botId) {
-    if (!db_instance.data.groups[groupJid]) {
-      db_instance.data.groups[groupJid] = { welcome: false, antilink: false };
-    }
-    db_instance.data.groups[groupJid].primaryBot = botId;
-    groupCache.set(groupJid, db_instance.data.groups[groupJid]);
-    scheduleSave();
+    db.setGroup(groupJid, { primaryBot: botId });
   },
 
   getPrimary(groupJid) {
-    return db_instance.data.groups[groupJid]?.primaryBot || null;
+    return getGroup(groupJid).primaryBot || null;
   },
 
   delPrimary(groupJid) {
-    if (db_instance.data.groups[groupJid]) {
-      delete db_instance.data.groups[groupJid].primaryBot;
-      groupCache.set(groupJid, db_instance.data.groups[groupJid]);
-      scheduleSave();
-    }
+    const group = getGroup(groupJid);
+    delete group.primaryBot;
+    stmts.updateGroup.run(JSON.stringify(group), groupJid);
   },
 };
