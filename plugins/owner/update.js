@@ -22,7 +22,7 @@ export default {
       }
 
       const stdout = execSync("git reset --hard origin/main").toString();
-      
+
       await loadPlugins();
 
       await reply({ 
