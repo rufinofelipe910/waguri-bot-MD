@@ -1,17 +1,22 @@
 import makeWASocket, {
-  useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
   fetchLatestBaileysVersion,
+  initAuthCreds,
+  BufferJSON,
+  proto,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import { mkdir } from "fs/promises";
 import path from "path";
 import readline from "readline";
+import Database from "better-sqlite3";
+import fs from "fs";
 import { log } from "./logger.js";
 import config from "../config.js";
 import { handleMessage } from "./messageHandler.js";
 
+// Función auxiliar para prompts en consola
 function question(prompt) {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -25,29 +30,91 @@ function question(prompt) {
   });
 }
 
-async function clearSocketFiles(sessionDir) {
-  try {
-    const { readdirSync, unlinkSync } = await import("fs");
-    const files = readdirSync(sessionDir);
-    let count = 0;
-    for (const file of files) {
-      if (
-        file.startsWith("pre-key-") ||
-        file.startsWith("sender-key-") ||
-        file.startsWith("session-") ||
-        file.startsWith("app-state-sync-") ||
-        file === "baileys_store.json"
-      ) {
-        unlinkSync(path.join(sessionDir, file));
-        count++;
-      }
-    }
-    if (count > 0) {
-      log.warn(`🗑️ Limpiados ${count} archivos de socket en [${path.basename(sessionDir)}]`);
-    }
-  } catch (e) {}
+/**
+ * Adaptación de Autenticación basada en SQLite usando better-sqlite3
+ * Guarda las credenciales de manera centralizada en un archivo auth.db dentro del sessionDir
+ */
+export async function useSQLiteAuthState(sessionDir) {
+  if (!fs.existsSync(sessionDir)) {
+    fs.mkdirSync(sessionDir, { recursive: true });
+  }
+
+  const authDb = new Database(path.join(sessionDir, "auth.db"));
+  authDb.pragma("journal_mode = WAL");
+  authDb.exec(`CREATE TABLE IF NOT EXISTS auth (id TEXT PRIMARY KEY, data TEXT)`);
+
+  const readData = (id) => {
+    const row = authDb.prepare("SELECT data FROM auth WHERE id = ?").get(id);
+    return row ? JSON.parse(row.data, BufferJSON.reviver) : null;
+  };
+
+  const writeData = (data, id) => {
+    authDb
+      .prepare("INSERT OR REPLACE INTO auth (id, data) VALUES (?, ?)")
+      .run(id, JSON.stringify(data, BufferJSON.replacer));
+  };
+
+  const removeData = (id) => authDb.prepare("DELETE FROM auth WHERE id = ?").run(id);
+
+  let creds = readData("creds") || initAuthCreds();
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {};
+          ids.forEach((id) => {
+            let value = readData(`${type}-${id}`);
+            if (type === "app-state-sync-key" && value) {
+              value = proto.Message.AppStateSyncKeyData.fromObject(value);
+            }
+            data[id] = value;
+          });
+          return data;
+        },
+        set: async (data) => {
+          for (const cat in data) {
+            for (const id in data[cat]) {
+              const val = data[cat][id];
+              if (val) {
+                writeData(val, `${cat}-${id}`);
+              } else {
+                removeData(`${cat}-${id}`);
+              }
+            }
+          }
+        },
+      },
+    },
+    saveCreds: () => writeData(creds, "creds"),
+  };
 }
 
+/**
+ * Limpia los registros corruptos o temporales de la base de datos de sesión,
+ * manteniendo a salvo las credenciales principales de inicio de sesión.
+ */
+async function clearSocketFiles(sessionDir) {
+  try {
+    const dbPath = path.join(sessionDir, "auth.db");
+    if (fs.existsSync(dbPath)) {
+      const db = new Database(dbPath);
+      // Elimina llaves previas, de remitente y estados de sincronización obsoletos
+      const result = db.prepare("DELETE FROM auth WHERE id != 'creds'").run();
+      if (result.changes > 0) {
+        log.warn(`🗑️ Limpiados ${result.changes} registros de socket en la base de datos de [${path.basename(sessionDir)}]`);
+      }
+      db.close();
+    }
+  } catch (e) {
+    log.error(`Error al limpiar base de datos de sockets: ${e.message}`);
+  }
+}
+
+/**
+ * Crea y gestiona la conexión con los servidores de WhatsApp.
+ */
 export async function createConnection({
   sessionDir = config.sessionDir,
   botLabel = "MAIN",
@@ -58,14 +125,15 @@ export async function createConnection({
   await mkdir(sessionDir, { recursive: true });
 
   if (_attempt > 0) {
-    log.warn(`[${botLabel}] Limpiando carpeta de sockets antes de reconectar...`);
+    log.warn(`[${botLabel}] Limpiando base de datos de sockets antes de reconectar...`);
     await clearSocketFiles(sessionDir);
     const delay = Math.min(config.reconnectDelay * _attempt, 30000);
     log.info(`[${botLabel}] Esperando ${delay / 1000}s para reconectar...`);
     await new Promise((r) => setTimeout(r, delay));
   }
 
-  const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+  // Inicialización del estado de autenticación SQLite personalizado
+  const { state, saveCreds } = await useSQLiteAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
   let useCode = false;
@@ -191,7 +259,7 @@ export async function createConnection({
       log.warn(`[${botLabel}] ❌ Conexión cerrada → código: ${statusCode} | ${errorMsg}`);
 
       if (statusCode === DisconnectReason.loggedOut) {
-        log.error(`[${botLabel}] Sesión cerrada (loggedOut). Elimina la carpeta "${path.basename(sessionDir)}" y reinicia.`);
+        log.error(`[${botLabel}] Sesión cerrada (loggedOut). Elimina el archivo "auth.db" dentro de la carpeta "${path.basename(sessionDir)}" y reinicia.`);
         return;
       }
 
