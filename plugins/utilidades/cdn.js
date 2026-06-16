@@ -74,7 +74,7 @@ async function subirFare(buffer, filename, mimetype) {
 export default {
   name: ['cdn', 'subir', 'upload', 'tmp'],
   description: 'Sube archivos de forma permanente o temporal al CDN de Dix y permanente a Fare',
-  category: 'misc',
+  category: 'utils',
   ownerOnly: false,
 
   async run({ sock, from, msg, react, reply, args }) {
