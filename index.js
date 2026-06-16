@@ -37,6 +37,8 @@ async function main() {
   log.info("Cargando plugins...");
   await loadPlugins();
 
+  watchPlugins();
+
   log.info("Iniciando bot principal...");
   const sock = await createConnection({
     sessionDir: "./sessions/main",
