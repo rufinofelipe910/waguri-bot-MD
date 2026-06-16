@@ -2,41 +2,41 @@ import { Worker } from "worker_threads";
 import fs from "fs";
 import path from "path";
 import { log } from "./logger.js";
+import { db } from "../database/db.js"; // Base de datos dinámica para estados globales
 
 const SUBBOTS_DIR = "./sessions/subbots";
 if (!fs.existsSync(SUBBOTS_DIR)) fs.mkdirSync(SUBBOTS_DIR, { recursive: true });
 
+// Mantenemos el Map local por compatibilidad interna de tus hilos
 export const activeBots = new Map();
 const workers = new Map();
 
 export function registerMainBot(sock, label = "MAIN") {
-  // Esperar a que el JID esté disponible
-  const jid = sock.user?.id || ""
-  activeBots.set("main", {
-    label,
-    jid,
-    status: jid ? "online" : "connecting",
-    isMain: true,
-  });
+  const jid = sock.user?.id || "";
+  const status = jid ? "online" : "connecting";
 
-  // Actualizar cuando conecte si aún no tenía JID
+  // Guardamos en memoria local y en la DB compartida
+  activeBots.set("main", { label, jid, status, isMain: true });
+  db.setBot("main", { label, jid, status, isMain: true });
+
   if (!jid) {
     sock.ev.on("connection.update", ({ connection }) => {
       if (connection === "open") {
-        activeBots.set("main", {
-          label,
-          jid: sock.user?.id || "",
-          status: "online",
-          isMain: true,
-        })
+        const currentJid = sock.user?.id || "";
+        
+        activeBots.set("main", { label, jid: currentJid, status: "online", isMain: true });
+        db.setBot("main", { label, jid: currentJid, status: "online", isMain: true });
       }
-    })
+    });
   }
 }
 
 export function updateBotStatus(id, data) {
   const current = activeBots.get(id) || {};
   activeBots.set(id, { ...current, ...data });
+  
+  // Sincroniza automáticamente cualquier cambio de estado a SQLite
+  db.setBot(id, data);
 }
 
 export function removeSubbot(id) {
@@ -45,12 +45,14 @@ export function removeSubbot(id) {
     worker.terminate();
     workers.delete(id);
   }
+  
   activeBots.delete(id);
+  db.setBot(id, { status: "offline" }); // Marcar como offline en la DB global
 
   const sessionDir = `${SUBBOTS_DIR}/${id}`;
   if (fs.existsSync(sessionDir)) {
     fs.rmSync(sessionDir, { recursive: true, force: true });
-    log.warn(`[MANAGER] Sesión de ${id} eliminada`);
+    log.warn(`[MANAGER] Sesión de ${id} eliminada por completo`);
   }
 }
 
@@ -87,11 +89,13 @@ export function launchSubbot(id) {
     log.warn(`[MANAGER] Worker ${id} salió (code: ${code})`);
 
     const sessionDir2 = `${SUBBOTS_DIR}/${id}`;
-    if (fs.existsSync(path.join(sessionDir2, "creds.json"))) {
+    // Cambiado: Ahora verifica 'auth.db' en lugar del antiguo 'creds.json'
+    if (fs.existsSync(path.join(sessionDir2, "auth.db"))) {
       log.info(`[MANAGER] Reconectando subbot ${id} en 5s...`);
       setTimeout(() => launchSubbot(id), 5000);
     } else {
       activeBots.delete(id);
+      db.setBot(id, { status: "offline" });
     }
   });
 
@@ -117,62 +121,65 @@ export async function requestSubbotCode(id, phoneNumber) {
     workers.set(id, worker);
 
     const timeout = setTimeout(() => {
-      reject(new Error("Timeout esperando código"))
-    }, 15000)
+      reject(new Error("Timeout esperando código"));
+    }, 15000);
 
     const cleanupTimeout = setTimeout(() => {
-      const bot = activeBots.get(id)
+      const bot = db.getBot(id); // Validamos contra la DB global
       if (!bot || bot.status !== "online") {
-        log.warn(`[MANAGER] Subbot ${id} nunca se conectó — eliminado`)
-        removeSubbot(id)
+        log.warn(`[MANAGER] Subbot ${id} nunca se conectó — eliminado`);
+        removeSubbot(id);
       }
-    }, 2 * 60 * 1000)
+    }, 2 * 60 * 1000);
 
     worker.on("message", (msg) => {
       if (msg.type === "code") {
-        clearTimeout(timeout)
-        resolve(msg.code)
+        clearTimeout(timeout);
+        resolve(msg.code);
       }
       if (msg.type === "status") {
         updateBotStatus(id, {
           jid: msg.jid,
           status: msg.status,
           label: id.toUpperCase(),
-        })
+        });
         if (msg.status === "online") {
-          clearTimeout(cleanupTimeout)
+          clearTimeout(cleanupTimeout);
         }
       }
       if (msg.type === "logged_out") {
-        clearTimeout(cleanupTimeout)
-        removeSubbot(id)
+        clearTimeout(cleanupTimeout);
+        removeSubbot(id);
       }
-    })
+    });
 
     worker.on("exit", (code) => {
-      workers.delete(id)
-      clearTimeout(timeout)
-      const sessionDir2 = `${SUBBOTS_DIR}/${id}`
-      if (fs.existsSync(path.join(sessionDir2, "creds.json"))) {
-        setTimeout(() => launchSubbot(id), 5000)
+      workers.delete(id);
+      clearTimeout(timeout);
+      
+      const sessionDir2 = `${SUBBOTS_DIR}/${id}`;
+      // Cambiado: Ahora verifica 'auth.db' en lugar del antiguo 'creds.json'
+      if (fs.existsSync(path.join(sessionDir2, "auth.db"))) {
+        setTimeout(() => launchSubbot(id), 5000);
       } else {
-        activeBots.delete(id)
+        activeBots.delete(id);
+        db.setBot(id, { status: "offline" });
       }
-    })
+    });
 
     worker.on("error", (err) => {
-      clearTimeout(timeout)
-      clearTimeout(cleanupTimeout)
-      reject(err)
-    })
-  })
+      clearTimeout(timeout);
+      clearTimeout(cleanupTimeout);
+      reject(err);
+    });
+  });
 }
 
 export function launchAllSubbots() {
   if (!fs.existsSync(SUBBOTS_DIR)) return;
   const dirs = fs.readdirSync(SUBBOTS_DIR, { withFileTypes: true })
-    .filter(e => e.isDirectory())
-    .map(e => e.name);
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
 
   if (dirs.length === 0) return;
   log.info(`[MANAGER] Relanzando ${dirs.length} subbot(s)...`);
