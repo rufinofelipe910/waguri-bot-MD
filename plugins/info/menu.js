@@ -29,7 +29,7 @@ const catIcons = {
   "dl":       "☁",
   "grupos":   "❄",
   "owner":    "👑",
-  "media":    "💫",
+  "utils":    "💫",
   "stickers": "🪽",
   "sockets":  "🪐",
 }
@@ -65,7 +65,7 @@ export default {
 
       textoMenu += `╔════ 🪐 *𝗜𝗡𝗙𝗢 𝗗𝗘𝗟 𝗦𝗜𝗦𝗧𝗘𝗠𝗔* 🪐 ════╗\n`;
       textoMenu += `┃ 👤 *⎯꯭♱𝆬       ְ ⃝𝐔𝐬𝐮𝐚𝐫𝐢𝐨:* @${senderNum}\n`;
-      textoMenu += `┃ 📍 *⎯꯭♱𝆬       ְ ⃝𝐂𝐚𝐧𝐚𝐥:* ${lugar}\n`;
+      textoMenu += `┃ 📍 *⎯꯭♱𝆬       ְ ⃝𝐂𝐚𝐧𝐚ล:* ${lugar}\n`;
       textoMenu += `┃ ⏰ *⎯꯭♱𝆬       ְ ⃝𝐇𝐨𝐫𝐚:* ${hora}\n`;
       textoMenu += `┃ 📅 *⎯꯭♱𝆬       ְ ⃝𝐅𝐞𝐜𝐡𝐚:* ${fecha}\n`;
       textoMenu += `╚════════════════════════╝\n\n`;
@@ -84,7 +84,7 @@ export default {
         textoMenu += "\n";
       }
 
-      textoMenu += `🪼 _⎯꯭♱𝆬       ְ𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐃𝐮𝐚𝐫𝐭𝓮𝐗𝐕 | 𝐘𝐮𝐭𝐚 𝐎𝐤𝐨𝐭𝐬𝐮 𝐌𝐃_ 🪼\n`;
+      textoMenu += `🪼 _⎯꯭♱𝆬       ְ𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐃𝐮𝐚𝐫𝐭𝐞𝐗𝐕 | 𝐘𝐮𝐭𝐚 𝐎𝐤𝐨𝐭𝐬𝐮 𝐌𝐃_ 🪼\n`;
       textoMenu += `🔗 ${linkMatch}`;
 
       let imgBanner
