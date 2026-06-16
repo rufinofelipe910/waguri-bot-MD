@@ -4,6 +4,7 @@ import { loadPlugins } from "../../core/pluginLoader.js";
 export default {
   name: ["update", "actualizar", "gitpull"],
   description: "Fuerza la actualización desde GitHub y recarga plugins",
+  category: 'owner'
   ownerOnly: true,
 
   async run({ reply, react }) {
