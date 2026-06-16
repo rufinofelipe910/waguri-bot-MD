@@ -38,6 +38,7 @@ const catIcons = {
 export default {
   name: ["menu", "help", "ayuda"],
   description: "Muestra el menú.",
+category: 'info'
   ownerOnly: false,
 
   async run({ sock, from, senderNum, isGroup, groupName, usedPrefix, msg }) {
