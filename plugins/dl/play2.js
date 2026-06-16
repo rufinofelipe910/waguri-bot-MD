@@ -1,9 +1,6 @@
 import axios from 'axios'
 import yts from 'yt-search'
-
-const API_KEY = 'free_key' // API KEY
 const LIMIT_MB = 80
-
 export default {
   name: ['play2'],
   description: 'Descarga video de YouTube',
@@ -25,7 +22,7 @@ export default {
       }
 
       const apis = [
-        `https://yosoyyo-api-ofc.onrender.com/api/youtube?q=${encodeURIComponent(videoUrl)}&apiKey=${API_KEY}`,
+        `https://fare.ink/dl/ytv?url=${encodeURIComponent(videoUrl)}`,
       ]
 
       let data = null
@@ -34,8 +31,8 @@ export default {
         for (let i = 0; i < 3; i++) {
           try {
             const res = await axios.get(api, { timeout: 30000 })
-            if (res.data?.result?.length) {
-              data = res.data.result[0]
+            if (res.data?.status && res.data?.descarga?.url) {
+  data = res.data
               break
             }
           } catch {}
@@ -45,8 +42,8 @@ export default {
 
       if (!data) return reply({ text: '❌ Error API' })
 
-      const title = data.title
-      const mp4 = data.download?.mp4 || data.downloads?.mp4?.url
+      const title = data.titulo
+      const mp4 = data.descarga.url
 
       const head = await axios.head(mp4)
       const size = Number(head.headers['content-length']) || 0
