@@ -10,15 +10,24 @@ export default {
     await react('🗑️')
 
     const user = db.getUser(senderNum)
-    if (!user.text1 && !user.text2) return await reply({
-      text: `⚠️ No tienes ninguna marca establecida.`
-    })
+    
+    // Si no tiene marca personalizada (es decir, son null o no existen), avisamos
+    if (!user.text1 && !user.text2) {
+      return await reply({
+        text: `⚠️ No tienes ninguna marca establecida.`
+      })
+    }
 
-    delete user.text1
-    delete user.text2
+    // 🌟 LA SOLUCIÓN: Seteamos a null para aplastar el valor antiguo en la DB
+    db.setUser(senderNum, {
+      text1: null,
+      text2: null
+    })
 
     await reply({
       text: `✅ *Marca reseteada* a la del bot\n\n📦 *Pack:* ⚔️ Yuta Okotsu MD\n✍️ *Autor:* DuarteXV`
     })
+    
+    await react('✅')
   }
 }
