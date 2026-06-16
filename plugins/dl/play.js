@@ -6,6 +6,7 @@ const API_KEY = "Irokz444";
 export default {
   name: ["play", "yta", "ytmp3", "playaudio"],
   description: "Descarga música de YouTube",
+category: downloader
   ownerOnly: false,
 
   async run({ sock, from, msg, text, reply, react }) {
