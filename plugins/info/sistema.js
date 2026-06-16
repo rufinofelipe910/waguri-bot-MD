@@ -1,8 +1,11 @@
 import os from "os";
 import process from "process";
 import fs from "fs";
+import { db } from "../../database/db.js";
+import config from "../../config.js";
 
 function formatBytes(bytes) {
+  if (!bytes || isNaN(bytes) || bytes === Infinity) return "0.00";
   return (bytes / 1024 / 1024 / 1024).toFixed(2);
 }
 
@@ -16,48 +19,33 @@ function formatTime(seconds) {
 
 function getMemoryInfo() {
   try {
-    // Docker / Pterodactyl (cgroup v2)
-    const total = fs.readFileSync(
-      "/sys/fs/cgroup/memory.max",
-      "utf8"
-    ).trim();
+    // Intento para Docker / Pterodactyl (cgroup v2)
+    if (fs.existsSync("/sys/fs/cgroup/memory.max") && fs.existsSync("/sys/fs/cgroup/memory.current")) {
+      let total = fs.readFileSync("/sys/fs/cgroup/memory.max", "utf8").trim();
+      let used = fs.readFileSync("/sys/fs/cgroup/memory.current", "utf8").trim();
 
-    const used = fs.readFileSync(
-      "/sys/fs/cgroup/memory.current",
-      "utf8"
-    ).trim();
-
-    return {
-      total: Number(total),
-      used: Number(used)
-    };
-
-  } catch {
-    try {
-      // cgroup v1
-      const total = fs.readFileSync(
-        "/sys/fs/cgroup/memory/memory.limit_in_bytes",
-        "utf8"
-      ).trim();
-
-      const used = fs.readFileSync(
-        "/sys/fs/cgroup/memory/memory.usage_in_bytes",
-        "utf8"
-      ).trim();
-
-      return {
-        total: Number(total),
-        used: Number(used)
-      };
-
-    } catch {
-      // fallback
-      const total = os.totalmem();
-      const used = total - os.freemem();
-
-      return { total, used };
+      if (total !== "max" && !isNaN(Number(total)) && Number(total) > 0) {
+        return { total: Number(total), used: Number(used) };
+      }
     }
+    
+    // Intento para cgroup v1
+    if (fs.existsSync("/sys/fs/cgroup/memory/memory.limit_in_bytes")) {
+      const total = fs.readFileSync("/sys/fs/cgroup/memory/memory.limit_in_bytes", "utf8").trim();
+      const used = fs.readFileSync("/sys/fs/cgroup/memory/memory.usage_in_bytes", "utf8").trim();
+
+      if (!isNaN(Number(total)) && Number(total) < 9223372036854771712 && Number(total) > 0) {
+        return { total: Number(total), used: Number(used) };
+      }
+    }
+  } catch (e) {
+    // Silenciar errores de lectura de archivos de sistema
   }
+
+  // Fallback seguro usando el sistema operativo nativo
+  const total = os.totalmem();
+  const used = total - os.freemem();
+  return { total, used };
 }
 
 export default {
@@ -68,78 +56,100 @@ export default {
 
   async run({ sock, from, react, msg }) {
     try {
-      await react("⛧");
+      // Manejo seguro del emoji de carga
+      if (react && typeof react === "function") {
+        await react("跑").catch(() => {});
+      } else if (sock?.sendMessage) {
+        // Fallback si react no es una función ejecutable directamente
+        await sock.sendMessage(from, { react: { text: "⏳", key: msg.key } }).catch(() => {});
+      }
 
+      // 🤖 Obtener el JID de la sesión actual de forma segura
+      const botJid = sock?.user?.id ? (sock.user.id.split(':')[0] + '@s.whatsapp.net') : null;
+      
+      let currentBotName = "YUTA OKOTSU";
+      try {
+        if (botJid && db && typeof db.getBot === "function") {
+          const botData = db.getBot(botJid) || {};
+          if (botData.customName) {
+            currentBotName = botData.customName;
+          } else {
+            currentBotName = config.botname || config.botName || "YUTA OKOTSU";
+          }
+        } else {
+          currentBotName = config.botname || config.botName || "YUTA OKOTSU";
+        }
+      } catch {
+        currentBotName = config.botname || config.botName || "YUTA OKOTSU";
+      }
+
+      currentBotName = currentBotName.toUpperCase();
+
+      // Obtener datos de rendimiento
       const memory = getMemoryInfo();
-
       const ramTotal = memory.total;
       const ramUsed = memory.used;
       const ramFree = ramTotal - ramUsed;
-
       const ramBot = process.memoryUsage().rss;
 
-      const ramPercent = (
-        (ramUsed / ramTotal) * 100
-      ).toFixed(1);
+      const ramPercent = ramTotal > 0 ? ((ramUsed / ramTotal) * 100).toFixed(1) : "0.0";
 
       const cpus = os.cpus();
+      const cpuModel = cpus && cpus[0]?.model ? cpus[0].model.trim() : "Desconocido";
 
-      const cpuModel =
-        cpus[0]?.model?.trim() || "Desconocido";
-
-      const cpuCores =
-        os.availableParallelism
-          ? os.availableParallelism()
-          : cpus.length;
+      let cpuCores = 1;
+      try {
+        cpuCores = typeof os.availableParallelism === "function" 
+          ? os.availableParallelism() 
+          : (cpus ? cpus.length : 1);
+      } catch {
+        cpuCores = cpus ? cpus.length : 1;
+      }
 
       const uptimeBot = process.uptime();
-
       const nodeVersion = process.version;
-
       const platform = os.platform();
       const arch = os.arch();
 
       let text = "";
-
-      text += `⛧ ════ 『 *YUTA OKOTSU* 』 ════ ⛧\n`;
+      text += `官 ════ 『 *${currentBotName}* 』 ════ 官\n`;
       text += `✦ _Sistema del Hechicero de Grado Especial_\n\n`;
 
       text += `⚔️ ─── ❖ *CPU* ❖ ─── ⚔️\n`;
       text += `  ✦ *Modelo:* ${cpuModel}\n`;
-      text += `  ⛧ *Núcleos:* ${cpuCores}\n`;
+      text += `  官 *Núcleos:* ${cpuCores}\n`;
       text += `  ✦ *Plataforma:* ${platform} (${arch})\n\n`;
 
       text += `🧠 ─── ❖ *MEMORIA RAM* ❖ ─── 🧠\n`;
       text += `  ✦ *Total:* ${formatBytes(ramTotal)} GB\n`;
-      text += `  ⛧ *Usada:* ${formatBytes(ramUsed)} GB (${ramPercent}%)\n`;
+      text += `  官 *Usada:* ${formatBytes(ramUsed)} GB (${ramPercent}%)\n`;
       text += `  ✦ *Libre:* ${formatBytes(ramFree)} GB\n`;
-      text += `  ⛧ *Bot usa:* ${formatBytes(ramBot)} GB\n\n`;
+      text += `  官 *Bot usa:* ${formatBytes(ramBot)} GB\n\n`;
 
       text += `⏳ ─── ❖ *UPTIME* ❖ ─── ⏳\n`;
       text += `  ✦ *Bot activo:* ${formatTime(uptimeBot)}\n\n`;
 
       text += `🜲 ─── ❖ *ENTORNO* ❖ ─── 🜲\n`;
       text += `  ✦ *Node.js:* ${nodeVersion}\n`;
-      text += `  ⛧ *PID:* ${process.pid}\n\n`;
+      text += `  官 *PID:* ${process.pid}\n\n`;
 
-      text += `> ⛧ _Powered by DuarteXV | Yuta Okotsu MD_ ⛧`;
+      text += `> 官 _Powered by DuarteXV | ${currentBotName} MD_ 官`;
 
-      await sock.sendMessage(
-        from,
-        { text },
-        { quoted: msg }
-      );
+      await sock.sendMessage(from, { text }, { quoted: msg });
+
+      if (react && typeof react === "function") await react("✅").catch(() => {});
 
     } catch (error) {
-      console.error("Error en system:", error);
-
-      await sock.sendMessage(
-        from,
-        {
-          text: "⛧ Ocurrió un error obteniendo el sistema."
-        },
-        { quoted: msg }
-      );
+      console.error("Error crítico en system:", error);
+      
+      try {
+        if (react && typeof react === "function") await react("❌").catch(() => {});
+        await sock.sendMessage(from, { 
+          text: "官 Ocurrió un error interno obteniendo el sistema." 
+        }, { quoted: msg });
+      } catch (e) {
+        console.error("No se pudo enviar el mensaje de error:", e);
+      }
     }
   }
 };
