@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/DuarteXV/Bot-prueba">
+<a href="https://github.com/DuarteXV/Yuta-Okotsu-Bot-MD">
 <img src="https://img.shields.io/badge/Repositorio-Yuta%20Okotsu%20Bot-7c3aed?style=for-the-badge&logo=github&logoColor=white" alt="Repositorio">
 </a>
 </p>
