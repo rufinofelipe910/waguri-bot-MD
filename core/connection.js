@@ -12,6 +12,7 @@ import path from "path";
 import readline from "readline";
 import Database from "better-sqlite3";
 import fs from "fs";
+import qrcode from "qrcode-terminal";
 import { log } from "./logger.js";
 import config from "../config.js";
 import { handleMessage } from "./messageHandler.js";
@@ -194,7 +195,7 @@ export async function createConnection({
       },
       printQRInTerminal: !useCode,
       logger: pino({ level: "silent" }),
-      browser: ["Ubuntu", "Chrome", "20.0.04"],
+      browser: useCode ? ["Ubuntu", "Chrome", "20.0.04"] : ["YutaBot", "Chrome", "1.0.0"],
       syncFullHistory: false,
       markOnlineOnConnect: false,
       generateHighQualityLinkPreview: true,
@@ -236,6 +237,7 @@ export async function createConnection({
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       log.info(`[${botLabel}] QR listo para escanear`);
+      qrcode.generate(qr, { small: true });
     }
 
     if (connection === "connecting") {
