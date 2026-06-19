@@ -1,6 +1,6 @@
 import { generateWAMessageContent, generateWAMessageFromContent } from '@whiskeysockets/baileys'
 
-// Función interna adaptada para el envío de estados de grupo V2
+// Función interna para el envío de estados de grupo V2
 const sendGroupStatus = async (sock, jid, options = {}) => {
   const {
     text,
@@ -94,8 +94,7 @@ const sendGroupStatus = async (sock, jid, options = {}) => {
 }
 
 export default {
-  name: 'estadogrupo',
-  aliases: ['gstatus', 'statusgrupo'],
+  name: ["estadogrupo", "gstatus", "statusgrupo"], // Ajustado al formato de array sin alias
   category: 'owner',
   cooldown: 5,
   groupOnly: true,
@@ -104,15 +103,12 @@ export default {
   botAdmin: false,
   ownerOnly: true,
 
-  async run({ conn, msg, chat, usedPrefix, command, text, groupMetadata }) {
+  async run({ conn, msg, chat, usedPrefix, command, text }) {
     try {
       const quoted = msg.quoted || null
-      // Limpiamos el tipo eliminando 'Message' y forzando minúsculas (ej: image, video, audio)
       const mediaType = quoted?.mtype?.replace(/Message$/i, '').toLowerCase()
 
-      // Soporte extendido para imagen, video, audio y documentos según las restricciones de la función
       if (quoted && ['image', 'video', 'audio', 'document'].includes(mediaType)) {
-        // Usamos tu método nativo de descarga
         const buffer = await quoted.download()
         
         await sendGroupStatus(conn, chat, {
@@ -123,7 +119,6 @@ export default {
           fileName: quoted.filename || undefined
         })
       } else {
-        // En caso de que sea texto plano o se cite un mensaje de texto
         const statusText = text || quoted?.text || ''
         if (!statusText) {
           return conn.reply(chat, `❀ Escribe un texto o cita un archivo multimedia para subir como estado del grupo.\n\nEjemplo:\n${usedPrefix + command} Hola Grupo!`, msg)
