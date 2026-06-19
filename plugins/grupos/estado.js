@@ -1,109 +1,144 @@
-import { generateWAMessageContent, generateWAMessageFromContent } from '@whiskeysockets/baileys';
+import { generateWAMessageContent, generateWAMessageFromContent } from '@whiskeysockets/baileys'
 
-export default {
-  name: ["status", "groupstatus", "estadogrupo"],
-  description: "Envía un Estado de Grupo (Group Status V2) con texto o contenido multimedia",
-  groupOnly: true,
-  adminOnly: true,
+// Función interna adaptada para el envío de estados de grupo V2
+const sendGroupStatus = async (sock, jid, options = {}) => {
+  const {
+    text,
+    media,
+    type = 'text',
+    caption = '',
+    mimetype,
+    fileName,
+    ptt = false,
+    textArgb = 4292401368,
+    backgroundArgb = 4283453520,
+    font = 5,
+    audienceType = 2,
+    listName = 'Mejores Amigos',
+    listEmoji = '⭐'
+  } = options
 
-  async run({ sock, from, msg, text, reply, react }) {
-    // Validar requerimientos esenciales de la conexión de Baileys
-    if (!sock?.relayMessage || !sock?.waUploadToServer) {
-      await react('❌');
-      return reply("❌ Tu conexión actual no soporta el envío de estados de grupo.");
-    }
+  if (!sock?.relayMessage) throw new Error('sock inválido')
+  if (!jid || typeof jid !== 'string') throw new Error('jid requerido')
 
-    await react('⏳');
-
-    // 1. Detectar si el usuario está respondiendo a un archivo multimedia
-    const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage || 
-                      msg.message?.ephemeralMessage?.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-
-    // Configuración base del ContextInfo para Group Status V2
-    const contextInfo = {
-      statusSourceType: 0,
-      statusAttributions: [{ AttributionData: null, type: 10 }],
-      isGroupStatus: true,
-      statusAudienceMetadata: {
-        audienceType: 2,
-        listName: 'Mejores Amigos',
-        listEmoji: '⭐'
-      }
-    };
-
-    let innerMessage;
-
-    try {
-      if (quotedMsg) {
-        // --- CASO A: Se respondió a un mensaje multimedia (Foto, Video, Audio, Documento) ---
-        const messageType = Object.keys(quotedMsg)[0];
-        const allowedTypes = ['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage'];
-
-        if (!allowedTypes.includes(messageType)) {
-          await react('❌');
-          return reply("❌ Tipo de mensaje citado no válido para estado. Responde a una foto, video, audio o documento.");
-        }
-
-        // Normalizamos el tipo para la API de Baileys
-        const cleanType = messageType.replace('Message', ''); // Ej: 'image'
-        
-        // Extraemos las propiedades multimedia del mensaje citado
-        const mediaContent = {
-          [cleanType]: quotedMsg[messageType]
-        };
-
-        // Si el usuario añadió un texto con el comando, se asigna como leyenda (caption)
-        if (text && ['image', 'video'].includes(cleanType)) {
-          mediaContent.caption = text;
-        }
-
-        // Generamos el contenido multimedia usando los servidores de WhatsApp
-        const content = await generateWAMessageContent(mediaContent, {
-          upload: sock.waUploadToServer
-        });
-
-        if (!content?.[messageType]) throw new Error(`No se pudo procesar el ${messageType}`);
-
-        // Inyectamos la metadata de estado grupal
-        content[messageType].contextInfo = contextInfo;
-        innerMessage = { [messageType]: content[messageType] };
-
-      } else {
-        // --- CASO B: Estado solo de Texto ---
-        const textoEnviar = text || "📢 ¡Nuevo Estado de Grupo!";
-
-        innerMessage = {
-          extendedTextMessage: {
-            text: textoEnviar,
-            textArgb: 4292401368,       // Color de texto por defecto
-            backgroundArgb: 4283453520, // Color de fondo por defecto
-            font: 5,
-            previewType: 0,
-            contextInfo
-          }
-        };
-      }
-
-      // 2. Construir el contenedor del mensaje de estado V2
-      const message = generateWAMessageFromContent(from, {
-        groupStatusMessageV2: {
-          message: innerMessage
-        }
-      }, {
-        userJid: sock.user?.id
-      });
-
-      // 3. Transmitir el mensaje a través de relayMessage
-      await sock.relayMessage(from, message.message, {
-        messageId: message.key.id
-      });
-
-      await react('✅');
-
-    } catch (error) {
-      console.error("Error en plugin sendGroupStatus:", error);
-      await react('❌');
-      await reply("❌ Ocurrió un error al intentar enviar el estado de grupo.");
+  const contextInfo = {
+    statusSourceType: 0,
+    statusAttributions: [{
+      AttributionData: null,
+      type: 10
+    }],
+    isGroupStatus: true,
+    statusAudienceMetadata: {
+      audienceType,
+      listName,
+      listEmoji
     }
   }
-};
+
+  let innerMessage
+
+  if (type === 'text') {
+    if (!text || typeof text !== 'string') throw new Error('text requerido')
+    innerMessage = {
+      extendedTextMessage: {
+        text,
+        textArgb,
+        backgroundArgb,
+        font,
+        previewType: 0,
+        contextInfo
+      }
+    }
+  } else {
+    if (!sock?.waUploadToServer) throw new Error('waUploadToServer no disponible')
+    if (!media) throw new Error('media requerida')
+
+    const allowed = ['image', 'video', 'audio', 'document']
+    if (!allowed.includes(type)) throw new Error(`type inválido: ${type}`)
+
+    const mediaContent = {
+      [type]: typeof media === 'string' ? { url: media } : media
+    }
+
+    if (caption && ['image', 'video'].includes(type)) mediaContent.caption = caption
+    if (mimetype) mediaContent.mimetype = mimetype
+    if (fileName && type === 'document') mediaContent.fileName = fileName
+    if (type === 'audio') mediaContent.ptt = ptt
+
+    const content = await generateWAMessageContent(mediaContent, {
+      upload: sock.waUploadToServer
+    })
+
+    const messageKey = `${type}Message`
+    if (!content?.[messageKey]) throw new Error(`No se pudo generar ${messageKey}`)
+
+    content[messageKey].contextInfo = contextInfo
+    innerMessage = {
+      [messageKey]: content[messageKey]
+    }
+  }
+
+  const message = generateWAMessageFromContent(jid, {
+    groupStatusMessageV2: {
+      message: innerMessage
+    }
+  }, {
+    userJid: sock.user?.id
+  })
+
+  await sock.relayMessage(jid, message.message, {
+    messageId: message.key.id
+  })
+
+  return message
+}
+
+export default {
+  name: 'estadogrupo',
+  aliases: ['gstatus', 'statusgrupo'],
+  category: 'owner',
+  cooldown: 5,
+  groupOnly: true,
+  privateOnly: false,
+  adminOnly: false,
+  botAdmin: false,
+  ownerOnly: true,
+
+  async run({ conn, msg, chat, usedPrefix, command, text, groupMetadata }) {
+    try {
+      const quoted = msg.quoted || null
+      // Limpiamos el tipo eliminando 'Message' y forzando minúsculas (ej: image, video, audio)
+      const mediaType = quoted?.mtype?.replace(/Message$/i, '').toLowerCase()
+
+      // Soporte extendido para imagen, video, audio y documentos según las restricciones de la función
+      if (quoted && ['image', 'video', 'audio', 'document'].includes(mediaType)) {
+        // Usamos tu método nativo de descarga
+        const buffer = await quoted.download()
+        
+        await sendGroupStatus(conn, chat, {
+          type: mediaType,
+          media: buffer,
+          caption: text || quoted.text || '',
+          mimetype: quoted.mime || undefined,
+          fileName: quoted.filename || undefined
+        })
+      } else {
+        // En caso de que sea texto plano o se cite un mensaje de texto
+        const statusText = text || quoted?.text || ''
+        if (!statusText) {
+          return conn.reply(chat, `❀ Escribe un texto o cita un archivo multimedia para subir como estado del grupo.\n\nEjemplo:\n${usedPrefix + command} Hola Grupo!`, msg)
+        }
+        
+        await sendGroupStatus(conn, chat, {
+          type: 'text',
+          text: statusText
+        })
+      }
+
+      conn.reply(chat, '> ✎ Estado del grupo enviado con éxito.', msg)
+    } catch (e) {
+      console.error(e)
+      conn.reply(chat, `❌ Error al procesar el estado: ${e.message}`, msg)
+    }
+  }
+}
