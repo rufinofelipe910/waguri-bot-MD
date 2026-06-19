@@ -101,7 +101,7 @@ export default {
   privateOnly: false,
   adminOnly: false,
   botAdmin: false,
-  ownerOnly: true,
+  ownerOnly: false,
 
   // Usando los mismos parámetros exactos que tu comando .tag
   async run({ sock, from, msg, text, reply, react }) {
