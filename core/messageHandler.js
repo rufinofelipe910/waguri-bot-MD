@@ -3,7 +3,7 @@ import { log } from "./logger.js";
 import { getPlugins } from "./pluginLoader.js";
 import { db } from "../database/db.js";
 
-const groupCache = new Map();
+export const groupCache = new Map();
 const prefixes   = Array.isArray(config.prefix) ? config.prefix : [config.prefix];
 
 function cleanJid(jid = "") {
