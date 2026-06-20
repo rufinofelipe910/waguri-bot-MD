@@ -45,14 +45,27 @@ export default {
 
   async run({ sock, from, senderNum, isGroup, groupName, usedPrefix, msg }) {
     try {
-      const hora  = new Date().toLocaleTimeString("es-CO", { hour12: false });
-      const fecha = new Date().toLocaleDateString("es-CO");
-      const lugar = isGroup ? groupName : "Chat Privado";
+      // Configuración de fecha y hora basada estrictamente en Colombia
+      const timeZone = "America/Bogota";
+      const ahora = new Date();
+      
+      const horaStr = ahora.toLocaleTimeString("es-CO", { timeZone, hour12: false });
+      const fecha   = ahora.toLocaleDateString("es-CO", { timeZone });
+      const lugar   = isGroup ? groupName : "Chat Privado";
+
+      // Extraer la hora exacta para definir el saludo dinámico
+      const horaActual = parseInt(ahora.toLocaleTimeString("es-CO", { timeZone, hour: '2-digit', hour12: false }));
+      let saludo = "Buenas noches";
+      
+      if (horaActual >= 5 && horaActual < 12) {
+        saludo = "Buenos días";
+      } else if (horaActual >= 12 && horaActual < 19) {
+        saludo = "Buenas tardes";
+      }
 
       const currentBotJid = sock.user?.id ? sock.user.id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : '';
       const botData = db.getBot(currentBotJid);
       
-      // Sanitización rápida en caso de que queden restos previos en la DB
       const nombreBot = (botData?.label || "MULTIDEVICE BOT").replace(/@\d+/g, '').trim();
       const urlFoto   = botData?.banner || "https://files.evogb.win/1oU31I.jpg";
       const tipoBot   = botData?.isMain ? "Bot Principal" : "Subbot";
@@ -70,13 +83,14 @@ export default {
         categories[cat].add(names[0])
       }
 
-      let textoMenu = `✨ ═══ 🫧 *${nombreBot.toUpperCase()}* 🫧 ═══ ✨\n\n`;
+      let textoMenu = `✨ ═══ 🫧 *${nombreBot.toUpperCase()}* 🫧 ═══ ✨\n`;
+      textoMenu += `👋 ¡${saludo} @${senderNum}, soy *${nombreBot}*!\n\n`;
 
       textoMenu += `╔════ 🪐 *𝗦𝗜𝗦𝗧𝗘𝗠𝗔* 🪐 ════╗\n`;
       textoMenu += `┃ 👤 *Usuario:* @${senderNum}\n`;
       textoMenu += `┃ ⚙️ *Rango:* ${tipoBot}\n`;
       textoMenu += `┃ 📍 *Canal:* ${lugar}\n`;
-      textoMenu += `┃ ⏰ *Hora:* ${hora}\n`;
+      textoMenu += `┃ ⏰ *Hora:* ${horaStr}\n`;
       textoMenu += `┃ 📅 *Fecha:* ${fecha}\n`;
       textoMenu += `╚════════════════════════╝\n\n`;
 
