@@ -79,7 +79,7 @@ export default {
       textoMenu += `┃ 📅 *Fecha:* ${fecha}\n`;
       textoMenu += `╚════════════════════════╝\n\n`;
 
-      textoMenu += `*📜  𝗟𝗜𝗦𝗧𝗔 𝗗𝗘 𝗖𝗢𝗠𝗔𝗡𝗗𝗢𝗦* 📜\n`;
+      textoMenu += `*📜  𝗟𝗜𝗦𝗧𝗔 𝗗𝗘 𝗖𝗢🇲𝗔𝗡𝗗𝗢𝗦* 📜\n`;
       textoMenu += `_Usa el prefijo [ ${usedPrefix} ] antes de cada orden._\n\n`;
 
       for (const [cat, cmds] of Object.entries(categories)) {
@@ -93,7 +93,7 @@ export default {
         textoMenu += "\n";
       }
 
-      textoMenu += `🪼 _Powered by DuarteXV_\n`;
+      textoMenu += `🪼 _Powered by DuarteXV | ${nombreBot}_\n`;
       textoMenu += `🔗 ${linkMatch}`;
 
       let imgBanner
@@ -118,8 +118,8 @@ export default {
           text: textoMenu,
           matchedText: linkMatch,
           canonicalUrl: linkMatch,
-          description: "Sistema Multidevice Sencillo",
-          title: nombreBot,
+          description: `Powered by DuarteXV | ${nombreBot}`,
+          title: nombreBot.toUpperCase(),
           previewType: 0,
           jpegThumbnail: imgBanner.jpegThumbnail,
           thumbnailDirectPath: imgBanner.directPath,
