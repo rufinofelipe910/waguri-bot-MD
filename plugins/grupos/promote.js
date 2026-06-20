@@ -21,14 +21,20 @@ export default {
       return await reply({ text: '❌ Necesito ser administrador del grupo para usar este comando.' })
     }
 
-    // 4. Verificar si quien usa el comando es admin (Limpieza de JID agregada aquí)
-    const senderJid = msg.sender.split(':')[0] + '@s.whatsapp.net'
+    // 4. Obtener y limpiar el JID del emisor de forma segura
+    const rawSender = msg.key.participant || msg.key.remoteJid || ''
+    if (!rawSender) {
+      return await reply({ text: '❌ No se pudo determinar el emisor del mensaje.' })
+    }
+    const senderJid = rawSender.split(':')[0] + '@s.whatsapp.net'
+
+    // 5. Verificar si quien usa el comando es admin
     const userIsAdmin = participants.some(p => p.id === senderJid && (p.admin === 'admin' || p.admin === 'superadmin'))
     if (!userIsAdmin) {
       return await reply({ text: '❌ Solo los administradores pueden usar este comando.' })
     }
 
-    // 5. Detectar el usuario a promover (por mención, por respuesta o por texto)
+    // 6. Detectar el usuario a promover (por mención, por respuesta o por texto)
     let target = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] 
       || msg.message?.extendedTextMessage?.contextInfo?.participant
     
@@ -41,16 +47,16 @@ export default {
       return await reply({ text: '⚠️ Etiqueta a alguien, responde a su mensaje o escribe su número para promoverlo.' })
     }
 
-    // Limpiar también el target por si viene con identificador de dispositivo
+    // Limpiar el target por si viene con identificador de dispositivo
     const cleanTarget = target.split(':')[0] + '@s.whatsapp.net'
 
-    // 6. Verificar si ya es admin
+    // 7. Verificar si ya es admin
     const targetIsAdmin = participants.some(p => p.id === cleanTarget && (p.admin === 'admin' || p.admin === 'superadmin'))
     if (targetIsAdmin) {
       return await reply({ text: '⚠️ Este usuario ya es administrador.' })
     }
 
-    // 7. Ejecutar acción
+    // 8. Ejecutar acción
     try {
       await react('⚔️')
       await sock.groupParticipantsUpdate(from, [cleanTarget], 'promote')
