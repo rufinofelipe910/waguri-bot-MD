@@ -1,5 +1,3 @@
-import { groupCache } from "./handleMessage.js";
-
 export default {
   name: ['promote', 'daradmin'],
   description: 'Promueve a un miembro a administrador',
@@ -7,7 +5,7 @@ export default {
   groupOnly: true,
   adminOnly: true,
 
-  async run({ sock, from, msg, groupMeta, reply }) {
+  async run({ sock, from, msg, groupMeta, clearGroupCache, reply }) {
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
     const mentioned = contextInfo?.mentionedJid || []
     
@@ -31,7 +29,7 @@ export default {
 
     try {
       await sock.groupParticipantsUpdate(from, [targetJid], "promote")
-      groupCache.delete(from)
+      clearGroupCache()
       await reply({ text: `✅ ¡Usuario promovido a administrador con éxito!` })
     } catch (e) {
       await reply({ text: `❌ No se pudo promover al usuario: ${e.message}` })
