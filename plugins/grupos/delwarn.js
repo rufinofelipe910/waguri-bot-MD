@@ -7,41 +7,44 @@ export default {
   groupOnly: true,
 
   async run({ sock, from, msg, reply }) {
-    const groupMetaReal = await sock.groupMetadata(from)
-    const participants = groupMetaReal.participants || []
-    const cleanJid = (id) => id ? id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : ''
+    try {
+      const groupMetaReal = await sock.groupMetadata(from)
+      const participants = groupMetaReal.participants || []
+      const cleanJid = (id) => id ? id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : ''
 
-    // 1. Verificar si el ejecutor es admin
-    const senderJid = cleanJid(msg.key.participant || msg.participant || from)
-    const senderParticipant = participants.find(p => cleanJid(p.id) === senderJid)
-    const isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin'
+      const senderJid = cleanJid(msg.key.participant || msg.participant || from)
+      const senderParticipant = participants.find(p => cleanJid(p.id) === senderJid)
+      const isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin'
 
-    if (!isSenderAdmin) return await reply({ text: "❌ Solo admins del grupo pueden usar este comando." })
+      if (!isSenderAdmin) return await reply({ text: "❌ Solo admins del grupo pueden usar este comando." })
 
-    // 2. Identificar al objetivo
-    const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
-    const mentioned = contextInfo?.mentionedJid || []
-    let target = contextInfo?.participant || mentioned[0]
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
+      const mentioned = contextInfo?.mentionedJid || []
+      let target = contextInfo?.participant || mentioned[0]
 
-    if (!target) return await reply({ text: `⚠️ Menciona o responde al usuario para quitarle una advertencia.` })
-    const targetJid = cleanJid(target)
+      if (!target) return await reply({ text: `⚠️ Menciona o responde al usuario para quitarle una advertencia.` })
+      const targetJid = cleanJid(target)
 
-    const groupData = db.getGroup(from)
-    const userWarns = groupData.warns?.[targetJid] || []
+      const groupData = db.getGroup(from) || {}
+      const currentWarns = groupData.warns || {}
+      const userWarns = currentWarns[targetJid] || []
 
-    if (userWarns.length === 0) {
-      return await reply({ text: `👤 @${targetJid.split('@')[0]} no tiene advertencias activas en este grupo.`, mentions: [targetJid] })
+      if (userWarns.length === 0) {
+        return await reply({ text: `👤 @${targetJid.split('@')[0]} no tiene advertencias activas en este grupo.`, mentions: [targetJid] })
+      }
+
+      userWarns.pop()
+      currentWarns[targetJid] = userWarns
+
+      db.setGroup(from, { ...groupData, warns: currentWarns })
+
+      await reply({ 
+        text: `✅ Se ha removido una advertencia a @${targetJid.split('@')[0]}.\n📊 *Advertencias restantes:* ${userWarns.length}/3`,
+        mentions: [targetJid]
+      })
+    } catch (err) {
+      console.error("Error en comando delwarn:", err)
+      await reply({ text: "❌ Ocurrió un error interno al ejecutar el comando." })
     }
-
-    // Remover la última advertencia acumulada
-    userWarns.pop()
-    groupData.warns[targetJid] = userWarns
-
-    db.setGroup(from, { warns: groupData.warns })
-
-    await reply({ 
-      text: `✅ Se ha removido una advertencia a @${targetJid.split('@')[0]}.\n📊 *Advertencias restantes:* ${userWarns.length}/3`,
-      mentions: [targetJid]
-    })
   }
 }
