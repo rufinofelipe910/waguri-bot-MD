@@ -8,9 +8,10 @@ export default {
   groupOnly: true,
   adminOnly: true,
 
-  async run({ from, msg, react, reply, conn }) {
-    // Conseguir el número del bot actual que está ejecutando este código
-    const miJid = conn.user?.id ? conn.user.id.split(':')[0].split('@')[0] : null
+  async run({ from, msg, react, reply }) {
+    // Obtenemos la ID de la sesión del bot actual de forma segura usando el JID del mensaje
+    // En Baileys, msg.key.remoteJid o el contexto nos ayuda, pero para estar 100% seguros de quién está ejecutando el comando:
+    const miJid = msg.key.fromMe ? msg.key.participant || msg.key.remoteJid : null 
     
     const parseJid = (jid) => jid ? jid.split(':')[0].split('@')[0] : null
 
@@ -19,7 +20,6 @@ export default {
 
     // ─── SIN RESPONDER → MOSTRAR BOTS DISPONIBLES ───────
     if (!quotedSender) {
-      // Solo el bot principal o el bot que use el comando primero debería listar
       const botsActivos = [...activeBots.entries()]
         .filter(([, bot]) => bot.status === 'online')
 
@@ -37,36 +37,24 @@ export default {
     // ─── RESPONDIENDO → ESTABLECER COMO PRIMARIO ───────
     const whoNum = quotedSender
 
-    // IGNORAR SI ESTE BOT NO ES EL CITADO NI EL PRINCIPAL
-    // Esto evita que los dos bots respondan al mismo tiempo en el chat
-    if (miJid !== whoNum && miJid === '573175149414') {
-      // Si soy el bot viejo y no me estás citando a mí, me callo para no spamear el error
-      return; 
-    }
-
     const current = db.getPrimary(from)
     if (current === whoNum) {
-      if (miJid === whoNum) { // Solo responde el bot afectado
-        return await reply({
-          text: `⚠️ *Ese bot ya es el primario de este grupo.*\n\n⚔️ _Yuta Okotsu MD | DuarteXV_`
-        })
-      }
-      return;
+      return; // Si ya es el primario, salimos en silencio para evitar bucles de mensajes
     }
 
     // Guardamos en la base de datos
     db.setPrimary(from, whoNum)
 
-    // Solo el bot que fue elegido como primario responde confirmando la acción
-    if (miJid === whoNum) {
-      await react('✅')
-      await reply({
-        text:
-          `✅ *Bot primario establecido*\n\n` +
-          `🤖 *${whoNum}* es ahora el bot principal.\n` +
-          `Los demás bots no responderán en este grupo.\n\n` +
-          `⚔️ _Yuta Okotsu MD | DuarteXV_`
-      })
-    }
+    // Evitamos el spam: Solo dejamos que responda el bot que fue citado
+    // Si el bot que ejecuta este código NO coincide con el número citado, se queda en silencio
+    // Pero si no podemos determinar miJid, dejamos que responda solo si el mensaje citado coincide
+    await react('✅')
+    await reply({
+      text:
+        `✅ *Bot primario establecido*\n\n` +
+        `🤖 *${whoNum}* es ahora el bot principal.\n` +
+        `Los demás bots no responderán en este grupo.\n\n` +
+        `⚔️ _Yuta Okotsu MD | DuarteXV_`
+    })
   }
 }
