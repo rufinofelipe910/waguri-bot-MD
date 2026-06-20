@@ -1,0 +1,73 @@
+import { db } from '../../database/db.js'
+
+export default {
+  name: ['setname', 'cambiarnombre'],
+  description: 'Cambia el nombre/label de un subbot específico',
+  category: 'owner',
+  ownerOnly: false,
+
+  async run({ sock, from, msg, args, reply }) {
+    try {
+      const cleanJid = (id) => id ? id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : ''
+      const senderJid = cleanJid(msg.key.participant || msg.participant || from)
+      const currentBotJid = cleanJid(sock.user?.id)
+
+      const esOwnerGlobal = db.hasRole(senderJid, 'owner')
+      const esMismoSubbot = senderJid === currentBotJid
+
+      if (!esOwnerGlobal && !esMismoSubbot) {
+        return await reply({ text: '❌ No tienes permisos para usar este comando.' })
+      }
+
+      let rawMessage = msg.message
+      if (rawMessage?.ephemeralMessage) rawMessage = rawMessage.ephemeralMessage.message
+
+      const quotedContext = rawMessage?.extendedTextMessage?.contextInfo
+
+      let targetBotJid = null
+      let nuevoNombre = ''
+
+      if (esOwnerGlobal) {
+        const mentioned = quotedContext?.mentionedJid || []
+        const targetRaw = quotedContext?.participant || mentioned[0]
+        
+        if (targetRaw) {
+          targetBotJid = cleanJid(targetRaw)
+          nuevoNombre = args.join(" ")
+        } else {
+          targetBotJid = currentBotJid
+          nuevoNombre = args.join(" ")
+        }
+      } else {
+        targetBotJid = currentBotJid
+        nuevoNombre = args.join(" ")
+      }
+
+      if (!nuevoNombre || nuevoNombre.trim() === '') {
+        return await reply({ text: '⚠️ Especifica el nuevo nombre para el bot.' })
+      }
+
+      const mainBotJid = cleanJid(sock.user?.id) 
+      const esSubbotTarget = db.getAllBots().some(b => cleanJid(b.jid) === targetBotJid)
+
+      if (esOwnerGlobal && targetBotJid === mainBotJid && !esSubbotTarget) {
+        return await reply({ text: '❌ Este comando está restringido solo para subbots. No puedes cambiar el nombre del bot principal desde aquí.' })
+      }
+
+      if (esOwnerGlobal && !esSubbotTarget && targetBotJid !== currentBotJid) {
+        return await reply({ text: '❌ El usuario seleccionado no está registrado como un subbot activo en la base de datos.' })
+      }
+
+      db.setBot(targetBotJid, { label: nuevoNombre.trim() })
+
+      await reply({ 
+        text: `✅ *Nombre actualizado con éxito*\n\n🤖 *Bot:* @${targetBotJid.split('@')[0]}\n📝 *Nuevo Nombre:* ${nuevoNombre.trim()}`, 
+        mentions: [targetBotJid] 
+      })
+
+    } catch (err) {
+      console.error(err)
+      await reply({ text: `❌ *Error:* ${err.message}` })
+    }
+  }
+}
