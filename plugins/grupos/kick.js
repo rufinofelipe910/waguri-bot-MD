@@ -6,10 +6,19 @@ export default {
   adminOnly: true,
 
   async run({ sock, from, msg, groupMeta, reply }) {
-    const quoted    = msg.message?.extendedTextMessage?.contextInfo
-    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
+    // 1. Intentar capturar el JID de todas las formas posibles (mención, respuesta, etc.)
+    const quoted = msg.message?.extendedTextMessage?.contextInfo
+    const mentioned = quoted?.mentionedJid || []
+    
+    let target = null
 
-    let target = quoted?.participant || mentioned[0] || null
+    if (quoted?.participant) {
+      target = quoted.participant // Si es una respuesta a un mensaje
+    } else if (mentioned.length > 0) {
+      target = mentioned[0] // Si se usó una mención (@user)
+    }
+
+    // 2. Si sigue sin encontrarlo, tirar el error de falta de objetivo
     if (!target) return await reply({ text: `❌ Menciona o responde al usuario a expulsar.` })
 
     // Limpieza estricta de IDs extraídos
@@ -19,12 +28,12 @@ export default {
     // No expulsar al bot
     if (targetNum === botNum) return await reply({ text: `❌ No me puedes expulsar a mí.` })
 
-    // Verificar si el bot es admin usando limpieza estricta de la lista
+    // Verificar si el bot es admin
     const botParticipant = groupMeta?.participants?.find(p => p.id.split('@')[0].split(':')[0] === botNum)
     const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
     if (!isBotAdmin) return await reply({ text: `❌ El bot necesita ser admin del grupo.` })
 
-    // Buscar al usuario objetivo en la lista usando la misma limpieza estricta
+    // Buscar al usuario objetivo en la lista
     const targetParticipant = groupMeta?.participants?.find(p => p.id.split('@')[0].split(':')[0] === targetNum)
     
     if (targetParticipant?.admin === 'superadmin') return await reply({ text: `❌ No puedo expulsar al creador del grupo.` })
