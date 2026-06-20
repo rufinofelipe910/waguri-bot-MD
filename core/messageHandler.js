@@ -164,7 +164,6 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
 
     if (plugin.ownerOnly   && !isOwner)                return ctx.reply({ text: "❌ Solo el owner puede usar este comando." });
     if (plugin.modOnly     && !isMod)                  return ctx.reply({ text: "❌ Solo moderadores pueden usar este comando." });
-    if (plugin.adminOnly   && isGroup && !isAdmin && !isOwner) return ctx.reply({ text: "❌ Solo admins del grupo pueden usar este comando." });
     if (plugin.botAdmin    && isGroup && !isBotAdmin)          return ctx.reply({ text: "❌ El bot necesita ser admin del grupo." });
     if (plugin.premiumOnly && !isPremium)                      return ctx.reply({ text: "⭐ Este comando es exclusivo para premium." });
     if (plugin.groupOnly   && !isGroup)                        return ctx.reply({ text: "👥 Este comando solo funciona en grupos." });
