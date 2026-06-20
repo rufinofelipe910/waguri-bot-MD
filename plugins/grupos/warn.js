@@ -30,11 +30,22 @@ export default {
         return await reply({ text: `❌ No puedes advertir a otro administrador.` })
       }
 
-      // Intentar obtener el pushname de la persona advertida
-      // Buscamos en el mensaje citado si existe, o en el store del bot si está disponible
-      let targetName = contextInfo?.quotedMessage ? contextInfo?.pushName : null
+      // Intentar capturar el pushName real del usuario
+      let targetName = null
+      
+      // 1. Intentar obtenerlo si respondiste a su mensaje
+      if (contextInfo?.quotedMessage && contextInfo?.pushName) {
+        targetName = contextInfo.pushName
+      }
+      
+      // 2. Intentar buscarlo en el almacén de contactos del bot si existe
+      if (!targetName && sock.store?.contacts?.[targetJid]) {
+        targetName = sock.store.contacts[targetJid].name || sock.store.contacts[targetJid].verifiedName
+      }
+
+      // 3. Si no se encuentra en ningún lado, se usa el número sin el @
       if (!targetName) {
-        targetName = sock.store?.contacts?.[targetJid]?.name || sock.store?.contacts?.[targetJid]?.verifiedName || `@${targetJid.split('@')[0]}`
+        targetName = targetJid.split('@')[0]
       }
 
       const groupData = db.getGroup(from) || {}
@@ -48,7 +59,7 @@ export default {
         razon,
         fecha: new Date().toLocaleDateString("es-CO"),
         by: adminName,
-        userSavedName: targetName.startsWith('@') ? targetName : targetName
+        userSavedName: targetName
       })
 
       db.setGroup(from, { ...groupData, warns: currentWarns })
@@ -56,7 +67,7 @@ export default {
       const totalWarns = currentWarns[targetJid].length
 
       let texto = `⚠️ *¡USUARIO ADVERTIDO!* ⚠️\n\n`
-      texto += `👤 *Usuario:* ${targetName.startsWith('@') ? targetName : `${targetName} (@${targetJid.split('@')[0]})`}\n`
+      texto += `👤 *Usuario:* ${targetName}\n` // Aquí ya no se concatena el número con @
       texto += `👮‍♂️ *Por:* ${adminName}\n`
       texto += `📝 *Razón:* ${razon}\n`
       texto += `📊 *Advertencias:* ${totalWarns}/3\n\n`
@@ -65,6 +76,7 @@ export default {
         texto += `❗ *Nota:* Este usuario ha alcanzado el límite de 3 advertencias.`
       }
 
+      // Dejamos la mención oculta en los metadatos para que WhatsApp pueda enlazar el mensaje de todas formas
       await reply({ text: texto, mentions: [targetJid] })
     } catch (err) {
       console.error("Error en comando warn:", err)
