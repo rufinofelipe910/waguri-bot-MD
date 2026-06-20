@@ -21,15 +21,16 @@ export default {
       return await reply({ text: '❌ Necesito ser administrador del grupo para usar este comando.' })
     }
 
-    // 4. Obtener y limpiar el JID del emisor de forma segura
+    // 4. Obtener el JID del emisor desde la llave del mensaje
     const rawSender = msg.key.participant || msg.key.remoteJid || ''
-    if (!rawSender) {
-      return await reply({ text: '❌ No se pudo determinar el emisor del mensaje.' })
-    }
-    const senderJid = rawSender.split(':')[0] + '@s.whatsapp.net'
+    const senderJid = rawSender.split(':')[0]
 
-    // 5. Verificar si quien usa el comando es admin
-    const userIsAdmin = participants.some(p => p.id === senderJid && (p.admin === 'admin' || p.admin === 'superadmin'))
+    // 5. Verificar si quien usa el comando es admin (búsqueda flexible por prefijo de número)
+    const userIsAdmin = participants.some(p => {
+      const pJid = p.id.split(':')[0]
+      return pJid === senderJid && (p.admin === 'admin' || p.admin === 'superadmin')
+    })
+
     if (!userIsAdmin) {
       return await reply({ text: '❌ Solo los administradores pueden usar este comando.' })
     }
@@ -47,11 +48,11 @@ export default {
       return await reply({ text: '⚠️ Etiqueta a alguien, responde a su mensaje o escribe su número para promoverlo.' })
     }
 
-    // Limpiar el target por si viene con identificador de dispositivo
-    const cleanTarget = target.split(':')[0] + '@s.whatsapp.net'
+    // Limpiar el target
+    const cleanTargetJid = target.split(':')[0] + '@s.whatsapp.net'
 
     // 7. Verificar si ya es admin
-    const targetIsAdmin = participants.some(p => p.id === cleanTarget && (p.admin === 'admin' || p.admin === 'superadmin'))
+    const targetIsAdmin = participants.some(p => p.id.split(':')[0] === target.split(':')[0] && (p.admin === 'admin' || p.admin === 'superadmin'))
     if (targetIsAdmin) {
       return await reply({ text: '⚠️ Este usuario ya es administrador.' })
     }
@@ -59,12 +60,12 @@ export default {
     // 8. Ejecutar acción
     try {
       await react('⚔️')
-      await sock.groupParticipantsUpdate(from, [cleanTarget], 'promote')
+      await sock.groupParticipantsUpdate(from, [cleanTargetJid], 'promote')
       
-      const nombre = `@${cleanTarget.split('@')[0]}`
+      const nombre = `@${cleanTargetJid.split('@')[0]}`
       await sock.sendMessage(from, {
         text: `✨ *¡NUEVO ADMINISTRADOR!*\n\n👑 ${nombre} ahora es administrador del grupo.`,
-        mentions: [cleanTarget]
+        mentions: [cleanTargetJid]
       }, { quoted: msg })
       
       await react('✅')
