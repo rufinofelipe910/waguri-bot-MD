@@ -124,7 +124,7 @@ export default {
           contextInfo: {
             mentionedJid: [`${senderNum}@s.whatsapp.net`],
             isForwarded: true,
-            forwardingScore: 9999,
+            forwardingScore: 1, // Cambiado de 9999 a 1 para que aparezca como "Reenviado" normal
             forwardedNewsletterMessageInfo: {
               newsletterJid: "120363420979328566@newsletter",
               newsletterName: "⏤͟͞ू⃪𝐁𝕃𝐔𝔼 𝐋𝕆𝐂𝕂 𝐂𝕃𝐔𝔹 𑁯🩵ᰍ",
@@ -134,7 +134,8 @@ export default {
         }
       };
 
-      const waMsg = generateWAMessageFromContent(from, content, { userJid: sock.user?.id })
+      // Se agrega el parámetro quoted para forzar la respuesta al mensaje que invocó el comando
+      const waMsg = generateWAMessageFromContent(from, content, { userJid: sock.user?.id, quoted: msg })
       await sock.relayMessage(from, waMsg.message, { messageId: waMsg.key.id })
 
     } catch (error) {
