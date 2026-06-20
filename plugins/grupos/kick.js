@@ -6,19 +6,18 @@ export default {
   adminOnly: true,
 
   async run({ sock, from, msg, groupMeta, reply }) {
-    // 1. Intentar capturar el JID de todas las formas posibles (mención, respuesta, etc.)
-    const quoted = msg.message?.extendedTextMessage?.contextInfo
-    const mentioned = quoted?.mentionedJid || []
+    // Detección ultra-robusta de las rutas de Baileys
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
+    const mentioned = contextInfo?.mentionedJid || []
     
     let target = null
 
-    if (quoted?.participant) {
-      target = quoted.participant // Si es una respuesta a un mensaje
+    if (contextInfo?.participant) {
+      target = contextInfo.participant // Respuesta a un mensaje
     } else if (mentioned.length > 0) {
-      target = mentioned[0] // Si se usó una mención (@user)
+      target = mentioned[0] // Mención directa con @
     }
 
-    // 2. Si sigue sin encontrarlo, tirar el error de falta de objetivo
     if (!target) return await reply({ text: `❌ Menciona o responde al usuario a expulsar.` })
 
     // Limpieza estricta de IDs extraídos
