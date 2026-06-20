@@ -33,18 +33,6 @@ export function registerMainBot(sock, label = "MAIN") {
   }
 }
 
-async function sendMainMessage(jid, text) {
-  try {
-    if (!mainSock) {
-      log.warn("[MANAGER] No hay socket principal para enviar mensaje");
-      return;
-    }
-    await mainSock.sendMessage(jid, { text });
-  } catch (e) {
-    log.error(`[MANAGER] Error enviando mensaje desde el bot principal: ${e.message}`);
-  }
-}
-
 export function updateBotStatus(id, data) {
   const current = activeBots.get(id) || {};
   activeBots.set(id, { ...current, ...data });
@@ -115,7 +103,7 @@ export function launchSubbot(id) {
   });
 }
 
-export async function requestSubbotCode(id, phoneNumber) {
+export async function requestSubbotCode(id, phoneNumber, sock, from) {
   const sessionDir = path.resolve(`${SUBBOTS_DIR}/${id}`);
   if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
 
@@ -162,10 +150,10 @@ export async function requestSubbotCode(id, phoneNumber) {
             ? msg.jid.split(":")[0] + "@s.whatsapp.net"
             : `${userNum}@s.whatsapp.net`;
 
-          sendMainMessage(userJid,
-            "📍 *Has vinculado un subbot con éxito*\n" +
-            "> • Puedes usar *.delbot* para desvincularlo cuando quieras."
-          );
+          sock.sendMessage(userJid, {
+            text: "📍 *Has vinculado un subbot con éxito*\n" +
+                  "> • Puedes usar *.delbot* para desvincularlo cuando quieras."
+          }).catch(e => log.error(`[MANAGER] Error enviando mensaje de éxito: ${e.message}`));
         }
       }
       if (msg.type === "logged_out") {
