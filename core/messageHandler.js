@@ -3,7 +3,7 @@ import { log } from "./logger.js";
 import { getPlugins } from "./pluginLoader.js";
 import { db } from "../database/db.js";
 
-export const groupCache = new Map();
+const groupCache = new Map();
 const prefixes   = Array.isArray(config.prefix) ? config.prefix : [config.prefix];
 
 function cleanJid(jid = "") {
@@ -138,6 +138,7 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN") {
       isPremium,
       isAdmin,
       isBotAdmin,
+      clearGroupCache: () => groupCache.delete(from),
       reply: async (content) => {
         if (typeof content === "string") content = { text: content };
         if (content.text !== undefined) content.mentions = [sender];
