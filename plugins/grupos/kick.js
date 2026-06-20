@@ -1,5 +1,3 @@
-import { groupCache } from "./handleMessage.js";
-
 export default {
   name: ['kick', 'expulsar'],
   description: 'Expulsa a un miembro del grupo',
@@ -7,7 +5,7 @@ export default {
   groupOnly: true,
   adminOnly: true,
 
-  async run({ sock, from, msg, groupMeta, reply }) {
+  async run({ sock, from, msg, groupMeta, clearGroupCache, reply }) {
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
     const mentioned = contextInfo?.mentionedJid || []
     
@@ -36,7 +34,7 @@ export default {
 
     try {
       await sock.groupParticipantsUpdate(from, [targetJid], "remove")
-      groupCache.delete(from)
+      clearGroupCache()
     } catch (e) {
       await reply({ text: `❌ No se pudo expulsar: ${e.message}` })
     }
