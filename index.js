@@ -8,7 +8,6 @@ import path from "path";
 
 process.removeAllListeners("warning");
 
-// ─── LIMPIAR TMP AL INICIAR ───────────────────────────────
 const tmpDir = "./tmp";
 if (fs.existsSync(tmpDir)) {
   for (const file of fs.readdirSync(tmpDir)) {
@@ -16,7 +15,6 @@ if (fs.existsSync(tmpDir)) {
   }
 }
 
-// ─── LIMPIEZA PERIÓDICA CADA 6 HORAS ─────────────────────
 setInterval(() => {
   if (!fs.existsSync(tmpDir)) return;
   for (const file of fs.readdirSync(tmpDir)) {
@@ -47,16 +45,10 @@ async function main() {
   });
 
   if (sock) {
-    // Registrar cuando conecte para tener el JID correcto
-    sock.ev.on("connection.update", ({ connection }) => {
-      if (connection === "open") {
-        registerMainBot(sock, "MAIN")
-        log.info("[MAIN] Registrado en activeBots")
-      }
-    })
+    registerMainBot(sock, "MAIN");
+    log.info("[MAIN] Registrado en activeBots");
   }
 
-  // ─── Relanzar subbots existentes ─────────────────────
   launchAllSubbots();
 }
 
