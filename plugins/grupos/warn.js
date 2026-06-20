@@ -34,11 +34,13 @@ export default {
       const currentWarns = groupData.warns || {}
       if (!currentWarns[targetJid]) currentWarns[targetJid] = []
 
+      const adminName = msg.pushName || "Admin"
       const razon = args.join(" ") || "No se especificó una razón."
+      
       currentWarns[targetJid].push({
         razon,
         fecha: new Date().toLocaleDateString("es-CO"),
-        by: senderJid.split('@')[0]
+        by: adminName
       })
 
       db.setGroup(from, { ...groupData, warns: currentWarns })
@@ -47,6 +49,7 @@ export default {
 
       let texto = `⚠️ *¡USUARIO ADVERTIDO!* ⚠️\n\n`
       texto += `👤 *Usuario:* @${targetJid.split('@')[0]}\n`
+      texto += `👮‍♂️ *Por:* ${adminName}\n`
       texto += `📝 *Razón:* ${razon}\n`
       texto += `📊 *Advertencias:* ${totalWarns}/3\n\n`
       
