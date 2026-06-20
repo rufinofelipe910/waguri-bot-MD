@@ -11,8 +11,13 @@ export default {
   async run({ from, msg, react, reply }) {
     await react('⚙️')
 
-    const quoted       = msg.message?.extendedTextMessage?.contextInfo
-    const quotedSender = quoted?.participant || null
+    // Limpiamos los JIDs para evitar fallos con los JIDs de multidispositivo (p. ej. 549xxx:1@s.whatsapp.net)
+    const parseJid = (jid) => jid ? jid.split(':')[0].split('@')[0] + '@s.whatsapp.net' : null
+    const parseNum = (jid) => jid ? jid.split(':')[0].split('@')[0] : 'N/A'
+
+    const quoted = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
+    // Conseguimos el JID limpio de quien envió el mensaje citado
+    const quotedSender = quoted?.participant ? parseJid(quoted.participant) : null
 
     // ─── SIN RESPONDER → MOSTRAR BOTS DISPONIBLES ───────
     if (!quotedSender) {
@@ -29,24 +34,27 @@ export default {
 
       let texto = `🤖 *¿A qué bot quieres como primario?*\n\n`
       for (const [, bot] of botsActivos) {
-        const num = bot.jid?.split(':')[0]?.split('@')[0] || 'N/A'
-        texto += `  ✦ *${bot.label}* → ${num}\n`
+        const num = parseNum(bot.jid)
+        texto += `  ✦ *${bot.label || 'Sub-Bot'}* → @${num}\n`
       }
       texto += `\n💡 Responde a un mensaje de ese bot y ejecuta *.setprimary* de nuevo.\n\n`
       texto += `⚔️ _Yuta Okotsu MD | DuarteXV_`
 
+      // Se usa mentions para que se puedan ver bien los arrobas si se desea
       return await reply({ text: texto })
     }
 
     // ─── RESPONDIENDO → ESTABLECER ESE BOT COMO PRIMARIO ─
-    const whoNum = quotedSender.split(':')[0].split('@')[0]
+    const whoJid = quotedSender
+    const whoNum = parseNum(whoJid)
 
-    const botsActivos = [...activeBots.entries()]
+    // Mapeamos los JIDs de los bots activos de forma limpia
+    const botsActivosJids = [...activeBots.entries()]
       .filter(([, bot]) => bot.status === 'online')
-      .map(([, bot]) => bot.jid?.split(':')[0]?.split('@')[0])
+      .map(([, bot]) => parseJid(bot.jid))
       .filter(Boolean)
 
-    if (!botsActivos.includes(whoNum)) {
+    if (!botsActivosJids.includes(whoJid)) {
       return await reply({
         text:
           `❌ *Ese usuario no es un bot activo.*\n\n` +
@@ -65,6 +73,7 @@ export default {
       })
     }
 
+    // Guardamos solo el número puro o el Jid según lo requiera tu db.js
     db.setPrimary(from, whoNum)
 
     await reply({
