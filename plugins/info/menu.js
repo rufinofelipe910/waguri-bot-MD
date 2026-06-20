@@ -52,7 +52,8 @@ export default {
       const currentBotJid = sock.user?.id ? sock.user.id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : '';
       const botData = db.getBot(currentBotJid);
       
-      const nombreBot = botData?.label || "MULTIDEVICE BOT";
+      // Sanitización rápida en caso de que queden restos previos en la DB
+      const nombreBot = (botData?.label || "MULTIDEVICE BOT").replace(/@\d+/g, '').trim();
       const urlFoto   = botData?.banner || "https://files.evogb.win/1oU31I.jpg";
       const tipoBot   = botData?.isMain ? "Bot Principal" : "Subbot";
 
