@@ -60,10 +60,13 @@ export default {
 
       db.setBot(targetBotJid, { label: nuevoNombre.trim() })
 
-      await reply({ 
-        text: `✅ *Nombre actualizado con éxito*\n\n🤖 *Bot:* @${targetBotJid.split('@')[0]}\n📝 *Nuevo Nombre:* ${nuevoNombre.trim()}`, 
-        mentions: [targetBotJid] 
-      })
+      const targetNum = targetBotJid.split('@')[0]
+      let textoConfirmacion = `✅ *Nombre actualizado con éxito*\n\n🤖 *Bot:* @${targetNum}\n📝 *Nuevo Nombre:* ${nuevoNombre.trim()}`
+
+      await sock.sendMessage(from, {
+        text: textoConfirmacion,
+        mentions: [targetBotJid]
+      }, { quoted: msg })
 
     } catch (err) {
       console.error(err)
