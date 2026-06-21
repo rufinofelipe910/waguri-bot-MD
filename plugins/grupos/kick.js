@@ -16,18 +16,15 @@ export default {
     const botParticipant = participants.find(p => p.id.split(':')[0] + '@s.whatsapp.net' === botJid)
     const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
 
-    // 🔍 DEBUG TEMPORAL — comparación profunda de bytes/longitud
-    const botIdRaw = participants.find(p => p.id.includes('59163267112'))?.id
+    // 🔍 DEBUG TEMPORAL 3
+    const matchManual = participants.find(p => p.id === botJid)
     await reply({
       text:
-        `🔍 *DEBUG KICK 2*\n` +
-        `botJid (calculado): "${botJid}"\n` +
-        `botJid length: ${botJid?.length}\n` +
-        `botIdRaw (de participants): "${botIdRaw}"\n` +
-        `botIdRaw length: ${botIdRaw?.length}\n` +
-        `son iguales (===): ${botJid === botIdRaw}\n` +
-        `botJid charCodes: ${[...(botJid||'')].map(c => c.charCodeAt(0)).join(',')}\n` +
-        `botIdRaw charCodes: ${[...(botIdRaw||'')].map(c => c.charCodeAt(0)).join(',')}`
+        `🔍 *DEBUG KICK 3*\n` +
+        `botParticipant (con .split): ${JSON.stringify(botParticipant)}\n` +
+        `matchManual (con === directo): ${JSON.stringify(matchManual)}\n` +
+        `cantidad participants: ${participants.length}\n` +
+        `participants raw: ${JSON.stringify(participants.map(p => ({id: p.id, admin: p.admin})))}`
     });
     // 🔍 FIN DEBUG
 
