@@ -8,10 +8,13 @@ const prefixes = Array.isArray(config.prefix) ? config.prefix : [config.prefix];
 
 function cleanJid(jid = "") {
   if (!jid) return "";
-  const withoutResource = jid.split(":")[0];
   const atIndex = jid.lastIndexOf("@");
-  if (atIndex === -1) return withoutResource;
-  return withoutResource + "@" + jid.slice(atIndex + 1);
+  if (atIndex === -1) return jid.split(":")[0];
+
+  const userPart = jid.slice(0, atIndex).split(":")[0];
+  const domainPart = jid.slice(atIndex + 1);
+
+  return `${userPart}@${domainPart}`;
 }
 
 export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum = null) {
@@ -97,11 +100,11 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
     let isBotAdmin = false;
 
     if (isGroup && groupMeta?.participants) {
-      const botJidClean = botJid.split(':')[0] + '@s.whatsapp.net';
-      const senderJidClean = sender.split(':')[0] + '@s.whatsapp.net';
+      const botJidClean = cleanJid(botJid);
+      const senderJidClean = cleanJid(sender);
 
-      const botParticipant = groupMeta.participants.find(p => p.id.split(':')[0] + '@s.whatsapp.net' === botJidClean);
-      const senderParticipant = groupMeta.participants.find(p => p.id.split(':')[0] + '@s.whatsapp.net' === senderJidClean);
+      const botParticipant = groupMeta.participants.find(p => cleanJid(p.id) === botJidClean);
+      const senderParticipant = groupMeta.participants.find(p => cleanJid(p.id) === senderJidClean);
 
       isAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin';
       isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
