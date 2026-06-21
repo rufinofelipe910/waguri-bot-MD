@@ -4,7 +4,7 @@ export default {
   category: 'grupos',
   groupOnly: true,
 
-  async run({ sock, from, msg, clearGroupCache, reply }) {
+  async run({ sock, from, msg, clearGroupCache, reply, senderNum }) {
     const groupMetaReal = await sock.groupMetadata(from)
     const participants = groupMetaReal.participants || []
 
@@ -16,7 +16,7 @@ export default {
 
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
     const mentioned = contextInfo?.mentionedJid || []
-    
+
     let target = null
     if (contextInfo?.participant) {
       target = contextInfo.participant 
@@ -28,7 +28,7 @@ export default {
 
     const targetJid = target.split(':')[0] + '@s.whatsapp.net'
     const targetParticipant = participants.find(p => p.id.split(':')[0] + '@s.whatsapp.net' === targetJid)
-    
+
     if (targetParticipant?.admin === 'admin' || targetParticipant?.admin === 'superadmin') {
       return await reply({ text: `❌ Este usuario ya es administrador.` })
     }
@@ -36,7 +36,16 @@ export default {
     try {
       await sock.groupParticipantsUpdate(from, [targetJid], "promote")
       clearGroupCache()
-      await reply({ text: `✅ ¡Usuario promovido a administrador con éxito!` })
+
+      const targetNum = targetJid.split('@')[0]
+      let textoPromote = `│✐꒷★ @${targetNum} h⍺ sıdo pꭇomovıdo ⍺ ⍺dmını𝗌tꭇ⍺doꭇ.\n`
+      textoPromote += `> acción hecha por @${senderNum}`
+
+      await sock.sendMessage(from, { 
+        text: textoPromote, 
+        contextInfo: { mentionedJid: [targetJid, senderJid] } 
+      }, { quoted: msg })
+
     } catch (e) {
       await reply({ text: `❌ No se pudo promover al usuario: ${e.message}` })
     }
