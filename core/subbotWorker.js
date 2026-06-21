@@ -20,10 +20,6 @@ const logger = pino({ level: "silent" });
 
 let pluginsLoaded = false;
 
-/**
- * Proveedor de estado de autenticación SQLite exclusivo para el Worker.
- * Crea y lee desde el archivo 'auth.db' en la ruta específica de la sesión.
- */
 async function useSQLiteAuthState(sessionDir) {
   if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
@@ -90,7 +86,6 @@ async function startWorker(_attempt = 0) {
     pluginsLoaded = true;
   }
 
-  // Inicialización del estado basado en SQLite en lugar de archivos JSON sueltos
   const { state, saveCreds, closeDb } = await useSQLiteAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -132,7 +127,6 @@ async function startWorker(_attempt = 0) {
     return;
   }
 
-  // ─── PEDIR CÓDIGO ──────────────────────────────────────
   if (useCode) {
     await new Promise((r) => setTimeout(r, 3000));
     try {
@@ -147,10 +141,15 @@ async function startWorker(_attempt = 0) {
   sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       connected = true;
+
+      // Limpieza rigurosa antes de mandar el JID al hilo principal
+      const rawJid = sock.user?.id || "";
+      const jidLimpio = rawJid ? rawJid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : "";
+
       parentPort.postMessage({
         type: "status",
         status: "online",
-        jid: sock.user?.id || "",
+        jid: jidLimpio,
       });
       await flushPending();
     }
@@ -161,7 +160,6 @@ async function startWorker(_attempt = 0) {
 
       parentPort.postMessage({ type: "status", status: "offline", jid: "" });
 
-      // Cerrar conexión de base de datos antes de salir del proceso del Worker
       try { closeDb(); } catch {}
 
       if (statusCode === DisconnectReason.loggedOut) {
