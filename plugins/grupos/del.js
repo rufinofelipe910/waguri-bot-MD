@@ -5,34 +5,10 @@ export default {
   description: "Elimina un mensaje respondiendo a él",
   category: "grupos",
   groupOnly: true,
+  adminOnly: true,
   botAdmin: true,
 
-  async run({ sock, from, msg, reply, sender, isAdmin, isMod, isBotAdmin, groupMeta }) {
-
-    // 🔍 DEBUG TEMPORAL — borrar después de diagnosticar
-    const senderJidClean = sender.split(':')[0] + '@s.whatsapp.net';
-    const senderParticipant = groupMeta?.participants?.find(
-      p => p.id.split(':')[0] + '@s.whatsapp.net' === senderJidClean
-    );
-
-    await reply({
-      text:
-        `🔍 *DEBUG*\n` +
-        `sender: ${sender}\n` +
-        `senderJidClean: ${senderJidClean}\n` +
-        `encontrado en participants: ${!!senderParticipant}\n` +
-        `admin field: ${senderParticipant?.admin ?? "N/A"}\n` +
-        `isAdmin calculado: ${isAdmin}\n` +
-        `isMod calculado: ${isMod}\n` +
-        `isBotAdmin calculado: ${isBotAdmin}\n` +
-        `total participants: ${groupMeta?.participants?.length ?? 0}`
-    });
-    // 🔍 FIN DEBUG
-
-    if (!isAdmin && !isMod) {
-      return await reply({ text: "❌ Solo los administradores pueden usar este comando." });
-    }
-
+  async run({ sock, from, msg, reply }) {
     const quoted = msg.message?.extendedTextMessage?.contextInfo;
 
     if (!quoted?.stanzaId) {
