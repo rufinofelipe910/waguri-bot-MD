@@ -2,7 +2,7 @@ import { db } from '../../database/db.js'
 
 export default {
   name: ['bots', 'listbots'],
-  description: 'Muestra la lista exacta de bots conectados detectando dinámicamente el Main',
+  description: 'Muestra la lista de bots conectados diferenciando el bot del servidor base',
   category: 'sockets',
   ownerOnly: false,
 
@@ -15,48 +15,46 @@ export default {
       return jid.split('@')[0].split(':')[0]
     }
 
-    // 1. Obtener la lista de todos os bots de la DB para identificar cuál es el Main de verdad
+    // 1. Obtener todos los bots registrados y los que están online desde tu DB
     const todosLosBots = db.getAllBots ? db.getAllBots() : []
     const subbotsActivos = db.getOnlineBots() || []
 
-    // Buscamos dinámicamente el registro que tenga la bandera de ser el Main principal
-    const mainBotDb = todosLosBots.find(b => b.isMain === true || b.isMain === 1 || b.label?.toUpperCase() === 'MAIN')
+    // 2. Encontrar cuál es el Bot Principal real en la base de datos
+    // Buscamos el registro que tenga explícitamente isMain === true
+    let mainBotDb = todosLosBots.find(b => b.isMain === true || b.isMain === 1)
+
+    // Si no hay ninguno marcado como Main en la DB, asumimos el bot actual del proceso raíz
+    const miNumeroActual = obtenerNumeroLimpio(sock.user?.id)
 
     let listaCompleta = []
     let numeroMainDetectado = null
 
-    // 2. Si encontramos el Main en la DB, lo ponemos de primero de forma dinámica
     if (mainBotDb && mainBotDb.jid) {
       numeroMainDetectado = obtenerNumeroLimpio(mainBotDb.jid)
-      listaCompleta.push({
-        label: mainBotDb.label && mainBotDb.label.toUpperCase() !== 'MAIN' ? mainBotDb.label : 'MAIN',
-        jid: numeroMainDetectado,
-        isMain: true
-      })
     } else {
-      // Si por alguna razón la DB no tiene un "isMain", usamos de respaldo al bot actual para no romper la lista
-      numeroMainDetectado = obtenerNumeroLimpio(sock.user?.id)
-      const miJid = numeroMainDetectado + '@s.whatsapp.net'
-      const miData = db.getBot ? db.getBot(miJid) : null
-      
-      listaCompleta.push({
-        label: miData?.label || 'MAIN',
-        jid: numeroMainDetectado,
-        isMain: true
-      })
+      // Si no hay bandera, el proceso actual se toma como referencia de Main principal
+      numeroMainDetectado = miNumeroActual
     }
 
-    // 3. Agregar los Subbots en línea filtrando el número del Main dinâmico para evitar que se repita
+    // Insertar el Bot Principal siempre al inicio de la lista
+    const datosMain = db.getBot(`${numeroMainDetectado}@s.whatsapp.net`)
+    listaCompleta.push({
+      label: datosMain?.label && datosMain.label !== 'Subbot' ? datosMain.label : 'MAIN',
+      jid: numeroMainDetectado,
+      isMain: true
+    })
+
+    // 3. Agregar los Subbots activos filtrando el número del Main para que no se repita
     for (const sub of subbotsActivos) {
       const subNum = obtenerNumeroLimpio(sub.jid)
 
       if (!subNum) continue
-      // Compara contra el número detectado del Main, así nunca se duplica cambies o no de número
+      // Evita duplicar el bot principal en la lista de subbots
       if (subNum === numeroMainDetectado) continue
 
-      // Limpiamos los nombres automáticos tipo SUB_
-      const esLabelAutomatico = sub.label?.startsWith('SUB_')
-      const nombreSub = esLabelAutomatico ? 'Subbot' : (sub.label || 'Subbot')
+      // Limpiar etiquetas automáticas
+      const esLabelAutomatico = sub.label?.startsWith('SUB_') || sub.label === 'Subbot'
+      const nombreSub = esLabelAutomatico ? 'Subbot' : sub.label
 
       listaCompleta.push({
         label: nombreSub,
@@ -65,13 +63,12 @@ export default {
       })
     }
 
-    // Nombre para el encabezado del bot que está ejecutando el comando en este instante
-    const miNumeroActual = obtenerNumeroLimpio(sock.user?.id)
+    // Nombre para el encabezado del bot que está respondiendo la solicitud
     const miJidActual = miNumeroActual ? miNumeroActual + '@s.whatsapp.net' : ''
-    const misDatos = db.getBot ? db.getBot(miJidActual) : null
+    const misDatos = db.getBot(miJidActual)
     const nombreBotEncabezado = (misDatos?.label || "MULTIDEVICE BOT").toUpperCase()
 
-    let text = `✨ ═══ 🫧 *${nombreBotEncabezado}* 🫧 ═══ ✨\n`
+    let text = `✨ ═══ 🫧 *${nombreBotEncabezado}* ═══ ✨\n`
     text += `🤖 _Bots conectados al sistema_\n\n`
 
     let i = 1
