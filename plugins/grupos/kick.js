@@ -31,9 +31,9 @@ export default {
 
     let target = null
     if (contextInfo?.participant) {
-      target = contextInfo.participant 
+      target = contextInfo.participant
     } else if (mentioned.length > 0) {
-      target = mentioned[0] 
+      target = mentioned[0]
     }
 
     if (!target) return await reply({ text: `❌ Menciona o responde al usuario a expulsar.` })
