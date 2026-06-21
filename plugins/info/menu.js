@@ -67,8 +67,11 @@ export default {
       const currentBotJid = sock.user?.id ? sock.user.id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : '';
       const botData = db.getBot(currentBotJid);
 
-      // Si el subbot nunca fue renombrado, usamos el nombre por defecto del config.js
-      const nombreBot = (botData?.label || config.botName).replace(/@\d+/g, '').trim();
+      // Si el bot (sea Main o subbot) nunca fue renombrado, usamos config.botName.
+      // Si tiene un nombre editado con .setname, respetamos ese nombre siempre.
+      const esLabelAutomatico = botData?.label?.startsWith('SUB_') || botData?.label === 'Subbot' || botData?.label === 'MAIN'
+      const nombreBot = (esLabelAutomatico || !botData?.label ? config.botName : botData.label).replace(/@\d+/g, '').trim();
+
       const urlFoto   = botData?.banner || "https://files.evogb.win/1oU31I.jpg";
       const tipoBot   = botData?.isMain ? "Bot Principal" : "Subbot";
 
