@@ -2,7 +2,7 @@ import { db } from '../../database/db.js'
 
 export default {
   name: ['bots', 'listbots'],
-  description: 'Muestra la lista exacta de bots conectados separando el Main de los Subbots',
+  description: 'Muestra la lista exacta de bots conectados detectando dinámicamente el Main',
   category: 'sockets',
   ownerOnly: false,
 
@@ -15,37 +15,46 @@ export default {
       return jid.split('@')[0].split(':')[0]
     }
 
-    // Obtener el número real de la sesión que está ejecutando el comando ahora mismo
-    const miNumeroReal = obtenerNumeroLimpio(sock.user?.id)
-
-    // Obtener os dados de todos os bots registrados no sistema
+    // 1. Obtener la lista de todos os bots de la DB para identificar cuál es el Main de verdad
     const todosLosBots = db.getAllBots ? db.getAllBots() : []
-    const subbotsActivos = db.getOnlineBots()
+    const subbotsActivos = db.getOnlineBots() || []
 
-    // Intentar buscar el Bot Principal real en la base de datos
-    const mainBotDb = todosLosBots.find(b => b.isMain === true || b.isMain === 1)
+    // Buscamos dinámicamente el registro que tenga la bandera de ser el Main principal
+    const mainBotDb = todosLosBots.find(b => b.isMain === true || b.isMain === 1 || b.label?.toUpperCase() === 'MAIN')
 
     let listaCompleta = []
+    let numeroMainDetectado = null
 
-    // 1. Añadir el Bot Principal (Main) siempre de primero con prioridad en su número real
-    const mainNum = obtenerNumeroLimpio(mainBotDb?.jid) || miNumeroReal || 'N/A'
-    const mainLabel = mainBotDb?.label || 'MAIN'
+    // 2. Si encontramos el Main en la DB, lo ponemos de primero de forma dinámica
+    if (mainBotDb && mainBotDb.jid) {
+      numeroMainDetectado = obtenerNumeroLimpio(mainBotDb.jid)
+      listaCompleta.push({
+        label: mainBotDb.label && mainBotDb.label.toUpperCase() !== 'MAIN' ? mainBotDb.label : 'MAIN',
+        jid: numeroMainDetectado,
+        isMain: true
+      })
+    } else {
+      // Si por alguna razón la DB no tiene un "isMain", usamos de respaldo al bot actual para no romper la lista
+      numeroMainDetectado = obtenerNumeroLimpio(sock.user?.id)
+      const miJid = numeroMainDetectado + '@s.whatsapp.net'
+      const miData = db.getBot ? db.getBot(miJid) : null
+      
+      listaCompleta.push({
+        label: miData?.label || 'MAIN',
+        jid: numeroMainDetectado,
+        isMain: true
+      })
+    }
 
-    listaCompleta.push({
-      label: mainLabel,
-      jid: mainNum,
-      isMain: true
-    })
-
-    // 2. Agregar los Subbots activos filtrando estrictamente para que no se duplique el Main
+    // 3. Agregar los Subbots en línea filtrando el número del Main dinâmico para evitar que se repita
     for (const sub of subbotsActivos) {
       const subNum = obtenerNumeroLimpio(sub.jid)
 
       if (!subNum) continue
-      // Si coincide con el número del Main o con la sesión actual, no se agrega como subbot
-      if (subNum === mainNum || subNum === miNumeroReal) continue
+      // Compara contra el número detectado del Main, así nunca se duplica cambies o no de número
+      if (subNum === numeroMainDetectado) continue
 
-      // Limpiamos los nombres automáticos tipo SUB_ para que se vea más limpio
+      // Limpiamos los nombres automáticos tipo SUB_
       const esLabelAutomatico = sub.label?.startsWith('SUB_')
       const nombreSub = esLabelAutomatico ? 'Subbot' : (sub.label || 'Subbot')
 
@@ -56,9 +65,10 @@ export default {
       })
     }
 
-    // Nombre para el encabezado del mensaje basado en el bot que responde
-    const miJid = miNumeroReal ? miNumeroReal + '@s.whatsapp.net' : ''
-    const misDatos = db.getBot(miJid)
+    // Nombre para el encabezado del bot que está ejecutando el comando en este instante
+    const miNumeroActual = obtenerNumeroLimpio(sock.user?.id)
+    const miJidActual = miNumeroActual ? miNumeroActual + '@s.whatsapp.net' : ''
+    const misDatos = db.getBot ? db.getBot(miJidActual) : null
     const nombreBotEncabezado = (misDatos?.label || "MULTIDEVICE BOT").toUpperCase()
 
     let text = `✨ ═══ 🫧 *${nombreBotEncabezado}* 🫧 ═══ ✨\n`
