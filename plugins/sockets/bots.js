@@ -9,56 +9,60 @@ export default {
   async run({ sock, react, reply }) {
     await react('🤖')
 
-    // Función auxiliar para obtener solo los dígitos del número telefónico
+    // Limpia el JID eliminando carácteres o sub-ids de Baileys
     const obtenerNumeroLimpio = (jid) => {
       if (!jid) return null
       return jid.split('@')[0].split(':')[0].replace(/\D/g, '')
     }
 
-    // 1. Obtener los datos desde tu DB SQLite
     const subbotsActivos = db.getOnlineBots() || []
     const todosLosBots = db.getAllBots ? db.getAllBots() : []
 
-    // 2. Localizar al verdadero bot principal usando los registros de la DB
-    // Buscamos el registro que tenga la propiedad isMain o la llave id/label como "MAIN"
-    const registroMain = todosLosBots.find(b => b.isMain === true || b.isMain === 1 || b.label === 'MAIN' || b.id === 'main')
-    
+    // 1. Determinar el número del verdadero Bot Principal
     let numeroMainReal = null
+
+    // Buscamos en la DB el registro exclusivo de la consola central
+    const registroMain = todosLosBots.find(b => b.id === 'main' || b.label === 'MAIN' || b.isMain === true || b.isMain === 1)
+    
     if (registroMain && registroMain.jid) {
       numeroMainReal = obtenerNumeroLimpio(registroMain.jid)
+    } else if (global.mainBotNum) {
+      numeroMainReal = global.mainBotNum
     } else {
-      // Respaldo secundario si la DB usa la variable global de tu consola
-      numeroMainReal = global.mainBotNum || obtenerNumeroLimpio(sock.user?.id)
+      // Si todo falla, asumimos el número del socket actual para no romper el flujo
+      numeroMainReal = obtenerNumeroLimpio(sock.user?.id)
     }
 
     let listaFiltrada = []
-    const numerosVistos = new Set() // Estructura clave para eliminar duplicados
+    const numerosVistos = new Set()
 
-    // 3. Insertar al Bot Principal detectado en la primera posición
+    // 2. Insertar SIEMPRE al Bot Principal real en el puesto #1 con su corona
     if (numeroMainReal) {
       const datosMain = db.getBot(`${numeroMainReal}@s.whatsapp.net`) || db.getBot('main')
-      const labelMain = datosMain?.label && !datosMain.label.startsWith('SUB_') ? datosMain.label : 'MAIN'
-      
+      let labelMain = datosMain?.label || 'MAIN'
+      if (labelMain.startsWith('SUB_') || labelMain === 'Subbot') {
+        labelMain = 'MAIN'
+      }
+
       listaFiltrada.push({
         label: labelMain.toUpperCase(),
         jid: numeroMainReal,
         isMain: true
       })
-      numerosVistos.add(numeroMainReal) // Bloqueamos este número para que no se repita abajo
+      numerosVistos.add(numeroMainReal) // Bloquea este número para que ningún subbot lo repita abajo
     }
 
-    // 4. Mapear los subbots activos evitando repetidos
+    // 3. Agregar el resto de subbots en línea, eliminando duplicados mediante el Set
     for (const sub of subbotsActivos) {
       const subNum = obtenerNumeroLimpio(sub.jid)
       if (!subNum) continue
 
-      // Si el número ya está en el Set (ya se agregó o es el Main), lo salta
-      if (numerosVistos.has(subNum)) continue
+      // Si el número ya fue procesado o coincide con el Main real, se ignora por completo
+      if (numerosVistos.has(subNum) || subNum === numeroMainReal) continue
 
       numerosVistos.add(subNum)
 
-      // Limpiar etiquetas autogeneradas molestas
-      const esLabelAutomatico = sub.label?.startsWith('SUB_') || sub.label === 'Subbot'
+      const esLabelAutomatico = sub.label?.startsWith('SUB_') || sub.label === 'Subbot' || sub.label === 'MAIN'
       const nombreSub = esLabelAutomatico ? 'Subbot' : sub.label
 
       listaFiltrada.push({
@@ -68,14 +72,19 @@ export default {
       })
     }
 
-    // Identificar el nombre del bot que está respondiendo el mensaje actual
+    // Obtener el nombre del bot actual que está respondiendo en el chat
     const miNumeroActual = obtenerNumeroLimpio(sock.user?.id)
     const miJidActual = miNumeroActual ? miNumeroActual + '@s.whatsapp.net' : ''
     const misDatos = db.getBot(miJidActual)
-    const nombreBotEncabezado = (misDatos?.label || "MULTIDEVICE BOT").toUpperCase()
+    
+    // Si soy un subbot, mi encabezado debe reflejar mi identidad limpia
+    let nombreBotEncabezado = misDatos?.label || "SUBBOT"
+    if (miNumeroActual === numeroMainReal) {
+      nombreBotEncabezado = (misDatos?.label && misDatos.label !== 'Subbot' ? misDatos.label : "MAIN").toUpperCase()
+    }
 
-    // 5. Armado del diseño final del mensaje
-    let text = `✨ ═══ 🫧 *${nombreBotEncabezado}* 🫧 ═══ ✨\n`
+    // 4. Construcción del mensaje estético final
+    let text = `✨ ═══ 🫧 *${nombreBotEncabezado.toUpperCase()}* 🫧 ═══ ✨\n`
     text += `🤖 _Bots conectados al sistema_\n\n`
 
     let i = 1
