@@ -15,7 +15,7 @@ import fs from "fs";
 import qrcode from "qrcode-terminal";
 import { log } from "./logger.js";
 import config from "../config.js";
-import { handleMessage } from "./messageHandler.js";
+import { handleMessage, invalidateGroupCache } from "./messageHandler.js";
 
 // Función auxiliar para prompts en consola
 function question(prompt) {
@@ -143,8 +143,8 @@ export async function createConnection({
   if (!isSubbot && !state.creds.registered && _attempt === 0) {
     const choice = await question(
       "\n  ╔══════════════════════════════════╗\n" +
-      "  ║  [1] Código de emparejamiento    ║\n" +
-      "  ║  [2] Código QR                   ║\n" +
+      "  ║  [1] Código de emparejamiento     ║\n" +
+      "  ║  [2] Código QR                    ║\n" +
       "  ╚══════════════════════════════════╝\n" +
       "  Elige (1 o 2): "
     );
@@ -154,6 +154,7 @@ export async function createConnection({
       let rawPhone = await question(
         "  Digita el número de teléfono (ej: 521XXXXXXXXXX): "
       );
+
       rawPhone = rawPhone.replace(/\D/g, "");
       if (!rawPhone.startsWith("+")) rawPhone = `+${rawPhone}`;
       if (rawPhone.startsWith("+521")) {
@@ -161,6 +162,7 @@ export async function createConnection({
       } else if (rawPhone.startsWith("+52") && rawPhone[4] === "1") {
         rawPhone = rawPhone.replace("+52 1", "+52");
       }
+
       phone = rawPhone.replace(/\D/g, "");
     }
   }
@@ -254,9 +256,8 @@ export async function createConnection({
     if (connection === "close") {
       clearConnTimeout();
       connected = false;
-
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const errorMsg   = lastDisconnect?.error?.message || "Desconocido";
+      const errorMsg = lastDisconnect?.error?.message || "Desconocido";
 
       log.warn(`[${botLabel}] ❌ Conexión cerrada → código: ${statusCode} | ${errorMsg}`);
 
@@ -294,15 +295,26 @@ export async function createConnection({
 
   sock.ev.on("creds.update", saveCreds);
 
+  // 🔄 Cada vez que cambian los participantes de un grupo (promote, demote,
+  // add, remove), invalidamos el cache de ese grupo en messageHandler.js
+  // para que isAdmin/isBotAdmin siempre reflejen el estado real y actual.
+  sock.ev.on("group-participants.update", ({ id }) => {
+    invalidateGroupCache(id);
+    log.info(`[${botLabel}] Cache de grupo invalidado por cambio de participantes → ${id}`);
+  });
+
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
+
     for (const msg of messages) {
       if (!msg.message) continue;
       if (msg.key?.remoteJid === "status@broadcast") continue;
+
       if (!connected) {
         pendingMessages.push({ msg, label: botLabel });
         return;
       }
+
       handleMessage(sock, msg, botLabel).catch((e) =>
         log.error(`[${botLabel}] Error en mensaje: ${e.message}`)
       );
