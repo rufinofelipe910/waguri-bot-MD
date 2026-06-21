@@ -6,6 +6,8 @@ mkdirSync("./database", { recursive: true });
 
 const db_instance = new Database("./database/yuta.sqlite");
 db_instance.pragma("journal_mode = WAL");
+db_instance.pragma("synchronous = NORMAL");
+db_instance.pragma("wal_autocheckpoint = 1");
 
 // Creamos las tablas usando el principio dinámico JSON
 db_instance.exec(`
