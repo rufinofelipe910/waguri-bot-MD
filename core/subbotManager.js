@@ -14,20 +14,34 @@ let mainSock = null;
 
 export function registerMainBot(sock, label = "MAIN") {
   mainSock = sock;
-  const jid = sock.user?.id || "";
+  const rawJid = sock.user?.id || "";
+  
+  // Limpiamos el JID para que quede puro (ej: 595992349762@s.whatsapp.net)
+  const jid = rawJid ? rawJid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : "";
   const status = jid ? "online" : "connecting";
 
+  // Guardamos en la lista local en memoria
   activeBots.set("main", { label, jid, status, isMain: true });
-  db.setBot("main", { label, jid, status, isMain: true });
 
+  // Si ya tenemos el JID del main listo, lo guardamos con su JID real como llave en la DB
+  if (jid) {
+    db.setBot(jid, { label, jid, status, isMain: true });
+    global.mainBotNum = jid.split("@")[0];
+  }
+
+  // Si aún está conectando, esperamos a que abra el evento para registrarlo con su JID real
   if (!jid) {
     sock.ev.on("connection.update", ({ connection }) => {
       if (connection === "open") {
         mainSock = sock;
-        const currentJid = sock.user?.id || "";
+        const currentRawJid = sock.user?.id || "";
+        const currentJid = currentRawJid ? currentRawJid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : "";
 
-        activeBots.set("main", { label, jid: currentJid, status: "online", isMain: true });
-        db.setBot("main", { label, jid: currentJid, status: "online", isMain: true });
+        if (currentJid) {
+          activeBots.set("main", { label, jid: currentJid, status: "online", isMain: true });
+          db.setBot(currentJid, { label, jid: currentJid, status: "online", isMain: true });
+          global.mainBotNum = currentJid.split("@")[0];
+        }
       }
     });
   }
@@ -36,7 +50,12 @@ export function registerMainBot(sock, label = "MAIN") {
 export function updateBotStatus(id, data) {
   const current = activeBots.get(id) || {};
   activeBots.set(id, { ...current, ...data });
-  db.setBot(id, data);
+  
+  if (data.jid) {
+    db.setBot(data.jid, data);
+  } else {
+    db.setBot(id, data);
+  }
 }
 
 export function removeSubbot(id) {
@@ -46,8 +65,14 @@ export function removeSubbot(id) {
     workers.delete(id);
   }
 
+  const botData = activeBots.get(id);
   activeBots.delete(id);
-  db.setBot(id, { status: "offline" });
+  
+  if (botData && botData.jid) {
+    db.setBot(botData.jid, { status: "offline" });
+  } else {
+    db.setBot(id, { status: "offline" });
+  }
 
   const sessionDir = `${SUBBOTS_DIR}/${id}`;
   if (fs.existsSync(sessionDir)) {
@@ -72,10 +97,12 @@ export function launchSubbot(id) {
 
   worker.on("message", (msg) => {
     if (msg.type === "status") {
+      const subJid = msg.jid ? msg.jid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : null;
       updateBotStatus(id, {
-        jid: msg.jid,
+        jid: subJid,
         status: msg.status,
         label: id.toUpperCase(),
+        isMain: false
       });
     }
     if (msg.type === "logged_out") {
@@ -93,8 +120,13 @@ export function launchSubbot(id) {
       log.info(`[MANAGER] Reconectando subbot ${id} en 5s...`);
       setTimeout(() => launchSubbot(id), 5000);
     } else {
+      const botData = activeBots.get(id);
       activeBots.delete(id);
-      db.setBot(id, { status: "offline" });
+      if (botData && botData.jid) {
+        db.setBot(botData.jid, { status: "offline" });
+      } else {
+        db.setBot(id, { status: "offline" });
+      }
     }
   });
 
@@ -137,18 +169,20 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
         resolve(msg.code);
       }
       if (msg.type === "status") {
+        const subJid = msg.jid ? msg.jid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : null;
+        
         updateBotStatus(id, {
-          jid: msg.jid,
+          jid: subJid,
           status: msg.status,
           label: id.toUpperCase(),
+          isMain: false
         });
+        
         if (msg.status === "online") {
           clearTimeout(cleanupTimeout);
 
           const userNum = id.replace("sub_", "");
-          const userJid = msg.jid
-            ? msg.jid.split(":")[0] + "@s.whatsapp.net"
-            : `${userNum}@s.whatsapp.net`;
+          const userJid = subJid || `${userNum}@s.whatsapp.net`;
 
           sock.sendMessage(userJid, {
             text: "📍 *Has vinculado un subbot con éxito*\n" +
@@ -170,8 +204,13 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
       if (fs.existsSync(path.join(sessionDir2, "auth.db"))) {
         setTimeout(() => launchSubbot(id), 5000);
       } else {
+        const botData = activeBots.get(id);
         activeBots.delete(id);
-        db.setBot(id, { status: "offline" });
+        if (botData && botData.jid) {
+          db.setBot(botData.jid, { status: "offline" });
+        } else {
+          db.setBot(id, { status: "offline" });
+        }
       }
     });
 
