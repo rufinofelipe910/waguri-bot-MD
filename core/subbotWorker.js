@@ -15,9 +15,8 @@ import fs from "fs";
 import { handleMessage } from "./messageHandler.js";
 import { loadPlugins } from "./pluginLoader.js";
 
-const { id, sessionDir, phoneNumber } = workerData;
+const { id, sessionDir, phoneNumber, mainBotNum } = workerData;
 const logger = pino({ level: "silent" });
-
 let pluginsLoaded = false;
 
 async function useSQLiteAuthState(sessionDir) {
@@ -98,7 +97,7 @@ async function startWorker(_attempt = 0) {
   async function flushPending() {
     const queue = pendingMessages.splice(0);
     for (const msg of queue) {
-      handleMessage(sock, msg, id.toUpperCase()).catch(() => {});
+      handleMessage(sock, msg, id.toUpperCase(), mainBotNum).catch(() => {});
     }
   }
 
@@ -151,6 +150,7 @@ async function startWorker(_attempt = 0) {
         status: "online",
         jid: jidLimpio,
       });
+
       await flushPending();
     }
 
@@ -181,14 +181,17 @@ async function startWorker(_attempt = 0) {
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
+
     for (const msg of messages) {
       if (!msg.message) continue;
       if (msg.key?.remoteJid === "status@broadcast") continue;
+
       if (!connected) {
         pendingMessages.push(msg);
         return;
       }
-      handleMessage(sock, msg, id.toUpperCase()).catch(() => {});
+
+      handleMessage(sock, msg, id.toUpperCase(), mainBotNum).catch(() => {});
     }
   });
 }
