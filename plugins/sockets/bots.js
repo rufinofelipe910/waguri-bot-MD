@@ -6,7 +6,7 @@ export default {
   category: 'sockets',
   ownerOnly: false,
 
-  async run({ sock, react, reply }) {
+  async run({ sock, react, reply, mainBotNum }) {
     await react('🤖')
 
     // Limpia el JID eliminando carácteres o sub-ids de Baileys
@@ -19,18 +19,20 @@ export default {
     const todosLosBots = db.getAllBots ? db.getAllBots() : []
 
     // 1. Determinar el número del verdadero Bot Principal
+    // Prioridad:
+    //   a) mainBotNum recibido por ctx -> funciona tanto en MAIN como en subbots,
+    //      porque viaja desde subbotManager -> workerData -> handleMessage -> ctx
+    //   b) global.mainBotNum -> fallback si corre directo en el proceso principal
+    //   c) DB -> último fallback, por si lo anterior no estuviera disponible
     let numeroMainReal = null
 
-    // Buscamos en la DB el registro exclusivo de la consola central
-    const registroMain = todosLosBots.find(b => b.id === 'main' || b.label === 'MAIN' || b.isMain === true || b.isMain === 1)
-    
-    if (registroMain && registroMain.jid) {
-      numeroMainReal = obtenerNumeroLimpio(registroMain.jid)
+    if (mainBotNum) {
+      numeroMainReal = mainBotNum
     } else if (global.mainBotNum) {
       numeroMainReal = global.mainBotNum
     } else {
-      // Si todo falla, asumimos el número del socket actual para no romper el flujo
-      numeroMainReal = obtenerNumeroLimpio(sock.user?.id)
+      const registroMain = todosLosBots.find(b => b.isMain === true || b.isMain === 1)
+      numeroMainReal = registroMain ? obtenerNumeroLimpio(registroMain.jid) : obtenerNumeroLimpio(sock.user?.id)
     }
 
     let listaFiltrada = []
@@ -40,6 +42,7 @@ export default {
     if (numeroMainReal) {
       const datosMain = db.getBot(`${numeroMainReal}@s.whatsapp.net`) || db.getBot('main')
       let labelMain = datosMain?.label || 'MAIN'
+
       if (labelMain.startsWith('SUB_') || labelMain === 'Subbot') {
         labelMain = 'MAIN'
       }
@@ -49,6 +52,7 @@ export default {
         jid: numeroMainReal,
         isMain: true
       })
+
       numerosVistos.add(numeroMainReal) // Bloquea este número para que ningún subbot lo repita abajo
     }
 
@@ -59,7 +63,6 @@ export default {
 
       // Si el número ya fue procesado o coincide con el Main real, se ignora por completo
       if (numerosVistos.has(subNum) || subNum === numeroMainReal) continue
-
       numerosVistos.add(subNum)
 
       const esLabelAutomatico = sub.label?.startsWith('SUB_') || sub.label === 'Subbot' || sub.label === 'MAIN'
@@ -76,7 +79,7 @@ export default {
     const miNumeroActual = obtenerNumeroLimpio(sock.user?.id)
     const miJidActual = miNumeroActual ? miNumeroActual + '@s.whatsapp.net' : ''
     const misDatos = db.getBot(miJidActual)
-    
+
     // Si soy un subbot, mi encabezado debe reflejar mi identidad limpia
     let nombreBotEncabezado = misDatos?.label || "SUBBOT"
     if (miNumeroActual === numeroMainReal) {
@@ -90,7 +93,6 @@ export default {
     let i = 1
     for (const bot of listaFiltrada) {
       const tipo = bot.isMain ? '👑 *PRINCIPAL*' : '🤖 Subbot'
-      
       text += `🟢 *${i}. ${bot.label}*\n`
       text += `   ✦ Tipo: ${tipo}\n`
       text += `   ✦ Número: ${bot.jid}\n\n`
