@@ -1,3 +1,14 @@
+function cleanJid(jid = "") {
+  if (!jid) return "";
+  const atIndex = jid.lastIndexOf("@");
+  if (atIndex === -1) return jid.split(":")[0];
+
+  const userPart = jid.slice(0, atIndex).split(":")[0];
+  const domainPart = jid.slice(atIndex + 1);
+
+  return `${userPart}@${domainPart}`;
+}
+
 export default {
   name: ['kick', 'expulsar'],
   description: 'Expulsa a un miembro del grupo',
@@ -8,25 +19,10 @@ export default {
     const groupMetaReal = await sock.groupMetadata(from)
     const participants = groupMetaReal.participants || []
 
-    const senderJid = msg.key.participant?.split(':')[0] + '@s.whatsapp.net' || msg.key.remoteJid?.split(':')[0] + '@s.whatsapp.net'
-    const senderParticipant = participants.find(p => p.id.split(':')[0] + '@s.whatsapp.net' === senderJid)
+    const senderRaw = msg.key.participant || msg.key.remoteJid
+    const senderJid = cleanJid(senderRaw)
+    const senderParticipant = participants.find(p => cleanJid(p.id) === senderJid)
     const isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin'
-
-    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net'
-    const botParticipant = participants.find(p => p.id.split(':')[0] + '@s.whatsapp.net' === botJid)
-    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
-
-    // 🔍 DEBUG TEMPORAL 3
-    const matchManual = participants.find(p => p.id === botJid)
-    await reply({
-      text:
-        `🔍 *DEBUG KICK 3*\n` +
-        `botParticipant (con .split): ${JSON.stringify(botParticipant)}\n` +
-        `matchManual (con === directo): ${JSON.stringify(matchManual)}\n` +
-        `cantidad participants: ${participants.length}\n` +
-        `participants raw: ${JSON.stringify(participants.map(p => ({id: p.id, admin: p.admin})))}`
-    });
-    // 🔍 FIN DEBUG
 
     if (!isSenderAdmin) return await reply({ text: "❌ Solo admins del grupo pueden usar este comando." })
 
@@ -42,13 +38,16 @@ export default {
 
     if (!target) return await reply({ text: `❌ Menciona o responde al usuario a expulsar.` })
 
-    const targetJid = target.split(':')[0] + '@s.whatsapp.net'
+    const botJid = cleanJid(sock.user?.id)
+    const targetJid = cleanJid(target)
 
     if (targetJid === botJid) return await reply({ text: `❌ No me puedes expulsar a mí.` })
 
+    const botParticipant = participants.find(p => cleanJid(p.id) === botJid)
+    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
     if (!isBotAdmin) return await reply({ text: `❌ El bot necesita ser admin del grupo.` })
 
-    const targetParticipant = participants.find(p => p.id.split(':')[0] + '@s.whatsapp.net' === targetJid)
+    const targetParticipant = participants.find(p => cleanJid(p.id) === targetJid)
     if (targetParticipant?.admin === 'superadmin') return await reply({ text: `❌ No puedo expulsar al creador del grupo.` })
     if (targetParticipant?.admin === 'admin') return await reply({ text: `❌ No puedo expulsar a un administrador.` })
 
