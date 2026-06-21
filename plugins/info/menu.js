@@ -2,6 +2,7 @@ import axios from "axios";
 import { prepareWAMessageMedia, generateWAMessageFromContent } from "@whiskeysockets/baileys";
 import { getPlugins } from "../../core/pluginLoader.js";
 import { db } from "../../database/db.js";
+import config from "../../config.js";
 
 let bannerCache    = null
 let bannerCacheTime = 0
@@ -48,7 +49,7 @@ export default {
       // Configuración de fecha y hora basada estrictamente en Colombia
       const timeZone = "America/Bogota";
       const ahora = new Date();
-      
+
       const horaStr = ahora.toLocaleTimeString("es-CO", { timeZone, hour12: false });
       const fecha   = ahora.toLocaleDateString("es-CO", { timeZone });
       const lugar   = isGroup ? groupName : "Chat Privado";
@@ -56,7 +57,7 @@ export default {
       // Extraer la hora exacta para definir el saludo dinámico
       const horaActual = parseInt(ahora.toLocaleTimeString("es-CO", { timeZone, hour: '2-digit', hour12: false }));
       let saludo = "Buenas noches";
-      
+
       if (horaActual >= 5 && horaActual < 12) {
         saludo = "Buenos días";
       } else if (horaActual >= 12 && horaActual < 19) {
@@ -65,8 +66,9 @@ export default {
 
       const currentBotJid = sock.user?.id ? sock.user.id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : '';
       const botData = db.getBot(currentBotJid);
-      
-      const nombreBot = (botData?.label || "MULTIDEVICE BOT").replace(/@\d+/g, '').trim();
+
+      // Si el subbot nunca fue renombrado, usamos el nombre por defecto del config.js
+      const nombreBot = (botData?.label || config.botName).replace(/@\d+/g, '').trim();
       const urlFoto   = botData?.banner || "https://files.evogb.win/1oU31I.jpg";
       const tipoBot   = botData?.isMain ? "Bot Principal" : "Subbot";
 
@@ -94,7 +96,7 @@ export default {
       textoMenu += `┃ 📅 *Fecha:* ${fecha}\n`;
       textoMenu += `╚════════════════════════╝\n\n`;
 
-      textoMenu += `*📜  𝗟𝗜𝗦𝗧𝗔 𝗗𝗘 𝗖𝗢🇲𝗔𝗡𝗗𝗢𝗦* 📜\n`;
+      textoMenu += `*📜  𝗟𝗜𝗦𝗧𝗔 𝗗𝗘 𝗖𝗢🇲𝗗𝗦* 📜\n`;
       textoMenu += `_Usa el prefijo [ ${usedPrefix} ] antes de cada orden._\n\n`;
 
       for (const [cat, cmds] of Object.entries(categories)) {
