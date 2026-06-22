@@ -21,7 +21,7 @@ function cleanJid(jid = "") {
   return `${userPart}@${domainPart}`;
 }
 
-export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum = null) {
+export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum = null, activeBotsLive = []) {
   try {
     const msg = rawMsg;
     const from = msg.key?.remoteJid;
@@ -136,6 +136,7 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
       botJid,
       botLabel,
       mainBotNum,
+      activeBotsLive,
       isGroup,
       groupName,
       groupMeta,
