@@ -19,7 +19,8 @@ const { id, sessionDir, phoneNumber, mainBotNum } = workerData;
 const logger = pino({ level: "silent" });
 let pluginsLoaded = false;
 
-// 📸 Cache local de la lista de bots activos, actualizada por el manager
+// 📸 Cache local, actualizada pasivamente cada vez que el manager
+// transmite un cambio real (sin polling, sin intervalos).
 let activeBotsLive = [];
 
 parentPort.on("message", (msg) => {
@@ -27,15 +28,6 @@ parentPort.on("message", (msg) => {
     activeBotsLive = msg.data || [];
   }
 });
-
-function requestBotsList() {
-  parentPort.postMessage({ type: "request_bots_list" });
-}
-
-// Pedimos la lista periódicamente para mantenerla razonablemente fresca
-// sin saturar de mensajes al manager
-setInterval(requestBotsList, 5000);
-requestBotsList();
 
 async function useSQLiteAuthState(sessionDir) {
   if (!fs.existsSync(sessionDir)) {
