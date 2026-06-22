@@ -16,8 +16,8 @@ import qrcode from "qrcode-terminal";
 import { log } from "./logger.js";
 import config from "../config.js";
 import { handleMessage, invalidateGroupCache } from "./messageHandler.js";
+import { getActiveBotsSnapshot } from "./subbotManager.js";
 
-// Función auxiliar para prompts en consola
 function question(prompt) {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -31,10 +31,6 @@ function question(prompt) {
   });
 }
 
-/**
- * Adaptación de Autenticación basada en SQLite usando better-sqlite3
- * Guarda las credenciales de manera centralizada en un archivo auth.db dentro del sessionDir
- */
 export async function useSQLiteAuthState(sessionDir) {
   if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
@@ -92,16 +88,11 @@ export async function useSQLiteAuthState(sessionDir) {
   };
 }
 
-/**
- * Limpia los registros corruptos o temporales de la base de datos de sesión,
- * manteniendo a salvo las credenciales principales de inicio de sesión.
- */
 async function clearSocketFiles(sessionDir) {
   try {
     const dbPath = path.join(sessionDir, "auth.db");
     if (fs.existsSync(dbPath)) {
       const db = new Database(dbPath);
-      // Elimina llaves previas, de remitente y estados de sincronización obsoletos
       const result = db.prepare("DELETE FROM auth WHERE id != 'creds'").run();
       if (result.changes > 0) {
         log.warn(`🗑️ Limpiados ${result.changes} registros de socket en la base de datos de [${path.basename(sessionDir)}]`);
@@ -113,9 +104,6 @@ async function clearSocketFiles(sessionDir) {
   }
 }
 
-/**
- * Crea y gestiona la conexión con los servidores de WhatsApp.
- */
 export async function createConnection({
   sessionDir = config.sessionDir,
   botLabel = "MAIN",
@@ -133,7 +121,6 @@ export async function createConnection({
     await new Promise((r) => setTimeout(r, delay));
   }
 
-  // Inicialización del estado de autenticación SQLite personalizado
   const { state, saveCreds } = await useSQLiteAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -182,7 +169,7 @@ export async function createConnection({
   async function flushPending() {
     const queue = pendingMessages.splice(0);
     for (const { msg, label } of queue) {
-      handleMessage(sock, msg, label).catch((e) =>
+      handleMessage(sock, msg, label, null, getActiveBotsSnapshot()).catch((e) =>
         log.error(`[${label}] Error en mensaje: ${e.message}`)
       );
     }
@@ -295,9 +282,6 @@ export async function createConnection({
 
   sock.ev.on("creds.update", saveCreds);
 
-  // 🔄 Cada vez que cambian los participantes de un grupo (promote, demote,
-  // add, remove), invalidamos el cache de ese grupo en messageHandler.js
-  // para que isAdmin/isBotAdmin siempre reflejen el estado real y actual.
   sock.ev.on("group-participants.update", ({ id }) => {
     invalidateGroupCache(id);
     log.info(`[${botLabel}] Cache de grupo invalidado por cambio de participantes → ${id}`);
@@ -315,7 +299,7 @@ export async function createConnection({
         return;
       }
 
-      handleMessage(sock, msg, botLabel).catch((e) =>
+      handleMessage(sock, msg, botLabel, null, getActiveBotsSnapshot()).catch((e) =>
         log.error(`[${botLabel}] Error en mensaje: ${e.message}`)
       );
     }
