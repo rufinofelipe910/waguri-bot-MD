@@ -27,12 +27,6 @@ export default {
 
     if (!isSenderAdmin) return await reply({ text: "❌ Solo admins del grupo pueden usar este comando." })
 
-    const botJid = cleanJid(sock.user?.id)
-    const botParticipant = participants.find(p => cleanJid(p.id) === botJid)
-    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
-
-    if (!isBotAdmin) return await reply({ text: `❌ El bot necesita ser admin del grupo para promover usuarios.` })
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
     const mentioned = contextInfo?.mentionedJid || []
 
@@ -52,24 +46,16 @@ export default {
       return await reply({ text: `❌ Este usuario ya es administrador.` })
     }
 
-    try {
-      await sock.groupParticipantsUpdate(from, [targetJid], "promote")
-      clearGroupCache()
+    await sock.groupParticipantsUpdate(from, [targetJid], "promote")
+    clearGroupCache()
 
-      const targetNum = targetJid.split('@')[0]
-      let textoPromote = `│✐꒷★ @${targetNum} h⍺ sıdo pꭇomovıdo ⍺ ⍺dmını𝗌tꭇ⍺doꭇ.\n`
-      textoPromote += `> acción hecha por @${senderNum}`
+    const targetNum = targetJid.split('@')[0]
+    let textoPromote = `│✐꒷★ @${targetNum} h⍺ sıdo pꭇomovıdo ⍺ ⍺dmını𝗌tꭇ⍺doꭇ.\n`
+    textoPromote += `> acción hecha por @${senderNum}`
 
-      await sock.sendMessage(from, {
-        text: textoPromote,
-        contextInfo: { mentionedJid: [targetJid, senderJid] }
-      }, { quoted: msg })
-
-    } catch (e) {
-      if (e.message?.toLowerCase().includes('forbidden')) {
-        return await reply({ text: `❌ No se pudo promover al usuario: el bot no es admin del grupo.` })
-      }
-      await reply({ text: `❌ No se pudo promover al usuario: ${e.message}` })
-    }
+    await sock.sendMessage(from, {
+      text: textoPromote,
+      contextInfo: { mentionedJid: [targetJid, senderJid] }
+    }, { quoted: msg })
   }
 }
