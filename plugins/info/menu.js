@@ -63,14 +63,16 @@ export default {
       const tipoBot   = botData?.isMain ? "Bot Principal" : "Subbot";
 
       const linkMatch = "https://mancosyasociados.kesug.com";
-      const ownerNumber = "573135180876";
+
+      // 🛡️ Solo el owner y los coowners definidos en config.js ven la categoría "owner"
+      const esOwnerOCoOwner = config.ownerNumber?.includes(senderNum) || config.coOwners?.includes(senderNum)
 
       const plugins    = getPlugins()
       const categories = {}
 
       for (const [, plugin] of plugins) {
         const cat = plugin.category || "misc"
-        if (cat === "owner" && senderNum !== ownerNumber) continue
+        if (cat === "owner" && !esOwnerOCoOwner) continue
         if (!categories[cat]) categories[cat] = new Set()
         const names = Array.isArray(plugin.name) ? plugin.name : [plugin.name]
         categories[cat].add(names[0])
@@ -79,7 +81,7 @@ export default {
       let textoMenu = `╭━━━━━━━━━━━━━━━━━━○\n`;
       textoMenu += `│◇ \`ᴛɪᴘᴏ::\` ${tipoBot}\n`;
       textoMenu += `│◇ \`sɪsᴛᴇᴍᴀ/ᴏᴘʀ::\` Android\n`;
-      textoMenu += `│◇ \`ᴜsᴇʀ::\` @${senderNum}\n`;
+      textoMenu += `│◇ \`ᴜsᴇʀs::\` @${senderNum}\n`;
       textoMenu += `│◇ \`ᴜʀʟ::\` ${linkMatch}\n`;
       textoMenu += `╰━━━━━━━━━━━━━━━━━━○\n\n`;
 
@@ -87,14 +89,14 @@ export default {
         const categoriaLimped = cat.toLowerCase().trim();
         const icon = catIcons[categoriaLimped] || "🎴";
         const nombreFormateado = categoriaLimped.toUpperCase();
-        
+
         textoMenu += `╭━━━━━━━━━━━━━━━━━━━━━━━○\n`;
         textoMenu += `█°⿻︵ׄ  SECTOR│*${nombreFormateado}* ·°.•\n`;
-        
+
         for (const cmd of cmds) {
           textoMenu += `│˗ˋˏ𓍯 ꒰ 🪼 *${usedPrefix}${cmd}*\n`;
         }
-        
+
         textoMenu += `╰━━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
       }
 
