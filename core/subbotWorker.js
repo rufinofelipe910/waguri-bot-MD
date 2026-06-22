@@ -93,6 +93,7 @@ async function startWorker(_attempt = 0) {
   let sock;
   let connected = false;
   let pendingMessages = [];
+  let lastKnownJid = "";
 
   async function flushPending() {
     const queue = pendingMessages.splice(0);
@@ -144,6 +145,7 @@ async function startWorker(_attempt = 0) {
       // Limpieza rigurosa antes de mandar el JID al hilo principal
       const rawJid = sock.user?.id || "";
       const jidLimpio = rawJid ? rawJid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : "";
+      lastKnownJid = jidLimpio;
 
       parentPort.postMessage({
         type: "status",
@@ -158,7 +160,11 @@ async function startWorker(_attempt = 0) {
       connected = false;
       const statusCode = lastDisconnect?.error?.output?.statusCode;
 
-      parentPort.postMessage({ type: "status", status: "offline", jid: "" });
+      // 🛡️ Reportamos el ÚLTIMO jid conocido (no vacío), así el manager
+      // puede marcar como offline el registro correcto en la DB. Antes,
+      // mandar jid: "" hacía que el offline se guardara bajo otra llave,
+      // dejando el registro real eternamente como "online".
+      parentPort.postMessage({ type: "status", status: "offline", jid: lastKnownJid });
 
       try { closeDb(); } catch {}
 
@@ -179,8 +185,6 @@ async function startWorker(_attempt = 0) {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // 🔄 Misma invalidación de cache que en el bot principal, así un cambio
-  // de admin detectado por un subbot también refresca el estado para todos.
   sock.ev.on("group-participants.update", ({ id: groupId }) => {
     invalidateGroupCache(groupId);
   });
