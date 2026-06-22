@@ -11,21 +11,25 @@ export default {
 
     if (!text && !quoted?.stanzaId) {
       return await reply({
-        text: "❌ Escribe el motivo del reporte o responde a un mensaje.\n\n*Ejemplo:* .report el usuario me está enviando spam"
+        text: "꒰✖️꒱  ᰍ Escrıᑲᧉ ᧉƖ motivo ძᧉ𝗅 ꭇᧉpoꭇƚᧉ o ꭇᧉsponძᧉ ⍺ un mᧉns⍺jᧉ.\n\n`✎..Ejemplo:` *.report* el usuario me está enviando spam"
       })
     }
 
     const origen = isGroup ? `Grupo: ${groupName}` : "Chat privado"
 
-    let textoReporte = `🚨 *NUEVO REPORTE*\n\n`
-    textoReporte += `👤 *De:* @${senderNum}\n`
-    textoReporte += `📍 *Origen:* ${origen}\n`
+    let textoReporte = `╭━━━━━━━━━━━○\n`
+    textoReporte += `│⏤͟͟͞͞🚨 *NUEVO REPORTE*\n`
+    textoReporte += `│\n`
+    textoReporte += `│【👤】 *𝐃𝐄:* ↷\n @${senderNum}\n`
+    textoReporte += `│【📍】 *𝐎𝐫𝐢𝐠𝐞𝐧:* ${origen.startsWith("Grupo:") ? "Grupo: ↷\n \"" + groupName + "\"" : origen}\n`
 
     if (text) {
-      textoReporte += `📝 *Motivo:*\n${text}\n`
+      textoReporte += `│【📝】 *𝐌𝐨𝐭𝐢𝐯𝐨:* ↷\n"${text}"\n`
     } else {
-      textoReporte += `📝 *Motivo:* (mensaje citado abajo)\n`
+      textoReporte += `│【📝】 *𝐌𝐨𝐭𝐢𝐯𝐨:* ↷\n"(mensaje citado abajo)"\n`
     }
+
+    textoReporte += `╰━━━━━━━━━━━━━○`
 
     try {
       if (quoted?.stanzaId) {
