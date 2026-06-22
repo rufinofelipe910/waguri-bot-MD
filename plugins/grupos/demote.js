@@ -17,7 +17,6 @@ export default {
   botAdmin: true,
 
   async run({ sock, from, msg, clearGroupCache, reply, senderNum }) {
-    // 1. Obtener metadatos en vivo para verificar al ejecutor
     const groupMetaReal = await sock.groupMetadata(from)
     const participants = groupMetaReal.participants || []
 
@@ -28,14 +27,6 @@ export default {
 
     if (!isSenderAdmin) return await reply({ text: "❌ Solo admins del grupo pueden usar este comando." })
 
-    // 2. Validar que el bot sea admin antes de intentar nada
-    const botJid = cleanJid(sock.user?.id)
-    const botParticipant = participants.find(p => cleanJid(p.id) === botJid)
-    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
-
-    if (!isBotAdmin) return await reply({ text: `❌ El bot necesita ser admin del grupo para quitar administradores.` })
-
-    // 3. Identificar al objetivo
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
     const mentioned = contextInfo?.mentionedJid || []
 
@@ -51,7 +42,6 @@ export default {
     const targetJid = cleanJid(target)
     const targetParticipant = participants.find(p => cleanJid(p.id) === targetJid)
 
-    // Si es superadmin (creador), protegerlo siempre
     if (targetParticipant?.admin === 'superadmin') {
       return await reply({ text: `❌ No le puedes quitar el admin al creador del grupo.` })
     }
@@ -60,21 +50,16 @@ export default {
       return await reply({ text: `❌ Este usuario no es administrador.` })
     }
 
-    try {
-      await sock.groupParticipantsUpdate(from, [targetJid], "demote")
-      clearGroupCache()
+    await sock.groupParticipantsUpdate(from, [targetJid], "demote")
+    clearGroupCache()
 
-      const targetNum = targetJid.split('@')[0]
-      let textoDemote = `│✐꒷★ @${targetNum} h⍺ sıdo ძᧉgꭇ⍺ძ⍺ძo ძᧉ ⍺dmını𝗌tꭇ⍺doꭇ.\n`
-      textoDemote += `> acción hecha por @${senderNum}`
+    const targetNum = targetJid.split('@')[0]
+    let textoDemote = `│✐꒷★ @${targetNum} h⍺ sıdo ძᧉgꭇ⍺ძ⍺ძo ძᧉ ⍺dmını𝗌tꭇ⍺doꭇ.\n`
+    textoDemote += `> acción hecha por @${senderNum}`
 
-      await sock.sendMessage(from, {
-        text: textoDemote,
-        contextInfo: { mentionedJid: [targetJid, senderJid] }
-      }, { quoted: msg })
-
-    } catch (e) {
-      await reply({ text: `❌ No se pudo remover el admin: ${e.message}` })
-    }
+    await sock.sendMessage(from, {
+      text: textoDemote,
+      contextInfo: { mentionedJid: [targetJid, senderJid] }
+    }, { quoted: msg })
   }
 }
