@@ -14,6 +14,7 @@ export default {
   description: 'Expulsa a un miembro del grupo',
   category: 'grupos',
   groupOnly: true,
+  botAdmin: true,
 
   async run({ sock, from, msg, clearGroupCache, reply }) {
     const groupMetaReal = await sock.groupMetadata(from)
@@ -43,19 +44,11 @@ export default {
 
     if (targetJid === botJid) return await reply({ text: `❌ No me puedes expulsar a mí.` })
 
-    const botParticipant = participants.find(p => cleanJid(p.id) === botJid)
-    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
-    if (!isBotAdmin) return await reply({ text: `❌ El bot necesita ser admin del grupo.` })
-
     const targetParticipant = participants.find(p => cleanJid(p.id) === targetJid)
     if (targetParticipant?.admin === 'superadmin') return await reply({ text: `❌ No puedo expulsar al creador del grupo.` })
     if (targetParticipant?.admin === 'admin') return await reply({ text: `❌ No puedo expulsar a un administrador.` })
 
-    try {
-      await sock.groupParticipantsUpdate(from, [targetJid], "remove")
-      clearGroupCache()
-    } catch (e) {
-      await reply({ text: `❌ No se pudo expulsar: ${e.message}` })
-    }
+    await sock.groupParticipantsUpdate(from, [targetJid], "remove")
+    clearGroupCache()
   }
 }
