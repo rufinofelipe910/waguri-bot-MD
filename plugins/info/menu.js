@@ -63,13 +63,14 @@ export default {
       const tipoBot   = botData?.isMain ? "Bot Principal" : "Subbot";
 
       const linkMatch = "https://mancosyasociados.kesug.com";
+      const ownerNumber = "573135180876";
 
       const plugins    = getPlugins()
       const categories = {}
 
       for (const [, plugin] of plugins) {
         const cat = plugin.category || "misc"
-        if (cat === "owner") continue
+        if (cat === "owner" && senderNum !== ownerNumber) continue
         if (!categories[cat]) categories[cat] = new Set()
         const names = Array.isArray(plugin.name) ? plugin.name : [plugin.name]
         categories[cat].add(names[0])
@@ -78,7 +79,7 @@ export default {
       let textoMenu = `╭━━━━━━━━━━━━━━━━━━○\n`;
       textoMenu += `│◇ \`ᴛɪᴘᴏ::\` ${tipoBot}\n`;
       textoMenu += `│◇ \`sɪsᴛᴇᴍᴀ/ᴏᴘʀ::\` Android\n`;
-      textoMenu += `│◇ \`ᴜsᴇʀ::\` @${senderNum}\n`;
+      textoMenu += `│◇ \`ᴜsᴇʀs::\` @${senderNum}\n`;
       textoMenu += `│◇ \`ᴜʀʟ::\` ${linkMatch}\n`;
       textoMenu += `╰━━━━━━━━━━━━━━━━━━○\n\n`;
 
