@@ -1,6 +1,6 @@
 export default {
   name: ["spoiler"],
-  description: "Envía un mensaje largo que WhatsApp trunca con 'Leer más'",
+  description: "Envía un mensaje largo que WhatsApp trunca con 'Leer más' en la misma línea",
   category: "utils",
   ownerOnly: false,
 
@@ -13,9 +13,9 @@ export default {
     const visible = partes[0]
     const oculto = partes[1] || partes[0]
 
-    // Relleno como UNA sola línea continua (sin saltos), para que WhatsApp
-    // trunque por longitud de caracteres y no por cantidad de líneas.
-    const relleno = "‎ ".repeat(800)
+    // Zero-width space: no ocupa espacio visual ni genera salto de línea,
+    // así el "Leer más" queda pegado justo después del texto visible.
+    const relleno = "\u200b".repeat(3000)
 
     const mensaje = `${visible}${relleno}${oculto}`
 
