@@ -1,6 +1,6 @@
 export default {
   name: ["spoiler"],
-  description: "Envía un mensaje con efecto spoiler (oculto tras 'Leer más')",
+  description: "Envía un mensaje largo que WhatsApp trunca con 'Leer más'",
   category: "utils",
   ownerOnly: false,
 
@@ -13,7 +13,9 @@ export default {
     const visible = partes[0]
     const oculto = partes[1] || partes[0]
 
-    const relleno = "\u200e\n".repeat(100)
+    // Relleno como UNA sola línea continua (sin saltos), para que WhatsApp
+    // trunque por longitud de caracteres y no por cantidad de líneas.
+    const relleno = "‎ ".repeat(800)
 
     const mensaje = `${visible}${relleno}${oculto}`
 
