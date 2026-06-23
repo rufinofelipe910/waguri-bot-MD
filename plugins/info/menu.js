@@ -143,7 +143,7 @@ export default {
             forwardingScore: 1,
             forwardedNewsletterMessageInfo: {
               newsletterJid: "120363420979328566@newsletter",
-              newsletterName: "⏤͟͞ू⃪𝐁𝕃𝐔𝔼 𝐋𝕆𝐂𝕂 𝐂𝕃UZ 𑁯🩵ᰍ",
+              newsletterName: "⏤͟͟͞͞★꙲⃝͟𝐘𝐔𝐓𝐀 𝐎𝐊𝐊𝐎𝐓𝐒𝐔 │ 𝐂𝐇𝐀𝐍𝐍𝐄𝐋 ◌Ⳋ𝅄",
               serverMessageId: -1
             }
           }
