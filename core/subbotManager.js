@@ -33,9 +33,6 @@ export function getActiveBotsSnapshot() {
   return snapshot;
 }
 
-// 📡 Avisa a TODOS los workers activos el estado actual, una sola vez por
-// cambio real (no por intervalo). Esto es mucho más liviano que el polling:
-// solo se manda algo cuando alguien se conecta/desconecta de verdad.
 function broadcastBotsList() {
   const snapshot = getActiveBotsSnapshot();
   for (const worker of workers.values()) {
@@ -49,12 +46,15 @@ export function registerMainBot(sock, label = "MAIN") {
   const jid = rawJid ? rawJid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : "";
   const status = jid ? "online" : "connecting";
 
-  activeBots.set("main", { label, jid, status, isMain: true });
+  // 🕒 Guardamos el botStartTime si no existe para medir el Main
+  if (!global.botStartTime) global.botStartTime = Date.now();
+
+  activeBots.set("main", { label, jid, status, isMain: true, connectedAt: global.botStartTime });
   broadcastBotsList();
 
   if (jid) {
     limpiarMainAnterior(jid);
-    db.setBot(jid, { label, jid, status, isMain: true }, true);
+    db.setBot(jid, { label, jid, status, isMain: true, connectedAt: global.botStartTime }, true);
     global.mainBotNum = jid.split("@")[0];
   }
 
@@ -65,10 +65,11 @@ export function registerMainBot(sock, label = "MAIN") {
         const currentRawJid = sock.user?.id || "";
         const currentJid = currentRawJid ? currentRawJid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : "";
         if (currentJid) {
-          activeBots.set("main", { label, jid: currentJid, status: "online", isMain: true });
+          if (!global.botStartTime) global.botStartTime = Date.now();
+          activeBots.set("main", { label, jid: currentJid, status: "online", isMain: true, connectedAt: global.botStartTime });
           broadcastBotsList();
           limpiarMainAnterior(currentJid);
-          db.setBot(currentJid, { label, jid: currentJid, status: "online", isMain: true }, true);
+          db.setBot(currentJid, { label, jid: currentJid, status: "online", isMain: true, connectedAt: global.botStartTime }, true);
           global.mainBotNum = currentJid.split("@")[0];
         }
       }
@@ -78,7 +79,8 @@ export function registerMainBot(sock, label = "MAIN") {
   sock.ev.on("connection.update", ({ connection }) => {
     if (connection === "open") {
       const current = activeBots.get("main") || {};
-      activeBots.set("main", { ...current, status: "online" });
+      if (!global.botStartTime) global.botStartTime = Date.now();
+      activeBots.set("main", { ...current, status: "online", connectedAt: global.botStartTime });
       broadcastBotsList();
     }
     if (connection === "close") {
@@ -99,13 +101,24 @@ export function updateBotStatus(id, data) {
   }
 
   const current = activeBots.get(id) || {};
+  
+  // 🛠️ FIX: Si cambia a online, le inyectamos la estampa de tiempo actual si no la tiene
+  if (data.status === "online" && !current.connectedAt) {
+    data.connectedAt = Date.now();
+  } else if (data.status === "online" && current.connectedAt) {
+    data.connectedAt = current.connectedAt; // Mantenemos el tiempo original si ya estaba conectado
+  }
+
   activeBots.set(id, { ...current, ...data });
   broadcastBotsList();
 
   if (data.jid) {
-    db.setBot(data.jid, data);
+    // Combinamos con los datos existentes de la DB para no perder connectedAt
+    const dbData = db.getBot(data.jid) || {};
+    db.setBot(data.jid, { ...dbData, ...data });
   } else {
-    db.setBot(id, data);
+    const dbData = db.getBot(id) || {};
+    db.setBot(id, { ...dbData, ...data });
   }
 }
 
@@ -121,9 +134,9 @@ export function removeSubbot(id) {
   broadcastBotsList();
 
   if (botData && botData.jid) {
-    db.setBot(botData.jid, { status: "offline" });
+    db.setBot(botData.jid, { status: "offline", connectedAt: null });
   } else {
-    db.setBot(id, { status: "offline" });
+    db.setBot(id, { status: "offline", connectedAt: null });
   }
 
   const sessionDir = `${SUBBOTS_DIR}/${id}`;
@@ -146,9 +159,6 @@ export function launchSubbot(id) {
   });
 
   workers.set(id, worker);
-
-  // En cuanto el worker está listo, le mandamos el snapshot actual
-  // (sin esperar a que pregunte nada)
   worker.postMessage({ type: "bots_list", data: getActiveBotsSnapshot() });
 
   worker.on("message", (msg) => {
@@ -185,9 +195,9 @@ export function launchSubbot(id) {
       activeBots.delete(id);
       broadcastBotsList();
       if (botData && botData.jid) {
-        db.setBot(botData.jid, { status: "offline" });
+        db.setBot(botData.jid, { status: "offline", connectedAt: null });
       } else {
-        db.setBot(id, { status: "offline" });
+        db.setBot(id, { status: "offline", connectedAt: null });
       }
     }
   });
@@ -274,9 +284,9 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
         activeBots.delete(id);
         broadcastBotsList();
         if (botData && botData.jid) {
-          db.setBot(botData.jid, { status: "offline" });
+          db.setBot(botData.jid, { status: "offline", connectedAt: null });
         } else {
-          db.setBot(id, { status: "offline" });
+          db.setBot(id, { status: "offline", connectedAt: null });
         }
       }
     });
