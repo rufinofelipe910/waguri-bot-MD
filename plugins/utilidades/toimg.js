@@ -1,59 +1,70 @@
-import fs from "fs/promises"
+import fs from "fs"
 import path from "path"
-import { tmpdir } from "os"
-import ffmpeg from "fluent-ffmpeg"
+import crypto from "crypto"
+import { fileURLToPath } from "url"
+import { promisify } from "util"
+import { exec } from "child_process"
+import { downloadMediaMessage } from "@whiskeysockets/baileys"
+
+const execAsync = promisify(exec)
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const tmp = path.join(__dirname, "../../tmp")
+
+if (!fs.existsSync(tmp))
+  fs.mkdirSync(tmp, { recursive: true })
 
 export default {
   name: ["toimg"],
-  category: "utils",
   description: "Convierte un sticker a imagen",
+  category: "utils",
 
-  async run({ sock, msg, from, reply, react }) {
-    const quoted =
-      msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
-
-    if (!quoted?.stickerMessage) {
-      return reply({
-        text: "❌ Responde a un sticker con *.toimg*"
-      })
-    }
-
+  async run({ sock, from, msg, react, reply }) {
     try {
       await react("🖼️")
 
-      const stream = await sock.downloadMediaMessage({
-        message: quoted
-      })
+      const contextInfo =
+        msg.message?.extendedTextMessage?.contextInfo
 
-      const chunks = []
+      const quoted = contextInfo?.quotedMessage
+      const quotedType = quoted
+        ? Object.keys(quoted)[0]
+        : null
 
-      for await (const chunk of stream) {
-        chunks.push(chunk)
+      if (quotedType !== "stickerMessage") {
+        return reply({
+          text: "❌ Responde a un sticker con *.toimg*"
+        })
       }
 
-      const webpBuffer = Buffer.concat(chunks)
+      const quotedMsg = {
+        key: {
+          remoteJid: from,
+          id: contextInfo?.stanzaId,
+          participant: contextInfo?.participant
+        },
+        message: quoted
+      }
 
-      const input = path.join(
-        tmpdir(),
-        `sticker_${Date.now()}.webp`
+      const buffer = await downloadMediaMessage(
+        quotedMsg,
+        "buffer",
+        {},
+        { sock }
       )
 
-      const output = path.join(
-        tmpdir(),
-        `image_${Date.now()}.png`
+      const id = crypto.randomBytes(8).toString("hex")
+
+      const input = path.join(tmp, `toimg_${id}.webp`)
+      const output = path.join(tmp, `toimg_${id}.png`)
+
+      fs.writeFileSync(input, buffer)
+
+      await execAsync(
+        `ffmpeg -i "${input}" "${output}" -y`
       )
 
-      await fs.writeFile(input, webpBuffer)
-
-      await new Promise((resolve, reject) => {
-        ffmpeg(input)
-          .toFormat("png")
-          .on("end", resolve)
-          .on("error", reject)
-          .save(output)
-      })
-
-      const imageBuffer = await fs.readFile(output)
+      const imageBuffer = fs.readFileSync(output)
 
       await sock.sendMessage(
         from,
@@ -64,18 +75,18 @@ export default {
         { quoted: msg }
       )
 
-      await fs.unlink(input).catch(() => {})
-      await fs.unlink(output).catch(() => {})
+      try { fs.unlinkSync(input) } catch {}
+      try { fs.unlinkSync(output) } catch {}
 
       await react("✅")
 
     } catch (e) {
-      console.error("[TOIMG]", e)
+      console.error("TOIMG:", e)
 
       await react("❌")
 
       await reply({
-        text: `❌ Error convirtiendo el sticker:\n${e.message}`
+        text: `❌ ${e.message}`
       })
     }
   }
