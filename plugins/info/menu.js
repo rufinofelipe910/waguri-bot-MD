@@ -53,14 +53,22 @@ export default {
       const fecha   = ahora.toLocaleDateString("es-CO", { timeZone });
       const lugar   = isGroup ? groupName : "Chat Privado";
 
-      const currentBotJid = sock.user?.id ? sock.user.id.split('@')[0].split(':')[0] + '@s.whatsapp.net' : '';
-      const botData = db.getBot(currentBotJid);
+      // Limpieza estricta del JID del bot actual eliminando el ":40" o cualquier variante
+      const currentBotNum = sock.user?.id ? sock.user.id.split('@')[0].split(':')[0].replace(/\D/g, '') : '';
+      const currentBotJid = currentBotNum ? `${currentBotNum}@s.whatsapp.net` : '';
+      
+      // Intentar obtener de la DB por JID limpio, o usando la key "main" como respaldo
+      let botData = db.getBot(currentBotJid) || db.getBot('main');
 
       const esLabelAutomatico = botData?.label?.startsWith('SUB_') || botData?.label === 'Subbot' || botData?.label === 'MAIN'
       const nombreBot = (esLabelAutomatico || !botData?.label ? config.botName : botData.label).replace(/@\d+/g, '').trim();
 
       const urlFoto   = botData?.banner || "https://files.evogb.win/1oU31I.jpg";
-      const tipoBot   = botData?.isMain ? "Bot Principal" : "Subbot";
+
+      // CORRECCIÓN AQUÍ: Verificamos de forma estricta el tipo de Bot. 
+      // Si el número coincide con el principal global o la DB lo marca, es Main.
+      const esVerdaderoMain = botData?.isMain === true || botData?.isMain === 1 || global.mainBotNum === currentBotNum || !sock.isSubbot;
+      const tipoBot   = esVerdaderoMain ? "Bot Principal" : "Subbot";
 
       const linkMatch = "https://mancosyasociados.kesug.com";
 
@@ -79,10 +87,10 @@ export default {
       }
 
       let textoMenu = `╭━━━━━━━━━━━━━━━━━━○\n`;
-      textoMenu += `│◇ \`ᴛɪᴘᴏ::\` ${tipoBot}\n`;
-      textoMenu += `│◇ \`sɪsᴛᴇᴍᴀ/ᴏᴘʀ::\` Android\n`;
-      textoMenu += `│◇ \`ᴜsᴇʀ::\` @${senderNum}\n`;
-      textoMenu += `│◇ \`ᴜʀʟ::\` ${linkMatch}\n`;
+      textoMenu += `││◇ \`ᴛɪᴘᴏ::\` ${tipoBot}\n`;
+      textoMenu += `││◇ \`sɪsᴛᴇᴍᴀ/ᴏᴘʀ::\` Android\n`;
+      textoMenu += `││◇ \`ᴜsᴇʀ::\` @${senderNum}\n`;
+      textoMenu += `││◇ \`ᴜʀʟ::\` ${linkMatch}\n`;
       textoMenu += `╰━━━━━━━━━━━━━━━━━━○\n\n`;
 
       for (const [cat, cmds] of Object.entries(categories)) {
