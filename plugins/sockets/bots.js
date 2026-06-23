@@ -5,11 +5,11 @@ import path from 'path'
 
 export default {
   name: ['bots', 'listbots'],
-  description: 'Muestra todos los bots del almacenamiento cruzando nombres personalizados de la base de datos.',
+  description: 'Muestra los bots con el tiempo exacto que llevan conectados.',
   category: 'sockets',
   ownerOnly: false,
 
-  async run({ sock, react, reply, mainBotNum }) {
+  async run({ sock, react, reply, mainBotNum, activeBotsLive }) {
     await react('🤖')
 
     const obtenerNumeroLimpio = (jid) => {
@@ -52,11 +52,13 @@ export default {
     let listaFiltrada = []
     const numerosVistos = new Set()
 
-    // 1. Añadir forzosamente al Bot Principal en la posición #1
+    // 1. Bot Principal
     if (numeroMainReal) {
       const datosMain = db.getBot(`${numeroMainReal}@s.whatsapp.net`) || db.getBot('main')
       const nombreMain = esLabelAutomatico(datosMain?.label) ? config.botName : datosMain.label
-      const uptimeMain = global.botStartTime ? calcularTiempoActivo(global.botStartTime) : 'Activo'
+      
+      if (!global.botStartTime) global.botStartTime = Date.now()
+      const uptimeMain = calcularTiempoActivo(global.botStartTime)
 
       listaFiltrada.push({
         label: nombreMain,
@@ -67,7 +69,15 @@ export default {
       numerosVistos.add(numeroMainReal)
     }
 
-    // 2. ESCANEO COMPLETO DE CARPETAS (Basado en la estructura de la imagen 1001072750.png)
+    // Convertir el snapshot live en un Map para búsquedas rápidas por número
+    const liveSnapshot = Array.isArray(activeBotsLive) ? activeBotsLive : []
+    const liveMap = new Map()
+    for (const b of liveSnapshot) {
+      const num = obtenerNumeroLimpio(b.jid)
+      if (num) liveMap.set(num, b)
+    }
+
+    // 2. Escaneo de carpetas físicas
     const SUBBOTS_DIR = './sessions/subbots'
     if (fs.existsSync(SUBBOTS_DIR)) {
       const carpetasSesion = fs.readdirSync(SUBBOTS_DIR, { withFileTypes: true })
@@ -80,38 +90,28 @@ export default {
         if (!subNum || subNum === numeroMainReal) continue
         if (numerosVistos.has(subNum)) continue
 
-        // 🔍 BÚSQUEDA ROBUSTA EN BASE DE DATOS: 
-        // Intentamos por JID completo, por ID de carpeta, o buscando el número limpio en la lista completa
         let datosDb = db.getBot(`${subNum}@s.whatsapp.net`) || db.getBot(idCarpeta)
         if (!datosDb) {
           datosDb = todosLosBots.find(b => b.jid && obtenerNumeroLimpio(b.jid) === subNum)
         }
 
-        // Recuperar el nombre editado si existe
         const labelCandidato = (datosDb?.label && !esLabelAutomatico(datosDb.label))
           ? datosDb.label
           : idCarpeta.toUpperCase()
 
-        // Determinar el tiempo de actividad usando los archivos internos de la sesión
-        const folderPath = path.join(SUBBOTS_DIR, idCarpeta)
-        let uptimeRaw = datosDb?.connectedAt || null
+        // 🔍 AQUÍ CAMBIA LA PRIORIDAD:
+        // Primero buscamos el 'connectedAt' que el Manager tiene en memoria viva (Snapshot)
+        const botEnVivo = liveMap.get(subNum)
+        let uptimeRaw = botEnVivo?.connectedAt || datosDb?.connectedAt || null
         
+        // Si no hay registro en memoria (ej. tras un reinicio general), usamos el disco como plan B
         if (!uptimeRaw) {
           try {
-            // Revisamos la estampa de tiempo del archivo de credenciales para más precisión si no está en DB
-            const credsFile = path.join(folderPath, 'creds.json')
-            const authDbFile = path.join(folderPath, 'auth.db')
-            
+            const credsFile = path.join(SUBBOTS_DIR, idCarpeta, 'creds.json')
             if (fs.existsSync(credsFile)) {
-              uptimeRaw = fs.statSync(credsFile).mtimeMs
-            } else if (fs.existsSync(authDbFile)) {
-              uptimeRaw = fs.statSync(authDbFile).mtimeMs
-            } else {
-              uptimeRaw = fs.statSync(folderPath).mtimeMs
+              uptimeRaw = fs.statSync(credsFile).birthtimeMs // Fecha de creación del archivo de conexión actual
             }
-          } catch (_) {
-            uptimeRaw = null
-          }
+          } catch (_) {}
         }
 
         numerosVistos.add(subNum)
@@ -125,11 +125,11 @@ export default {
       }
     }
 
-    // 3. Renderizado del mensaje final
+    // 3. Renderizar Mensaje
     const nombreBotEncabezado = listaFiltrada[0]?.label || config.botName
 
     let text = `✨ ═══ 🫧 *${nombreBotEncabezado.toUpperCase()}* 🫧 ═══ ✨\n`
-    text += `🤖 _Lista de conexiones y tiempo de actividad_\n\n`
+    text += `🤖 _Lista de conexiones y tiempo de actividad real_\n\n`
 
     let i = 1
     for (const bot of listaFiltrada) {
@@ -137,7 +137,7 @@ export default {
       text += `🟢 *${i}. ${bot.label}*\n`
       text += `   ✦ Tipo: ${tipo}\n`
       text += `   ✦ Número: +${bot.jid}\n`
-      text += `   ✦ Activo hace: \`${bot.uptime}\`\n\n`
+      text += `   ✦ Conectado hace: \`${bot.uptime}\`\n\n`
       i++
     }
 
