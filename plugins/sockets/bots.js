@@ -7,7 +7,8 @@ export default {
   description: 'Muestra los bots conectados',
   category: 'sockets',
 
-  async run({ sock, react, reply, m }) {
+  // Añadimos 'm' y un objeto vacío por defecto para evitar errores de desestructuración
+  async run({ sock, react, reply, m } = {}) {
     try {
       await react('🤖')
 
@@ -38,7 +39,7 @@ export default {
 
       const numeroPrincipal = registroMain
         ? limpiarNumero(registroMain.jid)
-        : (global.mainBotNum || limpiarNumero(sock.user?.id))
+        : (global.mainBotNum || limpiarNumero(sock?.user?.id))
 
       const nombrePrincipal = obtenerNombre(numeroPrincipal)
 
@@ -55,19 +56,26 @@ export default {
           .filter(numero => numero !== numeroPrincipal)
       }
 
+      // Obtener de forma segura el JID de quien envió el mensaje
+      const senderJid = m?.sender || m?.from || sock?.user?.id || ''
+      const senderNumber = limpiarNumero(senderJid)
+
       // Estructura principal del diseño solicitado
       let text = `•.°· ◇ \`ᒪIՏTᗩ ᗪᗴ ᗷOTՏ ᗩᑕTIᐯOՏ\` ◇ ·°.•\n`
       text += `〔💎〕Principal: ${nombrePrincipal}\n`
       text += `〔🌀〕Sub-bots: ${subbots.length}\n`
       text += `〔🌱〕En este grupo: \n\n`
       
-      text += `@${m.sender.split('@')[0]}\n`
+      // Mostrar la mención solo si se encontró un número válido
+      if (senderNumber) {
+        text += `@${senderNumber}\n`
+      }
 
-      // Datos del Bot Principal (Sin la línea Online)
+      // Datos del Bot Principal
       text += `> *𖠌 ʙᴏᴛ::* ${nombrePrincipal}\n`
       text += `> *⚝ ᴛɪᴘᴏ::* Principal 👑\n\n`
 
-      // Datos de los Sub-bots si existen (Sin la línea Online)
+      // Datos de los Sub-bots si existen
       if (subbots.length > 0) {
         for (const numero of subbots) {
           const nombreSub = obtenerNombre(numero)
@@ -78,15 +86,23 @@ export default {
 
       text += `🪼 _Powered by DuarteXV_`
 
-      await reply({ text, mentions: [m.sender] })
+      // Configuramos las menciones de forma segura
+      const opcionesEnvio = { text }
+      if (senderJid) {
+        opcionesEnvio.mentions = [senderJid]
+      }
+
+      await reply(opcionesEnvio)
       await react('✅')
 
     } catch (e) {
       console.error(e)
-      await react('❌')
-      await reply({
-        text: `❌ Error:\n${e.message}`
-      })
+      if (react) await react('❌')
+      if (reply) {
+        await reply({
+          text: `❌ Error:\n${e.message}`
+        })
+      }
     }
   }
 }
