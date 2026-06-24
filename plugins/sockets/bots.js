@@ -6,7 +6,7 @@ export default {
   name: ['bots', 'listbots'],
   description: 'Muestra los bots conectados en el grupo actual',
   category: 'sockets',
-  groupOnly: true, // Asegura que solo se use en grupos
+  groupOnly: true,
 
   async run({ sock, from, msg, react, reply }) {
     try {
@@ -34,11 +34,11 @@ export default {
         }
       }
 
-      // 1. Obtener todos los participantes reales del grupo actual
+      // 1. Participantes del grupo actual
       const metadata = await sock.groupMetadata(from)
       const participantesGrupo = metadata.participants.map(p => limpiarNumero(p.id))
 
-      // 2. Obtener datos del bot Principal
+      // 2. Datos del bot Principal
       const todosLosBots = db.getAllBots ? db.getAllBots() : []
       const registroMain = todosLosBots.find(b => (b.isMain === true || b.isMain === 1) && b.jid)
 
@@ -48,31 +48,33 @@ export default {
 
       const nombrePrincipal = obtenerNombre(numeroPrincipal)
 
-      // 3. Leer sub-bots de la carpeta y FILTRAR solo los que están en el grupo
+      // 3. Obtener el total global y filtrar los del grupo
       const subbotsDir = './sessions/subbots'
+      let todosLosSubbots = []
       let subbotsEnGrupo = []
 
       if (fs.existsSync(subbotsDir)) {
-        subbotsEnGrupo = fs
+        todosLosSubbots = fs
           .readdirSync(subbotsDir, { withFileTypes: true })
           .filter(dir => dir.isDirectory())
           .map(dir => dir.name)
           .filter(name => name.startsWith('sub_'))
           .map(name => name.replace('sub_', ''))
           .filter(numero => numero !== numeroPrincipal)
-          // El filtro clave: ¿El número del subbot está en la lista de participantes del grupo?
-          .filter(numero => participantesGrupo.includes(numero))
+
+        // Filtrados por presencia en el grupo actual
+        subbotsEnGrupo = todosLosSubbots.filter(numero => participantesGrupo.includes(numero))
       }
 
       const participantsMentions = []
 
-      // Estructura del mensaje principal
+      // Estructura del mensaje principal con los contadores corregidos
       let report = `•.°· ◇ \`ᒪIՏTᗩ ᗪᗴ ᗷOTՏ ᗩᑕTIᐯOՏ\` ◇ ·°.•\n`
       report += `〔💎〕Principal: ${nombrePrincipal}\n`
-      report += `〔🌀〕Sub-bots: ${subbotsEnGrupo.length}\n`
-      report += `〔🌱〕En este grupo: \n\n`
+      report += `〔🌀〕Sub-bots: ${todosLosSubbots.length}\n` // Total global conectado
+      report += `〔🌱〕En este grupo: ${subbotsEnGrupo.length}\n\n` // Total en este grupo
 
-      // Validar si el Principal está en el grupo (por si acaso)
+      // Validar si el Principal está en el grupo para listarlo abajo
       if (participantesGrupo.includes(numeroPrincipal)) {
         const jidPrincipal = `${numeroPrincipal}@s.whatsapp.net`
         participantsMentions.push(jidPrincipal)
@@ -81,7 +83,7 @@ export default {
         report += `> *⚝ ᴛɪᴘᴏ::* Principal 👑\n\n`
       }
 
-      // Agregar los Sub-bots filtrados a la lista
+      // Lista de Sub-bots presentes en el grupo
       if (subbotsEnGrupo.length > 0) {
         for (const numero of subbotsEnGrupo) {
           const nombreSub = obtenerNombre(numero)
@@ -93,12 +95,11 @@ export default {
           report += `> *⚝ ᴛɪᴘᴏ::* Sub-bot 🌀\n\n`
         }
       } else if (!participantesGrupo.includes(numeroPrincipal)) {
-        report += `⚠️ No se detectaron bots de este sistema en el grupo.\n\n`
+        report += `⚠️ No hay ningún bot de este sistema dentro de este grupo.\n\n`
       }
 
       report += `🪼 _Powered by DuarteXV_`
 
-      // Envío con menciones activas
       await sock.sendMessage(
         from,
         {
