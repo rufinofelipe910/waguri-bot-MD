@@ -7,8 +7,7 @@ export default {
   description: 'Muestra los bots conectados',
   category: 'sockets',
 
-  // Añadimos 'm' y un objeto vacío por defecto para evitar errores de desestructuración
-  async run({ sock, react, reply, m } = {}) {
+  async run({ sock, from, msg, react, reply }) {
     try {
       await react('🤖')
 
@@ -28,7 +27,7 @@ export default {
             return bot.label
           }
 
-          return config.botName
+          return bot?.pushName || bot?.name || config.botName
         } catch {
           return config.botName
         }
@@ -56,51 +55,56 @@ export default {
           .filter(numero => numero !== numeroPrincipal)
       }
 
-      // Obtener de forma segura el JID de quien envió el mensaje
-      const senderJid = m?.sender || m?.from || sock?.user?.id || ''
-      const senderNumber = limpiarNumero(senderJid)
+      // Array dinámico para almacenar las menciones JID, idéntico al sistema de tagall
+      const participants = []
 
-      // Estructura principal del diseño solicitado
-      let text = `•.°· ◇ \`ᒪIՏTᗩ ᗪᗴ ᗷOTՏ ᗩᑕTIᐯOՏ\` ◇ ·°.•\n`
-      text += `〔💎〕Principal: ${nombrePrincipal}\n`
-      text += `〔🌀〕Sub-bots: ${subbots.length}\n`
-      text += `〔🌱〕En este grupo: \n\n`
+      // Estructura principal con el diseño limpio solicitado
+      let report = `•.°· ◇ \`ᒪIՏTᗩ ᗪᗴ ᗷOTՏ ᗩᑕTIᐯOՏ\` ◇ ·°.•\n`
+      report += `〔💎〕Principal: ${nombrePrincipal}\n`
+      report += `〔🌀〕Sub-bots: ${subbots.length}\n`
+      report += `〔🌱〕En este grupo: \n\n`
+
+      // Agregar bot principal con su formato de mención
+      const jidPrincipal = `${numeroPrincipal}@s.whatsapp.net`
+      participants.push(jidPrincipal)
       
-      // Mostrar la mención solo si se encontró un número válido
-      if (senderNumber) {
-        text += `@${senderNumber}\n`
-      }
+      report += `> *𖠌 ʙᴏᴛ::* @${numeroPrincipal} (${nombrePrincipal})\n`
+      report += `> *⚝ ᴛɪᴘᴏ::* Principal 👑\n\n`
 
-      // Datos del Bot Principal
-      text += `> *𖠌 ʙᴏᴛ::* ${nombrePrincipal}\n`
-      text += `> *⚝ ᴛɪᴘᴏ::* Principal 👑\n\n`
-
-      // Datos de los Sub-bots si existen
+      // Agregar sub-bots iterando el array
       if (subbots.length > 0) {
         for (const numero of subbots) {
           const nombreSub = obtenerNombre(numero)
-          text += `> *𖠌 ʙᴏᴛ::* ${nombreSub}\n`
-          text += `> *⚝ ᴛɪᴘᴏ::* Sub-bot 🌀\n\n`
+          const jidSub = `${numero}@s.whatsapp.net`
+          
+          participants.push(jidSub)
+          
+          report += `> *𖠌 ʙᴏᴛ::* @${numero} (${nombreSub})\n`
+          report += `> *⚝ ᴛɪᴘᴏ::* Sub-bot 🌀\n\n`
         }
       }
 
-      text += `🪼 _Powered by DuarteXV_`
+      report += `🪼 _Powered by DuarteXV_`
 
-      // Configuramos las menciones de forma segura
-      const opcionesEnvio = { text }
-      if (senderJid) {
-        opcionesEnvio.mentions = [senderJid]
-      }
+      // Envío nativo de Baileys idéntico al comando tagall
+      await sock.sendMessage(
+        from,
+        {
+          text: report,
+          mentions: participants.filter(Boolean),
+        },
+        { quoted: msg }
+      )
 
-      await reply(opcionesEnvio)
       await react('✅')
 
     } catch (e) {
       console.error(e)
-      if (react) await react('❌')
+      await react('❌')
+      
       if (reply) {
         await reply({
-          text: `❌ Error:\n${e.message}`
+          text: `Failed`,
         })
       }
     }
