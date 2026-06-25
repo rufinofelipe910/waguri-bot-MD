@@ -59,16 +59,11 @@ export default {
         await sock.sendMessage(from, { react: { text: "⏳", key: msg.key } }).catch(() => {});
       }
 
-      // 🤖 Obtener el JID de la sesión actual de forma segura
       const currentBotNum = sock?.user?.id
         ? sock.user.id.split('@')[0].split(':')[0].replace(/\D/g, '')
         : null;
       const botJid = currentBotNum ? `${currentBotNum}@s.whatsapp.net` : null;
 
-      // 🏷️ Misma regla que usan menu.js / bots.js: si el bot tiene un
-      // label personalizado (editado con .setname), se respeta; si sigue
-      // con el genérico (SUB_xxx, "Subbot", "MAIN" o sin label), se usa
-      // config.botName.
       let currentBotName = config.botName || "YUTA OKOTSU";
       try {
         if (botJid && db && typeof db.getBot === "function") {
@@ -114,8 +109,7 @@ export default {
       const arch = os.arch();
 
       let text = "";
-      text += `官 ════ 『 *${currentBotName}* 』 ════ 官\n`;
-      text += `✦ _Sistema del Hechicero de Grado Especial_\n\n`;
+      text += `官 ════ 『 *${currentBotName}* 』 ════ 官\n\n`;
 
       text += `⚔️ ─── ❖ *CPU* ❖ ─── ⚔️\n`;
       text += `  ✦ *Modelo:* ${cpuModel}\n`;
