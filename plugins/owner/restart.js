@@ -1,5 +1,3 @@
-import { execSync } from "child_process";
-
 export default {
   name: ["restart", "reiniciar"],
   description: "Reinicia el proceso del bot",
@@ -12,8 +10,8 @@ export default {
       await reply({ text: "♻️ *Reiniciando el bot...*\n_Esto puede tardar unos segundos._" });
 
       setTimeout(() => {
-        execSync("npm restart", { stdio: "ignore" });
-      }, 1000);
+        process.exit(0);
+      }, 1500);
 
     } catch (err) {
       await react("❌");
