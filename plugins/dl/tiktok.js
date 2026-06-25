@@ -28,25 +28,6 @@ function validateTikTokUrl(url) {
   }
 }
 
-function formatDuration(seconds) {
-  if (!seconds || isNaN(seconds)) return '0:00'
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function formatFecha(timestamp) {
-  if (!timestamp) return 'Desconocida'
-  const fecha = new Date(timestamp * 1000)
-  return fecha.toLocaleDateString('es-ES', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'America/Bogota'
-  })
-}
-
 async function downloadFromMultipleAPIs(url) {
   const apis = [
     { name: 'TikWM', func: () => tiktokTikWM(url) },
@@ -92,21 +73,12 @@ async function tiktokTikWM(url) {
 
       return {
         videoUrl: d.play,
-        id: d.id,
         title: d.title,
-        duration: d.duration,
-        region: d.region,
-        createTime: d.create_time,
         authorNick: d.author?.nickname || 'Desconocido',
-        authorUser: d.author?.unique_id || 'desconocido',
-        musicTitle: d.music_info?.title || '',
-        musicAuthor: d.music_info?.author || '',
-        musicDuration: d.music_info?.duration,
-        playCount: d.play_count,
         likes: d.digg_count,
-        comments: d.comment_count,
         shares: d.share_count,
-        downloads: d.download_count
+        downloads: d.download_count,
+        comments: d.comment_count
       }
     }
 
@@ -131,7 +103,7 @@ async function tiktokEliasar(url) {
       return {
         videoUrl: data.results.video,
         title: data.results.title || '',
-        authorUser: data.results.author || 'Desconocido'
+        authorNick: data.results.author || 'Desconocido'
       }
     }
 
@@ -167,7 +139,7 @@ async function tiktokSSSTik(url) {
       return {
         videoUrl: videoMatch[1],
         title: titleMatch ? titleMatch[1] : '',
-        authorUser: 'Desconocido'
+        authorNick: 'Desconocido'
       }
     }
 
@@ -202,7 +174,7 @@ async function tiktokTikDown(url) {
         return {
           videoUrl: videoMatch[1],
           title: '',
-          authorUser: 'Desconocido'
+          authorNick: 'Desconocido'
         }
       }
     }
@@ -245,25 +217,16 @@ export default {
       }
 
       const titulo = result.title?.trim() || 'Sin título'
-      const musica = result.musicTitle?.trim() || ''
-      const artista = result.musicAuthor?.trim() || ''
-      const durAudio = result.musicDuration ? formatDuration(result.musicDuration) : ''
 
       let caption = `☑ *Video de TikTok descargado*\n`
-      caption += `╰━━━━━━━━⁽ ☆ ⁾━━━━━━━━╯\n\n`
-      caption += `👤ᴬᵘᵗᵒʳ: ${result.authorNick || 'Desconocido'}\n`
-      caption += `🆔 ᴵᴰ: ${result.id || 'N/A'}\n`
-      caption += `📝 ᵘˢᵘᵃʳⁱᵒ: @${result.authorUser || 'desconocido'}\n`
-      caption += `⏱️ ᵘᵘᵒⁿ: ${formatDuration(result.duration)}\n`
-      caption += `🌎 ʳᵉᵍⁱᵒ́ⁿ: ${result.region || 'N/A'}\n`
-      caption += `📅 ᵖᵘᵇˡⁱᶜᵃᵃᵃᵒ: ${formatFecha(result.createTime)}\n`
-      caption += `♡ ˡⁱᵏᵉˢ: ${result.likes ?? 'N/A'}\n`
-      caption += `⌲ ˢʰᵃʳᵉˢ: ${result.shares ?? 'N/A'}\n`
-      caption += `○ ᶜᵒᵐᵉⁿᵗˢ: ${result.comments ?? 'N/A'}\n`
-      caption += `▶️ ᵖˡᵃʸˢ: ${result.playCount ?? 'N/A'}\n`
-      if (musica) caption += `🎵 ᵐᵘ́ˢⁱᶜᵃ: ${musica}\n`
-      if (artista) caption += `🎤 ᵃʳᵗⁱˢᵗᵃ: ${artista}\n`
-      caption += `📹 ᵗⁱᵗᵘˡᵒ: ${titulo}`
+      caption += `─╮\n`
+      caption += `   ╰━━━━━━(☆)━━━━━━─╮\n`
+      caption += `*👤 ᴀᴜᴛᴏʀ:* ${result.authorNick || 'Desconocido'}\n`
+      caption += `*♡ ʟɪᴋᴇs:* ${result.likes ?? 'N/A'}\n`
+      caption += `*⌲ sʜᴀʀᴇ:* ${result.shares ?? 'N/A'}\n`
+      caption += `*⎙ sᴀᴠᴇ:* ${result.downloads ?? 'N/A'}\n`
+      caption += `*○ ᴄᴏᴍᴍᴇɴɴᴛ:* ${result.comments ?? 'N/A'}\n`
+      caption += `*📹 ᴛɪᴛᴜʟᴏ:* ${titulo}`
 
       await sock.sendMessage(from, {
         video: { url: result.videoUrl },
