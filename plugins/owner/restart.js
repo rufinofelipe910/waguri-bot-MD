@@ -1,21 +1,20 @@
 export default {
   name: ["restart", "reiniciar"],
-  description: "Reinicia el proceso del bot",
+  description: "Reinicia el bot",
   category: 'owner',
   ownerOnly: true,
 
-  async run({ reply, react }) {
+  async run({ reply }) {
     try {
-      await react("🔄");
-      await reply({ text: "♻️ *Reiniciando el bot...*\n_Esto puede tardar unos segundos._" });
+      await reply({ text: "♻️ *Reiniciando el bot...* ✨\n\n🔄 ¡Estaré de vuelta en un momento! 💫" })
 
       setTimeout(() => {
-        process.exit(0);
-      }, 1500);
+        process.exit(0)
+      }, 3000)
 
-    } catch (err) {
-      await react("❌");
-      await reply({ text: `❌ *Error al reiniciar:* ${err.message}` });
+    } catch (error) {
+      console.log(error)
+      await reply({ text: `${error}` })
     }
-  },
-};
+  }
+}
