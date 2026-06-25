@@ -73,7 +73,10 @@ async function tiktokTikWM(url) {
         videoUrl: data.data.play,
         title: data.data.title || 'Sin título',
         author: data.data.author?.unique_id || 'Desconocido',
-        thumbnail: data.data.cover || data.data.origin_cover
+        thumbnail: data.data.cover || data.data.origin_cover,
+        likes: data.data.digg_count,
+        comments: data.data.comment_count,
+        shares: data.data.share_count
       }
     }
 
@@ -204,6 +207,7 @@ export default {
     }
 
     await react('🔄')
+    await reply({ text: `> ✎...Descargando video.` })
 
     try {
       const result = await downloadFromMultipleAPIs(tiktokUrl)
@@ -213,11 +217,15 @@ export default {
         return await reply({ text: `❌ No se pudo descargar el video. El enlace podría ser privado o no válido.` })
       }
 
-      const { videoUrl, title, author } = result
+      const { videoUrl, title, author, likes, comments, shares } = result
 
-      const caption = `✅ *Video de TikTok descargado*\n\n` +
-        `👤 *Autor:* ${author || 'Desconocido'}\n` +
-        `📹 *Título:* ${title || 'Sin título'}`
+      let caption = `☑ *Video de TikTok descargado*\n`
+      caption += `╰━━━━━━━━⁽ ☆ ⁾━━━━━━━━╯\n\n`
+      caption += `👤ᴬᵘᵗᵒʳ: ${author || 'Desconocido'}\n`
+      caption += `♡ ˡⁱᵏᵉˢ: ${likes ?? 'N/A'}\n`
+      caption += `⌲ ˢʰᵃʳᵉˢ: ${shares ?? 'N/A'}\n`
+      caption += `○ ᶜᵒᵐᵉⁿᵗˢ: ${comments ?? 'N/A'}\n`
+      caption += `📹 ᵗⁱᵗᵘˡᵒ: ${title || 'Sin título'}`
 
       await sock.sendMessage(from, {
         video: { url: videoUrl },
