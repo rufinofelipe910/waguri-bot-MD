@@ -3,7 +3,7 @@ import axios from 'axios'
 export default {
   name: ['copilot', 'ai'],
   description: 'Conversa con la IA Copilot',
-  category: 'misc',
+  category: 'ia',
   ownerOnly: false,
 
   async run({ text, reply, react }) {
