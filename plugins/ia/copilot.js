@@ -6,7 +6,7 @@ export default {
   category: "ia",
   ownerOnly: false,
 
-  async run({ text, reply, react }) {
+  async run({ text, reply, sock, from }) {
     if (!text) {
       return await reply({
         text: `꒰✖️꒱ ᰍ Escrıᑲᧉ tu ⍴ꭇᧉgunt⍺ o mᧉns⍺jᧉ ⍴⍺ꭇ⍺ Copı𝗅oƚ.
@@ -15,7 +15,9 @@ export default {
       });
     }
 
-    await react("🤔");
+    const sent = await reply({
+      text: "> *Copilot está procesando tu petición...*"
+    });
 
     try {
       const url = `https://fare.ink/ai/copilot?q=${encodeURIComponent(text)}&model=default`;
@@ -24,29 +26,29 @@ export default {
         headers: {
           "Content-Type": "application/json"
         },
-        timeout: 30000
+        timeout: 60000
       });
 
-      if (!data?.status || !data?.respuesta) {
-        await react("❌");
-        return await reply({
-          text: "❌ No se pudo obtener una respuesta de Copilot."
+      const responseText = data?.respuesta || data?.result || data?.response || data?.answer || data?.text;
+
+      if (!data?.status || !responseText) {
+        return await sock.sendMessage(from, {
+          text: "❌ No se pudo obtener una respuesta de Copilot.",
+          edit: sent.key
         });
       }
 
-      await react("✅");
-
-      await reply({
-        text: data.respuesta
+      await sock.sendMessage(from, {
+        text: responseText,
+        edit: sent.key
       });
 
     } catch (err) {
       console.error("Error en Copilot:", err);
 
-      await react("❌");
-
-      await reply({
-        text: `❌ Error al consultar Copilot.\n\n${err.message}`
+      await sock.sendMessage(from, {
+        text: `❌ Error al consultar Copilot.\n\n${err.message}`,
+        edit: sent.key
       });
     }
   }
