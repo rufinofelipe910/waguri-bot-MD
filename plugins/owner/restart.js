@@ -1,5 +1,5 @@
 export default { 
-  name: ["restart", "rest"], 
+  name: "restart", "rest", 
   description: "Reinicia el bot", 
   ownerOnly: true,
   async run({ conn, m, reply }) {
