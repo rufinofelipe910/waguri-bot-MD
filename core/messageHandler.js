@@ -96,10 +96,6 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
 
     const senderNum = sender.split("@")[0];
 
-    // 🛡️ isOwner depende ÚNICAMENTE de config.ownerNumber. El que el
-    // mensaje sea "fromMe" (el bot escribiéndose a sí mismo) ya NO otorga
-    // privilegios de owner automáticamente — si el número del bot no está
-    // explícitamente en config.ownerNumber, no es owner.
     const isOwner = config.ownerNumber.includes(senderNum);
     const isCoOwner = config.coOwners.includes(senderNum);
     const isMod = isOwner || isCoOwner || db.hasRole(senderNum, "mod");
@@ -117,6 +113,16 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
 
       isAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin';
       isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
+    }
+
+    // 🔒 Modo admin del grupo: si está activo, usuarios normales son
+    // ignorados en silencio (sin mensaje de error) para cualquier
+    // mensaje/comando, excepto admins del grupo, owner y coowners.
+    if (isGroup) {
+      const groupData = db.getGroup(from);
+      if (groupData?.adminMode && !isAdmin && !isMod) {
+        return;
+      }
     }
 
     log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel, msgTypeLabel });
