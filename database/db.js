@@ -63,7 +63,8 @@ function getGroup(jid) {
     const defaultGroup = {
       welcome: false,
       antilink: false,
-      primaryBot: null
+      primaryBot: null,
+      adminMode: false
     };
     stmts.insertGroup.run(jid, JSON.stringify(defaultGroup));
     return defaultGroup;
