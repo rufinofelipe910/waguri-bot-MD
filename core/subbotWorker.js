@@ -28,13 +28,18 @@ parentPort.on("message", (msg) => {
   }
 
   // 📡 El manager nos pide reaccionar a un mensaje de canal con nuestra
-  // propia conexión (currentSock), igual que haría el Main.
+  // propia conexión (currentSock). newsletterReactMessage necesita el
+  // JID real del canal (xxxx@newsletter), así que primero resolvemos
+  // el código corto de invitación a JID con newsletterMetadata.
   if (msg.type === "react_canal" && currentSock) {
-    currentSock.newsletterReactMessage(
-      `${msg.invite}@newsletter`.includes('@newsletter') ? msg.invite : msg.invite,
-      msg.serverId,
-      msg.emoji
-    ).catch(() => {});
+    (async () => {
+      try {
+        const meta = await currentSock.newsletterMetadata('invite', msg.invite);
+        await currentSock.newsletterReactMessage(meta.id, msg.serverId, msg.emoji);
+      } catch {
+        // si falla para este subbot en particular, simplemente lo ignoramos
+      }
+    })();
   }
 });
 
