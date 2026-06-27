@@ -9,7 +9,8 @@ function validateFacebookUrl(url) {
       /(?:https?:\/\/)?(?:www\.)?facebook\.com\/watch\/?\?v=\d+/,
       /(?:https?:\/\/)?(?:www\.)?facebook\.com\/reel\/\d+/,
       /(?:https?:\/\/)?fb\.watch\/[A-Za-z0-9_-]+/,
-      /(?:https?:\/\/)?(?:m\.)?facebook\.com\/.+\/videos\/\d+/
+      /(?:https?:\/\/)?(?:m\.)?facebook\.com\/.+\/videos\/\d+/,
+      /(?:https?:\/\/)?(?:www\.)?facebook\.com\/share\/[rv]\/[A-Za-z0-9_-]+/
     ]
 
     for (const pattern of patterns) {
@@ -28,97 +29,44 @@ function validateFacebookUrl(url) {
   }
 }
 
-async function downloadFromMultipleAPIs(url) {
-  const apis = [
-    { name: 'FbDown', func: () => facebookFbDown(url) },
-    { name: 'Snapsave', func: () => facebookSnapsave(url) }
-  ]
-
-  for (const api of apis) {
-    try {
-      console.log(`🔍 Intentando con ${api.name}...`)
-      const result = await api.func()
-
-      if (result && result.videoUrl) {
-        console.log(`✅ ${api.name} exitoso`)
-        return result
-      }
-    } catch (error) {
-      console.log(`❌ ${api.name} falló: ${error.message}`)
-      continue
-    }
-  }
-
-  return null
+function formatDuration(seconds) {
+  if (!seconds || isNaN(seconds)) return '0:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-async function facebookFbDown(url) {
+async function downloadFacebookVideo(url) {
   try {
-    const apiUrl = `https://www.fbdown.net/download.php`
-
-    const formData = new URLSearchParams()
-    formData.append('URLz', url)
-
-    const { data: html } = await axios.post(apiUrl, formData.toString(), {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Origin': 'https://www.fbdown.net',
-        'Referer': 'https://www.fbdown.net/'
-      },
-      timeout: 15000
-    })
-
-    const hdMatch = html.match(/href="([^"]+)"[^>]*>\s*Download Video in HD/i)
-    const sdMatch = html.match(/href="([^"]+)"[^>]*>\s*Download Video in Normal/i)
-    const titleMatch = html.match(/<p[^>]*class="[^"]*compact[^"]*"[^>]*>([^<]+)</i)
-
-    const videoUrl = hdMatch?.[1] || sdMatch?.[1]
-
-    if (videoUrl) {
-      return {
-        videoUrl,
-        title: titleMatch ? titleMatch[1].trim() : 'Sin título'
+    const { data } = await axios.post('https://fdown.isuru.eu.org/info',
+      { url },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 25000
       }
+    )
+
+    if (data.status !== 'success' || !data.available_formats?.length) {
+      throw new Error('No se encontraron formatos disponibles')
     }
 
-    throw new Error('No video URL found in response')
-  } catch (error) {
-    throw new Error(`FbDown API error: ${error.message}`)
-  }
-}
+    // Priorizamos la mejor calidad disponible (la API ya las devuelve
+    // ordenadas, pero buscamos explícitamente 1080p > 720p > el resto)
+    const formatos = data.available_formats
+    const mejorFormato =
+      formatos.find(f => f.quality === '1080p') ||
+      formatos.find(f => f.quality === '720p') ||
+      formatos[0]
 
-async function facebookSnapsave(url) {
-  try {
-    const apiUrl = `https://snapsave.app/action.php?lang=en`
-
-    const formData = new URLSearchParams()
-    formData.append('url', url)
-
-    const { data } = await axios.post(apiUrl, formData.toString(), {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Origin': 'https://snapsave.app',
-        'Referer': 'https://snapsave.app/'
-      },
-      timeout: 15000
-    })
-
-    const html = typeof data === 'string' ? data : data?.data || ''
-
-    const videoMatch = html.match(/href="([^"]*\.mp4[^"]*)"/)
-
-    if (videoMatch && videoMatch[1]) {
-      return {
-        videoUrl: videoMatch[1],
-        title: 'Video de Facebook'
-      }
+    return {
+      videoUrl: mejorFormato.url,
+      title: data.video_info?.title || 'Sin título',
+      uploader: data.video_info?.uploader || 'Desconocido',
+      duration: data.video_info?.duration,
+      viewCount: data.video_info?.view_count
     }
-
-    throw new Error('No video data found')
   } catch (error) {
-    throw new Error(`Snapsave API error: ${error.message}`)
+    throw new Error(`Facebook API error: ${error.message}`)
   }
 }
 
@@ -138,7 +86,7 @@ export default {
     const facebookUrl = validateFacebookUrl(args[0])
     if (!facebookUrl) {
       return await reply({
-        text: `❌ URL de Facebook inválida. Por favor verifica el enlace.\n\n✅ *URLs válidas:*\n• https://www.facebook.com/.../videos/...\n• https://www.facebook.com/watch?v=...\n• https://www.facebook.com/reel/...\n• https://fb.watch/...`
+        text: `❌ URL de Facebook inválida. Por favor verifica el enlace.\n\n✅ *URLs válidas:*\n• https://www.facebook.com/.../videos/...\n• https://www.facebook.com/watch?v=...\n• https://www.facebook.com/reel/...\n• https://www.facebook.com/share/v/...\n• https://fb.watch/...`
       })
     }
 
@@ -146,20 +94,16 @@ export default {
     await reply({ text: `> ✎...Descargando video.` })
 
     try {
-      const result = await downloadFromMultipleAPIs(facebookUrl)
-
-      if (!result || !result.videoUrl) {
-        await react('❌')
-        return await reply({ text: `❌ No se pudo descargar el video. El enlace podría ser privado o no válido.` })
-      }
-
-      const { videoUrl, title } = result
+      const result = await downloadFacebookVideo(facebookUrl)
 
       const caption = `✅ *Video de Facebook descargado*\n\n` +
-        `📹 *Título:* ${title || 'Sin título'}`
+        `📹 *Título:* ${result.title}\n` +
+        `👤 *Autor:* ${result.uploader}\n` +
+        `⏱️ *Duración:* ${formatDuration(result.duration)}\n` +
+        `👁️ *Vistas:* ${result.viewCount ?? 'N/A'}`
 
       await sock.sendMessage(from, {
-        video: { url: videoUrl },
+        video: { url: result.videoUrl },
         mimetype: 'video/mp4',
         fileName: 'facebook.mp4',
         caption
