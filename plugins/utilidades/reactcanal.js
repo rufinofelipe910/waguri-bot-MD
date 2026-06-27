@@ -4,7 +4,7 @@ export default {
   category: 'utils',
   ownerOnly: false,
 
-  async run({ sock, args, reply }) {
+  async run({ sock, args, reply, react }) {
     const link = args[0]
     const emoji = args[1]
 
@@ -20,14 +20,18 @@ export default {
     const invite = match[1]
     const serverId = match[2]
 
+    await react('🐢')
+    await reply({ text: `🐢 *Procesando...* Reaccionando con ${emoji} en todos los bots.` })
+
+    let exito = false
+
     try {
-      // El propio bot que recibe el comando reacciona directo
       await sock.newsletterReactMessage(invite, serverId, emoji)
+      exito = true
     } catch (e) {
-      // si falla con invite, seguimos igual con el broadcast a los demás
+      // si falla con este bot, seguimos igual con el broadcast a los demás
     }
 
-    // Le avisamos al manager (solo existe si este bot es el Main)
     try {
       const { broadcastReaccionCanal } = await import('../../core/subbotManager.js')
       broadcastReaccionCanal({ invite, serverId, emoji })
@@ -35,6 +39,12 @@ export default {
       // si este bot es un subbot, no tiene el manager real -> lo ignoramos
     }
 
-    await reply({ text: `✅ Todos los bots están reaccionando con ${emoji}` })
+    if (exito) {
+      await react('✅')
+      await reply({ text: `✅ ¡Listo! Todos los bots están reaccionando con ${emoji}` })
+    } else {
+      await react('❌')
+      await reply({ text: `❌ No se pudo reaccionar al mensaje. Verifica el link.` })
+    }
   }
 }
