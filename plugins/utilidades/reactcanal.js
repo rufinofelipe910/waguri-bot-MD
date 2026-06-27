@@ -26,10 +26,15 @@ export default {
     let exito = false
 
     try {
-      await sock.newsletterReactMessage(invite, serverId, emoji)
+      // 🔑 newsletterReactMessage necesita el JID real (xxxx@newsletter),
+      // no el código corto de invitación de la URL.
+      const meta = await sock.newsletterMetadata('invite', invite)
+      const canalJid = meta.id
+
+      await sock.newsletterReactMessage(canalJid, serverId, emoji)
       exito = true
     } catch (e) {
-      // si falla con este bot, seguimos igual con el broadcast a los demás
+      console.error('Error reaccionando al canal:', e)
     }
 
     try {
