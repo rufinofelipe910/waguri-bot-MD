@@ -175,16 +175,9 @@ export async function createConnection({
     }
   }
 
-  // 🛡️ Watchdog: si la conexión está "abierta" según el estado interno,
-  // pero no hay NINGUNA señal de actividad real del socket (mensajes,
-  // refresco de credenciales, cambios de grupo, etc.) por demasiado
-  // tiempo, asumimos que el socket quedó en estado "zombie" (conectado
-  // en apariencia pero sordo) y forzamos una reconexión real.
-  // Costo: una comparación numérica simple cada 60s — sin impacto
-  // perceptible en CPU/RAM.
   function startWatchdog() {
     clearWatchdog();
-    const UMBRAL_INACTIVIDAD = 10 * 60 * 1000; // 10 minutos sin ninguna señal
+    const UMBRAL_INACTIVIDAD = 10 * 60 * 1000;
 
     watchdogInterval = setInterval(() => {
       if (!connected) return;
