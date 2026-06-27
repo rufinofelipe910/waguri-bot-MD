@@ -40,10 +40,15 @@ function broadcastBotsList() {
   }
 }
 
-// 🛡️ Construye el objeto final a guardar para el Main, conservando
-// SIEMPRE label/banner/cualquier otro dato editado previamente.
-// Antes, registerMainBot pisaba el registro completo en cada arranque
-// con force:true, perdiendo el nombre y banner personalizados.
+// 📡 Le pide a TODOS los subbots que reaccionen a un mensaje de canal.
+// El Main hace lo suyo aparte (en connection.js), porque corre en este
+// mismo proceso y no necesita pasar por un worker.
+export function broadcastReaccionCanal({ invite, serverId, emoji }) {
+  for (const worker of workers.values()) {
+    worker.postMessage({ type: "react_canal", invite, serverId, emoji });
+  }
+}
+
 function construirDatosMain(jid, labelDefault, status) {
   const existentes = db.getBot(jid);
 
