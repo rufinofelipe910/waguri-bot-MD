@@ -19,13 +19,22 @@ const { id, sessionDir, phoneNumber, mainBotNum } = workerData;
 const logger = pino({ level: "silent" });
 let pluginsLoaded = false;
 
-// 📸 Cache local, actualizada pasivamente cada vez que el manager
-// transmite un cambio real (sin polling, sin intervalos).
 let activeBotsLive = [];
+let currentSock = null;
 
 parentPort.on("message", (msg) => {
   if (msg.type === "bots_list") {
     activeBotsLive = msg.data || [];
+  }
+
+  // 📡 El manager nos pide reaccionar a un mensaje de canal con nuestra
+  // propia conexión (currentSock), igual que haría el Main.
+  if (msg.type === "react_canal" && currentSock) {
+    currentSock.newsletterReactMessage(
+      `${msg.invite}@newsletter`.includes('@newsletter') ? msg.invite : msg.invite,
+      msg.serverId,
+      msg.emoji
+    ).catch(() => {});
   }
 });
 
@@ -130,6 +139,8 @@ async function startWorker(_attempt = 0) {
       retryRequestDelayMs: 3000,
       defaultQueryTimeoutMs: 60000,
     });
+
+    currentSock = sock;
   } catch (e) {
     try { closeDb(); } catch {}
     parentPort?.postMessage({ type: "error", message: e.message });
@@ -151,6 +162,7 @@ async function startWorker(_attempt = 0) {
   sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       connected = true;
+      currentSock = sock;
 
       const rawJid = sock.user?.id || "";
       const jidLimpio = rawJid ? rawJid.split(":")[0].split("@")[0] + "@s.whatsapp.net" : "";
@@ -203,7 +215,7 @@ async function startWorker(_attempt = 0) {
 
       if (!connected) {
         pendingMessages.push(msg);
-        return;
+        continue;
       }
 
       handleMessage(sock, msg, id.toUpperCase(), mainBotNum, activeBotsLive).catch(() => {});
