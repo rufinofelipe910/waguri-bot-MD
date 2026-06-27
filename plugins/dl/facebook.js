@@ -50,8 +50,6 @@ async function downloadFacebookVideo(url) {
       throw new Error('No se encontraron formatos disponibles')
     }
 
-    // Priorizamos la mejor calidad disponible (la API ya las devuelve
-    // ordenadas, pero buscamos explícitamente 1080p > 720p > el resto)
     const formatos = data.available_formats
     const mejorFormato =
       formatos.find(f => f.quality === '1080p') ||
@@ -68,6 +66,17 @@ async function downloadFacebookVideo(url) {
   } catch (error) {
     throw new Error(`Facebook API error: ${error.message}`)
   }
+}
+
+async function descargarBuffer(url) {
+  const { data } = await axios.get(url, {
+    responseType: 'arraybuffer',
+    timeout: 60000,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+  })
+  return Buffer.from(data)
 }
 
 export default {
@@ -96,6 +105,11 @@ export default {
     try {
       const result = await downloadFacebookVideo(facebookUrl)
 
+      // 📦 Descargamos el buffer real en vez de pasar la URL directa,
+      // así evitamos problemas de codec/streaming que WhatsApp no
+      // puede reproducir cuando se le pasa la URL fragmentada de Facebook.
+      const buffer = await descargarBuffer(result.videoUrl)
+
       const caption = `✅ *Video de Facebook descargado*\n\n` +
         `📹 *Título:* ${result.title}\n` +
         `👤 *Autor:* ${result.uploader}\n` +
@@ -103,7 +117,7 @@ export default {
         `👁️ *Vistas:* ${result.viewCount ?? 'N/A'}`
 
       await sock.sendMessage(from, {
-        video: { url: result.videoUrl },
+        video: buffer,
         mimetype: 'video/mp4',
         fileName: 'facebook.mp4',
         caption
