@@ -1,4 +1,7 @@
 import axios from 'axios'
+import fs from 'fs'
+import path from 'path'
+import { execSync } from 'child_process'
 
 function validateFacebookUrl(url) {
   try {
@@ -79,6 +82,27 @@ async function descargarBuffer(url) {
   return Buffer.from(data)
 }
 
+function reencodearVideo(bufferEntrada) {
+  const tmpDir = '/tmp'
+  const inputPath = path.join(tmpDir, `fb_in_${Date.now()}.mp4`)
+  const outputPath = path.join(tmpDir, `fb_out_${Date.now()}.mp4`)
+
+  fs.writeFileSync(inputPath, bufferEntrada)
+
+  try {
+    execSync(
+      `ffmpeg -i "${inputPath}" -c:v libx264 -preset fast -crf 23 -c:a aac -movflags +faststart -y "${outputPath}"`,
+      { stdio: 'ignore', timeout: 120000 }
+    )
+
+    const bufferSalida = fs.readFileSync(outputPath)
+    return bufferSalida
+  } finally {
+    try { fs.unlinkSync(inputPath) } catch {}
+    try { fs.unlinkSync(outputPath) } catch {}
+  }
+}
+
 export default {
   name: ['facebook', 'fb'],
   description: 'Descarga videos de Facebook',
@@ -104,11 +128,12 @@ export default {
 
     try {
       const result = await downloadFacebookVideo(facebookUrl)
+      const bufferOriginal = await descargarBuffer(result.videoUrl)
 
-      // 📦 Descargamos el buffer real en vez de pasar la URL directa,
-      // así evitamos problemas de codec/streaming que WhatsApp no
-      // puede reproducir cuando se le pasa la URL fragmentada de Facebook.
-      const buffer = await descargarBuffer(result.videoUrl)
+      // 🎬 Re-codificamos con ffmpeg a H.264/AAC estándar, el combo más
+      // compatible con WhatsApp, en vez de confiar en el codec original
+      // que entrega Facebook (que a veces no es reproducible en el chat).
+      const bufferFinal = reencodearVideo(bufferOriginal)
 
       const caption = `✅ *Video de Facebook descargado*\n\n` +
         `📹 *Título:* ${result.title}\n` +
@@ -117,7 +142,7 @@ export default {
         `👁️ *Vistas:* ${result.viewCount ?? 'N/A'}`
 
       await sock.sendMessage(from, {
-        video: buffer,
+        video: bufferFinal,
         mimetype: 'video/mp4',
         fileName: 'facebook.mp4',
         caption
