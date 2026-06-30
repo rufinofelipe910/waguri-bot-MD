@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { Readable, Writable } from 'stream';
+import ffmpeg from 'fluent-ffmpeg';
 
 // 1. Validador de URLs de TikTok
 function validateTikTokUrl(url) {
@@ -82,7 +84,40 @@ async function descargarBuffer(url) {
   return Buffer.from(data);
 }
 
-// 5. Estructura del comando/plugin
+// 5. Optimizador de Video usando FFmpeg en memoria
+function optimizarVideoConFFmpeg(inputBuffer) {
+  return new Promise((resolve, reject) => {
+    const inputStream = new Readable();
+    inputStream.push(inputBuffer);
+    inputStream.push(null); // Fin del stream
+
+    const buffers = [];
+    const outputStream = new Writable({
+      write(chunk, encoding, callback) {
+        buffers.push(chunk);
+        callback();
+      }
+    });
+
+    ffmpeg(inputStream)
+      .outputOptions([
+        '-c:v libx264',       // Forzar codec H.264 compatible con móviles
+        '-pix_fmt yuv420p',   // Formato de pixel estándar universal para WhatsApp
+        '-c:a aac',           // Audio AAC universal
+        '-movflags frag_keyframe+empty_moov' // Requerido para procesar streams MP4 en memoria
+      ])
+      .format('mp4')
+      .on('end', () => {
+        resolve(Buffer.concat(buffers));
+      })
+      .on('error', (err) => {
+        reject(err);
+      })
+      .pipe(outputStream);
+  });
+}
+
+// 6. Estructura del comando/plugin
 export default {
   name: ['tiktok', 'tt'],
   description: 'Descarga videos de TikTok',
@@ -114,7 +149,17 @@ export default {
         return await reply({ text: `❌ No se pudo descargar el video. El enlace podría ser privado o no válido.` });
       }
 
-      const buffer = await descargarBuffer(result.videoUrl);
+      // Descargamos el video original de la API
+      let buffer = await descargarBuffer(result.videoUrl);
+
+      // Lo pasamos por FFmpeg para reparar contenedores o codecs incompatibles
+      try {
+        buffer = await optimizarVideoConFFmpeg(buffer);
+      } catch (ffmpegErr) {
+        console.error('FFmpeg falló, enviando buffer original como respaldo:', ffmpegErr.message);
+        // Si falla FFmpeg, dejamos el buffer original para no romper el comando por completo
+      }
+
       const titulo = result.title?.trim() || 'Sin título';
 
       let caption = `☑ *Video de TikTok descargado*\n`;
