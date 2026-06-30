@@ -41,30 +41,38 @@ function formatDuration(seconds) {
 
 async function downloadFacebookVideo(url) {
   try {
-    const { data } = await axios.post('https://fdown.isuru.eu.org/info',
-      { url },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 25000
-      }
-    )
+    const apiKey = 'Duarte-zz12'
+    const endpoint = `https://api.alyacore.xyz/dl/facebook?url=${encodeURIComponent(url)}&key=${apiKey}`
 
-    if (data.status !== 'success' || !data.available_formats?.length) {
-      throw new Error('No se encontraron formatos disponibles')
+    const { data } = await axios.get(endpoint, { timeout: 25000 })
+
+    if (data.status !== true || !data.resultados?.length) {
+      throw new Error('No se encontraron formatos disponibles en la respuesta de la API')
     }
 
-    const formatos = data.available_formats
+    const formatos = data.resultados
     const mejorFormato =
-      formatos.find(f => f.quality === '1080p') ||
-      formatos.find(f => f.quality === '720p') ||
-      formatos[0]
+      formatos.find(f => f.quality?.includes('1080p') && f.url !== '/') ||
+      formatos.find(f => f.quality?.includes('720p') && f.url !== '/') ||
+      formatos.find(f => f.quality?.includes('540p') && f.url !== '/') ||
+      formatos.find(f => f.url !== '/')
+
+    if (!mejorFormato) {
+      throw new Error('No se encontró un enlace de descarga de video válido')
+    }
+
+    let duration = null
+    if (mejorFormato.url.includes('duration_s%22%3A')) {
+      const match = mejorFormato.url.match(/duration_s%22%3A(\d+)/)
+      if (match) duration = parseInt(match[1], 10)
+    }
 
     return {
       videoUrl: mejorFormato.url,
-      title: data.video_info?.title || 'Sin título',
-      uploader: data.video_info?.uploader || 'Desconocido',
-      duration: data.video_info?.duration,
-      viewCount: data.video_info?.view_count
+      title: mejorFormato.filename || 'Video de Facebook',
+      uploader: data.creator || 'AlyaCore API',
+      duration: duration,
+      viewCount: null
     }
   } catch (error) {
     throw new Error(`Facebook API error: ${error.message}`)
@@ -130,16 +138,12 @@ export default {
       const result = await downloadFacebookVideo(facebookUrl)
       const bufferOriginal = await descargarBuffer(result.videoUrl)
 
-      // 🎬 Re-codificamos con ffmpeg a H.264/AAC estándar, el combo más
-      // compatible con WhatsApp, en vez de confiar en el codec original
-      // que entrega Facebook (que a veces no es reproducible en el chat).
       const bufferFinal = reencodearVideo(bufferOriginal)
 
       const caption = `✅ *Video de Facebook descargado*\n\n` +
         `📹 *Título:* ${result.title}\n` +
-        `👤 *Autor:* ${result.uploader}\n` +
-        `⏱️ *Duración:* ${formatDuration(result.duration)}\n` +
-        `👁️ *Vistas:* ${result.viewCount ?? 'N/A'}`
+        `👤 *API Crédito:* ${result.uploader}\n` +
+        `⏱️ *Duración:* ${result.duration ? formatDuration(result.duration) : 'N/A'}`
 
       await sock.sendMessage(from, {
         video: bufferFinal,
@@ -154,7 +158,7 @@ export default {
       console.error('Error en Facebook download:', error)
       await react('❌')
       await reply({
-        text: `❌ Error al procesar la descarga: ${error.message}\n\n💡 *Consejos:*\n• Verifica que el video sea público\n• Intenta con un enlace diferente\n• El video podría estar restringido por región`
+        text: `❌ Error al procesar la descarga: ${error.message}\n\n💡 *Consejos:*\n• Verifica que el video sea público\n• Intenta con un enlace diferente`
       })
     }
   }
