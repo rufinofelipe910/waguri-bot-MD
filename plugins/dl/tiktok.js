@@ -43,22 +43,19 @@ async function tiktokTikWM(url) {
   }
 }
 
-// 3. Sistema fallback (Múltiples APIs por si TikWM falla)
+// 3. Sistema fallback
 async function downloadFromMultipleAPIs(url) {
   try {
-    // Intentamos primero con TikWM
     return await tiktokTikWM(url);
   } catch (error) {
     console.warn('TikWM falló, intentando fallback...', error.message);
-    
-    // Fallback: API secundaria (ejemplo con lo-fi tikwm sin HD o una alternativa pública)
     try {
       const fallbackUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
       const { data } = await axios.get(fallbackUrl);
       if (data.code === 0 && data.data) {
         const d = data.data;
         return {
-          videoUrl: d.play, // Calidad estándar si el HD falla
+          videoUrl: d.play,
           title: d.title,
           authorNick: d.author?.nickname || 'Desconocido',
           likes: d.digg_count,
@@ -88,7 +85,7 @@ async function descargarBuffer(url) {
 // 5. Estructura del comando/plugin
 export default {
   name: ['tiktok', 'tt'],
-  description: 'Descarga videos de TikTok en HD',
+  description: 'Descarga videos de TikTok',
   category: 'dl',
   groupOnly: false,
 
@@ -107,7 +104,7 @@ export default {
     }
 
     await react('🔄');
-    await reply({ text: `> ✎...Descargando video en HD.` });
+    await reply({ text: `> ✎...Descargando video.` });
 
     try {
       const result = await downloadFromMultipleAPIs(tiktokUrl);
@@ -120,7 +117,7 @@ export default {
       const buffer = await descargarBuffer(result.videoUrl);
       const titulo = result.title?.trim() || 'Sin título';
 
-      let caption = `☑ *Video de TikTok descargado (HD)*\n`;
+      let caption = `☑ *Video de TikTok descargado*\n`;
       caption += `─╮\n`;
       caption += `   ╰━━━━━━(☆)━━━━━━─╮\n`;
       caption += `*👤 ᴀᴜᴛᴏʀ:* ${result.authorNick || 'Desconocido'}\n`;
