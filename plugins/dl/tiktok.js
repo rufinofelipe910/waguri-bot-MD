@@ -1,6 +1,8 @@
 import axios from 'axios';
-import { Readable, Writable } from 'stream';
 import ffmpeg from 'fluent-ffmpeg';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 // 1. Validador de URLs de TikTok
 function validateTikTokUrl(url) {
@@ -72,52 +74,24 @@ async function downloadFromMultipleAPIs(url) {
   }
 }
 
-// 4. Descargador de Buffer
-async function descargarBuffer(url) {
-  const { data } = await axios.get(url, {
-    responseType: 'arraybuffer',
-    timeout: 60000,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-  });
-  return Buffer.from(data);
-}
-
-// 5. Optimizador de Video usando FFmpeg en memoria
-function optimizarVideoConFFmpeg(inputBuffer) {
+// 4. Optimizador de Video usando Archivos Temporales en Disco
+function optimizarVideoConFFmpeg(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
-    const inputStream = new Readable();
-    inputStream.push(inputBuffer);
-    inputStream.push(null); // Fin del stream
-
-    const buffers = [];
-    const outputStream = new Writable({
-      write(chunk, encoding, callback) {
-        buffers.push(chunk);
-        callback();
-      }
-    });
-
-    ffmpeg(inputStream)
+    ffmpeg(inputPath)
       .outputOptions([
-        '-c:v libx264',       // Forzar codec H.264 compatible con móviles
-        '-pix_fmt yuv420p',   // Formato de pixel estándar universal para WhatsApp
-        '-c:a aac',           // Audio AAC universal
-        '-movflags frag_keyframe+empty_moov' // Requerido para procesar streams MP4 en memoria
+        '-c:v libx264',       // Codec h264 compatible con cualquier cel
+        '-pix_fmt yuv420p',   // Muestreo de color compatible con WhatsApp
+        '-c:a aac',           // Audio universal
+        '-movflags +faststart' // Mueve el moov atom al principio para que cargue rápido
       ])
       .format('mp4')
-      .on('end', () => {
-        resolve(Buffer.concat(buffers));
-      })
-      .on('error', (err) => {
-        reject(err);
-      })
-      .pipe(outputStream);
+      .on('end', () => resolve())
+      .on('error', (err) => reject(err))
+      .save(outputPath);
   });
 }
 
-// 6. Estructura del comando/plugin
+// 5. Estructura del comando/plugin
 export default {
   name: ['tiktok', 'tt'],
   description: 'Descarga videos de TikTok',
@@ -141,23 +115,46 @@ export default {
     await react('🔄');
     await reply({ text: `> ✎...Descargando video.` });
 
+    // Definimos rutas temporales únicas
+    const tempDir = os.tmpdir();
+    const inputTempFile = path.join(tempDir, `tt_in_${Date.now()}.mp4`);
+    const outputTempFile = path.join(tempDir, `tt_out_${Date.now()}.mp4`);
+
     try {
       const result = await downloadFromMultipleAPIs(tiktokUrl);
 
       if (!result || !result.videoUrl) {
         await react('❌');
-        return await reply({ text: `❌ No se pudo descargar el video. El enlace podría ser privado o no válido.` });
+        return await reply({ text: `❌ No se pudo obtener el video de la API.` });
       }
 
-      // Descargamos el video original de la API
-      let buffer = await descargarBuffer(result.videoUrl);
+      // Descargamos el archivo directamente al disco en modo Stream
+      const response = await axios({
+        method: 'get',
+        url: result.videoUrl,
+        responseType: 'stream',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
 
-      // Lo pasamos por FFmpeg para reparar contenedores o codecs incompatibles
+      const writer = fs.createWriteStream(inputTempFile);
+      response.data.pipe(writer);
+
+      // Esperamos a que se termine de escribir el archivo descargado
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
+      // Procesamos con FFmpeg de archivo a archivo (No se traba)
+      let finalBuffer;
       try {
-        buffer = await optimizarVideoConFFmpeg(buffer);
+        await optimizarVideoConFFmpeg(inputTempFile, outputTempFile);
+        finalBuffer = fs.readFileSync(outputTempFile);
       } catch (ffmpegErr) {
-        console.error('FFmpeg falló, enviando buffer original como respaldo:', ffmpegErr.message);
-        // Si falla FFmpeg, dejamos el buffer original para no romper el comando por completo
+        console.error('FFmpeg falló, intentando enviar el original:', ffmpegErr.message);
+        finalBuffer = fs.readFileSync(inputTempFile); // Respaldo por si FFmpeg da error de codecs
       }
 
       const titulo = result.title?.trim() || 'Sin título';
@@ -172,8 +169,9 @@ export default {
       caption += `*○ ᴄᴏᴍᴍᴇɴᴛ:* ${result.comments ?? 'N/A'}\n`;
       caption += `*📹 ᴛɪᴛᴜʟᴏ:* ${titulo}`;
 
+      // Enviamos el video procesado
       await sock.sendMessage(from, {
-        video: buffer,
+        video: finalBuffer,
         mimetype: 'video/mp4',
         fileName: 'tiktok.mp4',
         caption
@@ -185,8 +183,12 @@ export default {
       console.error('Error en TikTok download:', error);
       await react('❌');
       await reply({
-        text: `❌ Error al procesar la descarga: ${error.message}\n\n💡 *Consejos:*\n• Verifica que el video sea público\n• Intenta con un enlace diferente\n• El video podría estar restringido por región`
+        text: `❌ Error al procesar la descarga: ${error.message}`
       });
+    } finally {
+      // Borramos los archivos temporales pase lo que pase para no llenar la memoria del VPS
+      if (fs.existsSync(inputTempFile)) fs.unlinkSync(inputTempFile);
+      if (fs.existsSync(outputTempFile)) fs.unlinkSync(outputTempFile);
     }
   }
 };
