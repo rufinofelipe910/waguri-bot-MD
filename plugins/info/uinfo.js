@@ -1,6 +1,6 @@
 export default {
   name: ['uinfo', 'userinfo', 'info'],
-  description: 'Muestra información de un usuario',
+  description: 'Muestra información detallada usando USyncQuery real',
   category: 'info',
   ownerOnly: false,
 
@@ -15,34 +15,84 @@ export default {
     target = `${targetNum}@s.whatsapp.net`
 
     try {
-      const [status, foto, biz, devices] = await Promise.allSettled([
-        sock.fetchStatus(target),
+      const query = new USyncQuery()
+        .withContext('interactive')
+        .withMode('query')
+        .withUser({ jid: target })
+        .withStatusProtocol()
+        .withDeviceProtocol()
+        .withUsernameProtocol()
+        .withLIDProtocol()
+
+      const uSyncNode = {
+        tag: 'iq',
+        attrs: {
+          to: '@s.whatsapp.net',
+          type: 'get',
+          xmlns: 'usync'
+        },
+        content: [
+          {
+            tag: 'usync',
+            attrs: {
+              context: query.context,
+              mode: query.mode,
+              sid: sock.generateMessageID(),
+              index: '0',
+              last: 'true'
+            },
+            content: [
+              {
+                tag: 'user',
+                content: [
+                  {
+                    tag: 'jid',
+                    content: target
+                  }
+                ]
+              },
+              {
+                tag: 'list',
+                content: query.protocols.map(p => ({ tag: p.name }))
+              }
+            ]
+          }
+        ]
+      }
+
+      const [stanzaResult, foto, biz] = await Promise.allSettled([
+        sock.query(uSyncNode),
         sock.profilePictureUrl(target, 'image'),
-        sock.getBusinessProfile(target),
-        sock.getUSyncDevices([target], true, false),
+        sock.getBusinessProfile(target)
       ])
 
-      const statusText = status.status === 'fulfilled'
-        ? status.value?.status || 'Sin estado'
-        : 'No disponible'
+      let statusText = 'Sin estado'
+      let dispositivosTxt = 'No disponible'
+      let usernameText = 'No tiene'
+
+      if (stanzaResult.status === 'fulfilled' && stanzaResult.value) {
+        const parsedData = query.parseUSyncQueryResult(stanzaResult.value)
+        const userResult = parsedData?.list?.[0]
+
+        if (userResult) {
+          if (userResult.status) statusText = userResult.status
+          if (userResult.username) usernameText = `@${userResult.username}`
+          if (userResult.devices && Array.isArray(userResult.devices)) {
+            dispositivosTxt = `${userResult.devices.length} dispositivo(s) vinculado(s)`
+          }
+        }
+      }
 
       const tieneFoto  = foto.status === 'fulfilled' && foto.value
       const bizData    = biz.status === 'fulfilled' && biz.value
       const esBusiness = bizData && Object.keys(bizData).length > 0
 
-      let dispositivosTxt = 'No disponible'
-      if (devices.status === 'fulfilled' && devices.value) {
-        const devList = devices.value
-        dispositivosTxt = devList.length > 0
-          ? `${devList.length} dispositivo(s) vinculado(s)`
-          : 'Sin dispositivos vinculados'
-      }
-
       let text = `✨ ═══ 🫧 *YUTA OKOTSU* 🫧 ═══ ✨\n`
-      text += `🔍 _Información de Usuario_\n\n`
+      text += `🔍 _Información de Usuario Extraída Vía USync_\n\n`
 
       text += `👤 ─── ❖ *PERFIL* ❖ ─── 👤\n`
       text += `  ✦ *Número:* +${targetNum}\n`
+      text += `  ✦ *Username:* ${usernameText}\n`
       text += `  ✦ *JID:* ${target}\n`
       text += `  ✦ *Tipo:* ${esBusiness ? '🏢 Business' : '👤 Normal'}\n`
       text += `  ✦ *Foto:* ${tieneFoto ? '✅ Tiene' : '❌ No tiene'}\n`
