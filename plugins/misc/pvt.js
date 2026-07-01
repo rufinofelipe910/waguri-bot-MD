@@ -1,6 +1,5 @@
 exports.command = {
   name: 'pvt',
-  alias: [],
   category: 'misc',
   desc: 'Convierte un video respondido en nota de video (pvt)',
   owner: false,
@@ -9,7 +8,7 @@ exports.command = {
   run: async (conn, m, { }) => {
     const quoted = m.quoted
     
-    if (!quoted || !['videoMessage'].includes(quoted.mtype)) {
+    if (!quoted || quoted.mtype !== 'videoMessage') {
       return conn.sendMessage(m.chat, { 
         text: '❌ Responde a un video para convertirlo en nota de video.' 
       }, { quoted: m })
@@ -27,13 +26,13 @@ exports.command = {
     await conn.sendMessage(m.chat, {
       video: videoBuffer,
       mimetype: 'video/mp4',
-      ptv: true, // <-- esto lo hace nota de video (pvt)
+      ptv: true,
       contextInfo: {
         mentionedJid: [m.sender],
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
           newsletterJid: '120363420979328566@newsletter',
-          newsletterName: '⏤͟͞ू⃪𝐁𝕃𝐔𝔼 𝐋𝕆𝐂𝕂 𝐂𝕃𝐔𝔹 𑁯🩵ᰍ',
+          newsletterName: '⏤͟͞ू⃪𝐁𝕃𝐔𝐄 𝐋𝕆𝐂𝕂 𝐂𝕃𝐔𝐁 𑁯🩵ᰍ',
           serverMessageId: -1
         }
       }
