@@ -1,3 +1,5 @@
+import { generateMessageID } from '@whiskeysockets/baileys'
+
 class USyncQuery {
     constructor() {
         this.protocols = [];
@@ -116,7 +118,7 @@ export default {
             attrs: {
               context: query.context,
               mode: query.mode,
-              sid: sock.generateMessageID(),
+              sid: generateMessageID(),
               index: '0',
               last: 'true'
             },
