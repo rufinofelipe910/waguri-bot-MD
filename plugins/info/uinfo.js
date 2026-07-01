@@ -1,3 +1,82 @@
+class USyncQuery {
+    constructor() {
+        this.protocols = [];
+        this.users = [];
+        this.context = 'interactive';
+        this.mode = 'query';
+    }
+    withMode(mode) {
+        this.mode = mode;
+        return this;
+    }
+    withContext(context) {
+        this.context = context;
+        return this;
+    }
+    withUser(user) {
+        this.users.push(user);
+        return this;
+    }
+    parseUSyncQueryResult(result) {
+        if (!result || result.attrs.type !== 'result') {
+            return;
+        }
+        const protocolMap = Object.fromEntries(this.protocols.map(protocol => {
+            return [protocol.name, protocol.parser];
+        }));
+        const queryResult = {
+            list: [],
+            sideList: []
+        };
+        const usyncNode = result.content?.find(node => node.tag === 'usync');
+        const listNode = usyncNode?.content?.find(node => node.tag === 'list');
+        if (listNode?.content && Array.isArray(listNode.content)) {
+            queryResult.list = listNode.content.reduce((acc, node) => {
+                const id = node?.attrs.jid;
+                if (id) {
+                    const data = Array.isArray(node?.content)
+                        ? Object.fromEntries(node.content
+                            .map(content => {
+                            const protocol = content.tag;
+                            const parser = protocolMap[protocol];
+                            if (parser) {
+                                return [protocol, parser(content)];
+                            }
+                            else {
+                                return [protocol, null];
+                            }
+                        })
+                            .filter(([, b]) => b !== null))
+                        : {};
+                    acc.push({ ...data, id });
+                }
+                return acc;
+            }, []);
+        }
+        return queryResult;
+    }
+    withDeviceProtocol() {
+        this.protocols.push({ name: 'devices', parser: (node) => node.content });
+        return this;
+    }
+    withContactProtocol() {
+        this.protocols.push({ name: 'contact', parser: (node) => node.content });
+        return this;
+    }
+    withStatusProtocol() {
+        this.protocols.push({ name: 'status', parser: (node) => node.content?.[0]?.content?.toString() });
+        return this;
+    }
+    withUsernameProtocol() {
+        this.protocols.push({ name: 'username', parser: (node) => node.content?.[0]?.content?.toString() });
+        return this;
+    }
+    withLIDProtocol() {
+        this.protocols.push({ name: 'lid', parser: (node) => node.content });
+        return this;
+    }
+}
+
 export default {
   name: ['uinfo', 'userinfo', 'info'],
   description: 'Muestra información detallada usando USyncQuery real',
