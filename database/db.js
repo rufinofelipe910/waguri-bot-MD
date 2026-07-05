@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "fs";
-import config from "../config.js"; // Asegúrate de que la ruta hacia tu config.js sea la correcta
+import config from "../config.js";
 
 mkdirSync("./database", { recursive: true });
 
@@ -9,7 +9,6 @@ db_instance.pragma("journal_mode = WAL");
 db_instance.pragma("synchronous = NORMAL");
 db_instance.pragma("wal_autocheckpoint = 1");
 
-// Creamos las tablas usando el principio dinámico JSON
 db_instance.exec(`
   CREATE TABLE IF NOT EXISTS users (
     jid TEXT PRIMARY KEY,
@@ -36,7 +35,6 @@ const stmts = {
   insertGroup: db_instance.prepare("INSERT INTO groups (jid, data) VALUES (?, ?)"),
   updateGroup: db_instance.prepare("UPDATE groups SET data = ? WHERE jid = ?"),
 
-  // Consultas preparadas para la gestión de bots
   getBot: db_instance.prepare("SELECT data FROM bots WHERE jid = ?"),
   insertBot: db_instance.prepare("INSERT INTO bots (jid, data) VALUES (?, ?)"),
   updateBot: db_instance.prepare("UPDATE bots SET data = ? WHERE jid = ?"),
@@ -72,7 +70,6 @@ function getGroup(jid) {
   return JSON.parse(row.data);
 }
 
-// Obtener un bot de forma dinámica
 function getBot(jid) {
   const row = stmts.getBot.get(jid);
   if (!row) {
@@ -104,9 +101,6 @@ export const db = {
     stmts.updateGroup.run(JSON.stringify(updatedData), jid);
   },
 
-  // 🤖 Guarda o actualiza cualquier propiedad de cualquier bot en tiempo real
-  // 🛡️ Protección: nadie puede "bajar" al main (isMain: true -> false) salvo que sea forzado.
-  //    Esto evita que un subbot con un JID coincidente corrompa el registro del bot principal.
   setBot(jid, dataObject, force = false) {
     const currentData = getBot(jid);
 
@@ -122,11 +116,6 @@ export const db = {
     }
   },
 
-  // Retorna una lista con TODOS los bots registrados y sus objetos JSON limpios
-  // Incluye "id" además de "jid" para búsquedas explícitas por llave.
-  // 🔄 Antes de leer, forzamos un checkpoint pasivo del WAL para asegurar
-  // que esta conexión vea los cambios más recientes escritos por OTROS
-  // workers/subbots (cada subbot corre con su propia conexión SQLite).
   getAllBots() {
     try {
       db_instance.pragma("wal_checkpoint(PASSIVE)");
@@ -140,12 +129,10 @@ export const db = {
     }));
   },
 
-  // 🌟 PARCHE: Filtra directamente los bots activos desde la DB dinámica
   getOnlineBots() {
     return this.getAllBots().filter(bot => bot.status === 'online');
   },
 
-  // 🛡️ CONTROL DE ROLES: Verifica de forma prioritaria el config.js y luego la DB
   hasRole(jid, role) {
     const numeroLimpio = jid.split('@')[0];
 
@@ -187,5 +174,20 @@ export const db = {
     const group = getGroup(groupJid);
     delete group.primaryBot;
     stmts.updateGroup.run(JSON.stringify(group), groupJid);
+  },
+
+  // 💰 ECONOMÍA — Fragmentos
+  getEco(jid) {
+    const user = getUser(jid);
+    return {
+      bolsillo: user.bolsillo ?? 0,
+      banco: user.banco ?? 0,
+      inventario: user.inventario ?? [],
+      lastWork: user.lastWork ?? 0
+    };
+  },
+
+  setEco(jid, dataObject) {
+    db.setUser(jid, dataObject);
   },
 };
