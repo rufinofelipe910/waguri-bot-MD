@@ -1,96 +1,138 @@
 import axios from 'axios'
-import { Sticker, StickerTypes } from 'wa-sticker-formatter'
+import sharp from 'sharp'
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+const toBuffer = async (url) =>
+  Buffer.from((await axios.get(url, { responseType: 'arraybuffer' })).data)
+
+const toWebp = async (buffer, isAnimated = false) => {
+  const base = sharp(buffer, isAnimated ? { animated: true } : {})
+    .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .webp({ quality: 80, ...(isAnimated ? { loop: 0 } : {}) })
+  return base.toBuffer()
+}
+
+const withRetry = async (fn, attempt = 1) => {
+  try {
+    return await fn()
+  } catch (e) {
+    if (e.response?.status === 429 && attempt <= 3) {
+      await delay((e.response.headers['retry-after'] || 5) * 1000)
+      return withRetry(fn, attempt + 1)
+    }
+    throw e
+  }
+}
+
+const searchStickerly = (query) =>
+  withRetry(async () => {
+    const { data } = await axios.get('https://api.alyacore.xyz/stickerly/search', {
+      params: { query, key: global.apikey }
+    })
+    return data
+  })
+
+const getPackDetail = (url) =>
+  withRetry(async () => {
+    const { data } = await axios.get('https://api.alyacore.xyz/stickerly/detail', {
+      params: { url, key: global.apikey }
+    })
+    return data
+  })
 
 export default {
   name: ['stickersearch', 'buscars', 'spack'],
-  description: 'Busca packs de stickers por nombre',
+  description: 'Busca y envía un paquete completo de stickers desde Sticker.ly',
   category: 'stickers',
   ownerOnly: false,
 
   async run({ sock, from, msg, args, text, reply, react }) {
-    if (!text) {
-      return await reply({
-        text: `🎭 Escribe el término a buscar.\n\n📝 *Ejemplo:* .spack gatos`
-      })
-    }
-
-    await react('🔍')
-
     try {
-      const { data } = await axios.get('https://fare.ink/search/s', {
-        params: { q: text },
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 15000
-      })
-
-      if (!data?.resultado?.success || !data.resultado.packs?.length) {
-        await react('❌')
-        return await reply({ text: `❌ No se encontraron packs para *"${text}"*` })
+      if (!text) {
+        return await reply({
+          text: `🎭 Escribe el término a buscar.\n\n📝 *Ejemplo:* .spack gatos`
+        })
       }
 
-      const packs = data.resultado.packs
-      const total = data.resultado.total_results
+      await react('🔍')
 
-      let lista = `🎭 *Packs encontrados para "${text}"*\n`
-      lista += `╰━━━━━━(☆)━━━━━━─╮\n\n`
-      lista += `📦 *Total:* ${total} packs\n\n`
+      const search = await searchStickerly(text)
+      const resultados = search.resultados || search.result || []
+      const freePacks = resultados.filter(p => !p.isPaid)
 
-      packs.forEach((pack, i) => {
-        lista += `*${i + 1}.* ${pack.title}\n`
-        lista += `   👤 ${pack.author}\n`
-        lista += `   🖼️ ${pack.stickers.length} stickers\n\n`
-      })
+      if (!freePacks.length) {
+        await react('❌')
+        return await reply({ text: `❌ No se encontraron packs gratuitos para *"${text}"*` })
+      }
 
-      lista += `> Mandando stickers del primer pack...`
+      const user = globalThis.db.data.users[msg.sender] || {}
+      const name = user.name || msg.sender.split('@')[0]
+      const packName = user.metadatos || global.dev || 'Sticker Pack'
+      const author = user.metadatos2 || `@${name}`
 
-      await reply({ text: lista })
+      const bestPack = freePacks[0]
+      const detail = await getPackDetail(bestPack.url)
 
-      const primerPack = packs[0]
+      if (!detail.status || !detail.detalles?.stickers?.length) {
+        await react('❌')
+        return await reply({ text: `❌ No se pudo obtener el contenido del paquete.` })
+      }
+
+      const { detalles } = detail
+      const stickers = detalles.stickers.slice(0, 30)
 
       await reply({
-        text: `📦 *${primerPack.title}*\n👤 ${primerPack.author}\n🖼️ ${primerPack.stickers.length} stickers`
+        text: `📦 *${detalles.name}*\n👤 Autor: ${detalles.authorName}\n⚙️ Procesando ${stickers.length} stickers, por favor espera...`
       })
 
-      for (const stickerUrl of primerPack.stickers) {
-        try {
-          const { data: buffer } = await axios.get(stickerUrl, {
-            responseType: 'arraybuffer',
-            timeout: 15000
+      const stickerList = (
+        await Promise.allSettled(
+          stickers.map(async (s) => {
+            const buf = await toBuffer(s.imageUrl)
+            const webp = await toWebp(buf, s.isAnimated)
+            return {
+              sticker: webp,
+              isAnimated: s.isAnimated || false,
+              isLottie: false,
+              emojis: ['🎭']
+            }
           })
+        )
+      )
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value)
 
-          const ext = stickerUrl.split('.').pop().toLowerCase()
-
-          let stickerBuffer
-
-          if (ext === 'webp') {
-            // Ya es WebP, lo mandamos directo
-            stickerBuffer = Buffer.from(buffer)
-          } else {
-            // PNG, JPG, GIF — convertimos a WebP con wa-sticker-formatter
-            const sticker = new Sticker(Buffer.from(buffer), {
-              type: ext === 'gif' ? StickerTypes.ANIMATED : StickerTypes.DEFAULT,
-              quality: 50,
-            })
-            stickerBuffer = await sticker.toBuffer()
-          }
-
-          await sock.sendMessage(from, {
-            sticker: stickerBuffer
-          }, { quoted: msg })
-
-          await new Promise(r => setTimeout(r, 400))
-
-        } catch {
-          continue
-        }
+      if (!stickerList.length) {
+        await react('❌')
+        return await reply({ text: `❌ No se pudo procesar ningún sticker del paquete.` })
       }
+
+      const cover = await sharp(await toBuffer(detalles.thumbnailUrl))
+        .resize(96, 96, { fit: 'cover' })
+        .webp({ quality: 80 })
+        .toBuffer()
+
+      await sock.sendMessage(
+        from,
+        {
+          stickerPack: {
+            name: packName,
+            publisher: author,
+            description: `${detalles.name} • ${global.botname || 'Bot'}`,
+            cover,
+            stickers: stickerList
+          }
+        },
+        { quoted: msg }
+      )
 
       await react('✅')
 
     } catch (error) {
-      console.error('Error en stickersearch:', error)
+      console.error('Error en stickerpack:', error)
       await react('❌')
-      await reply({ text: `❌ Error al buscar stickers: ${error.message}` })
+      await reply({ text: `❌ Error al procesar la solicitud: ${error.message}` })
     }
   }
 }
