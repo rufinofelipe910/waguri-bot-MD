@@ -28,7 +28,7 @@ const withRetry = async (fn, attempt = 1) => {
 const searchStickerly = (query) =>
   withRetry(async () => {
     const { data } = await axios.get('https://api.alyacore.xyz/stickerly/search', {
-      params: { query, key: global.apikey }
+      params: { query, key: Duarte-zz12 }
     })
     return data
   })
