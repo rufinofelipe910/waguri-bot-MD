@@ -28,7 +28,7 @@ const withRetry = async (fn, attempt = 1) => {
 const searchStickerly = (query) =>
   withRetry(async () => {
     const { data } = await axios.get('https://api.alyacore.xyz/stickerly/search', {
-      params: { query, key: 'Duarte-ZZ12' }
+      params: { query, key: 'Duarte-zz12' }
     })
     return data
   })
@@ -36,26 +36,26 @@ const searchStickerly = (query) =>
 const getPackDetail = (url) =>
   withRetry(async () => {
     const { data } = await axios.get('https://api.alyacore.xyz/stickerly/detail', {
-      params: { url, key: 'Duarte-ZZ12' }
+      params: { url, key: 'Duarte-zz12' }
     })
     return data
   })
 
 export default {
   name: ['stickersearch', 'buscars', 'spack'],
-  description: 'Busca y envía un paquete completo de stickers desde Sticker.ly',
+  description: 'Busca packs de stickers en Sticker.ly',
   category: 'stickers',
   ownerOnly: false,
 
-  async run({ sock, from, msg, args, text, reply, react }) {
+  async run({ sock, from, msg, args, text, usedPrefix, reply, react }) {
     try {
       if (!text) {
         return await reply({
-          text: `🎭 Escribe el término a buscar.\n\n📝 *Ejemplo:* ${global.prefix || '.'}spack gatos`
+          text: `❌ Debes escribir el término a buscar.\n\n💡 *Uso:* ${usedPrefix || '.'}spack gatos`
         })
       }
 
-      await react('🔍')
+      await react('⏳')
 
       const search = await searchStickerly(text)
       const resultados = search.resultados || search.result || []
@@ -63,7 +63,7 @@ export default {
 
       if (!freePacks.length) {
         await react('❌')
-        return await reply({ text: `❌ No se encontraron packs gratuitos para *"${text}"*` })
+        return await reply({ text: `❌ No se encontraron packs para *${text}*.` })
       }
 
       const user = globalThis.db.data.users[msg.sender] || {}
@@ -84,7 +84,7 @@ export default {
       const stickers = detalles.stickers.slice(0, 30)
 
       await reply({
-        text: `📦 *${detalles.name}*\n👤 Autor: ${detalles.authorName}\n⚙️ Procesando ${stickers.length} stickers, por favor espera...`
+        text: `📦 *Pack:* ${detalles.name}\n🖼️ *Stickers:* ${stickers.length}\n⏳ _Procesando paquete..._`
       })
 
       const stickerList = (
@@ -106,7 +106,7 @@ export default {
 
       if (!stickerList.length) {
         await react('❌')
-        return await reply({ text: `❌ No se pudo procesar ningún sticker del paquete.` })
+        return await reply({ text: `❌ No se pudo procesar ningún sticker.` })
       }
 
       const cover = await sharp(await toBuffer(detalles.thumbnailUrl))
@@ -131,9 +131,9 @@ export default {
       await react('✅')
 
     } catch (error) {
-      console.error('Error en stickerpack:', error)
+      console.error(error)
       await react('❌')
-      await reply({ text: `❌ Error al procesar la solicitud: ${error.message}` })
+      await reply({ text: `❌ *Error:* ${error.message}` })
     }
   }
 }
