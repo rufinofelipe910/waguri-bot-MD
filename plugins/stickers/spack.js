@@ -1,5 +1,6 @@
 import axios from 'axios'
 import sharp from 'sharp'
+import { db } from '../../database/db.js'
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -47,7 +48,7 @@ export default {
   category: 'stickers',
   ownerOnly: false,
 
-  async run({ sock, from, msg, args, text, usedPrefix, reply, react }) {
+  async run({ sock, from, msg, args, text, usedPrefix, senderNum, reply, react }) {
     try {
       if (!text) {
         return await reply({
@@ -66,11 +67,11 @@ export default {
         return await reply({ text: `❌ No se encontraron packs para *${text}*.` })
       }
 
-      const user = globalThis.db.data.users[msg.sender] || {}
-      const name = user.name || msg.sender.split('@')[0]
+      // 🌟 LÓGICA DE TU BASE DE DATOS SQLITE (.setmeta)
+      const user = db.getUser(senderNum) || {}
       
-      const packName = user.metadatos || global.packname || 'Yuta Pack'
-      const authorName = user.metadatos2 || global.author || `@${name}`
+      const packName = user.text1 || global.packname || 'Yuta Pack'
+      const authorName = user.text2 || global.author || `@${senderNum}`
 
       const bestPack = freePacks[0]
       const detail = await getPackDetail(bestPack.url)
