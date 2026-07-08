@@ -6,20 +6,16 @@ export default {
   category: 'info',
   ownerOnly: false,
 
-  async run({ sock, from, msg, reply }) {
+  async run({ sock, from, msg }) {
     const ownerNum = config.ownerNumber?.[0]
 
-    if (!ownerNum) {
-      return await reply({ text: '❌ No hay owner configurado.' })
-    }
-
-    const ownerJid = `${ownerNum}@s.whatsapp.net`
+    if (!ownerNum) return
 
     await sock.sendMessage(from, {
       contacts: {
-        displayName: config.botName || 'Owner',
+        displayName: 'DuarteXV',
         contacts: [{
-          vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${config.botName || 'Owner'}\nTEL;type=CELL;type=VOICE;waid=${ownerNum}:+${ownerNum}\nEND:VCARD`
+          vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:DuarteXV\nTEL;type=CELL;type=VOICE;waid=${ownerNum}:+${ownerNum}\nEND:VCARD`
         }]
       }
     }, { quoted: msg })
