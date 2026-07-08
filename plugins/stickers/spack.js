@@ -51,7 +51,7 @@ export default {
     try {
       if (!text) {
         return await reply({
-          text: `🎭 Escribe el término a buscar.\n\n📝 *Ejemplo:* .spack gatos`
+          text: `🎭 Escribe el término a buscar.\n\n📝 *Ejemplo:* ${global.prefix || '.'}spack gatos`
         })
       }
 
@@ -68,8 +68,9 @@ export default {
 
       const user = globalThis.db.data.users[msg.sender] || {}
       const name = user.name || msg.sender.split('@')[0]
-      const packName = user.metadatos || global.dev || 'Sticker Pack'
-      const author = user.metadatos2 || `@${name}`
+      
+      const packName = user.metadatos || global.packname || 'Yuta Pack'
+      const authorName = user.metadatos2 || global.author || `@${name}`
 
       const bestPack = freePacks[0]
       const detail = await getPackDetail(bestPack.url)
@@ -118,8 +119,8 @@ export default {
         {
           stickerPack: {
             name: packName,
-            publisher: author,
-            description: `${detalles.name} • ${global.botname || 'Bot'}`,
+            publisher: authorName,
+            description: `${detalles.name} • ${global.botname || 'Yuta Bot'}`,
             cover,
             stickers: stickerList
           }
