@@ -9,7 +9,6 @@ export default {
 
   async run({ sock, from, msg, args, react, reply }) {
     try {
-      // Unir los argumentos para obtener la URL completa
       const url = args.join(' ').trim()
 
       if (!url) {
@@ -18,7 +17,6 @@ export default {
         })
       }
 
-      // Validar que sea un enlace HTTP/HTTPS
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         return reply({ text: '❌ La URL debe comenzar con http:// o https://' })
       }
@@ -26,10 +24,9 @@ export default {
       await react('⏳')
       await reply({ text: '🌐 Conectando con el servidor y descargando datos...' })
 
-      // Realizar la petición GET para obtener el archivo como Buffer
       const response = await axios.get(url, {
         responseType: 'arraybuffer',
-        timeout: 60000, // 1 minuto de límite para archivos grandes
+        timeout: 60000,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
@@ -41,54 +38,52 @@ export default {
         throw new Error('El servidor devolvió un archivo vacío.')
       }
 
-      // Detectar el tipo de archivo real a partir de sus bytes internos
       const detected = await fileTypeFromBuffer(buffer)
       const mime = detected?.mime || response.headers['content-type'] || 'text/plain'
 
-      // --- ENVIAR SEGÚN EL TIPO DE CONTENIDO ---
-
-      // 1. Si es una Imagen
       if (mime.startsWith('image/')) {
-        await sock.sendMessage(from, { 
-          image: buffer, 
-          caption: `✅ *Imagen obtenida con éxito*` 
+        await sock.sendMessage(from, {
+          image: buffer,
+          caption: `✅ *Imagen obtenida con éxito*`
         }, { quoted: msg })
-      } 
-      // 2. Si es un Video
-      else if (mime.startsWith('video/')) {
-        await sock.sendMessage(from, { 
-          video: buffer, 
-          caption: `✅ *Video obtenido con éxito*` 
-        }, { quoted: msg })
-      } 
-      // 3. Si es un Audio / Nota de voz
-      else if (mime.startsWith('audio/')) {
-        await sock.sendMessage(from, { 
-          audio: buffer, 
-          mimetype: mime,
-          ptt: mime.includes('ogg') // Si es ogg lo envía como nota de voz
-        }, { quoted: msg })
-      } 
-      // 4. Si es texto plano, JSON o código (Muestra las primeras líneas en el chat)
-      else if (mime.startsWith('text/') || mime.includes('json') || mime.includes('javascript')) {
-        const textContent = buffer.toString('utf-8')
-        
-        // Cortar el texto si es extremadamente largo para no trabar WhatsApp
-        const truncated = textContent.length > 3000 
-          ? textContent.substring(0, 3000) + '\n\n... (Contenido truncado por longitud)' 
-          : textContent
 
-        await reply({
-          text: `📄 *Resultado de la petición Texto/JSON:*\n\n\`\`\`${truncated}\`\`\``
-        })
-      } 
-      // 5. Cualquier otro tipo de archivo (PDF, ZIP, APK, etc.) lo envía como Documento
-      else {
+      } else if (mime.startsWith('video/')) {
+        await sock.sendMessage(from, {
+          video: buffer,
+          caption: `✅ *Video obtenido con éxito*`
+        }, { quoted: msg })
+
+      } else if (mime.startsWith('audio/')) {
+        await sock.sendMessage(from, {
+          audio: buffer,
+          mimetype: mime,
+          ptt: mime.includes('ogg')
+        }, { quoted: msg })
+
+      } else if (mime.startsWith('text/') || mime.includes('json') || mime.includes('javascript')) {
+        const textContent = buffer.toString('utf-8')
+
+        if (textContent.length > 3000) {
+          // Si es muy largo lo mandamos como archivo .txt descargable
+          // para no truncar nada y que el usuario pueda ver todo
+          await sock.sendMessage(from, {
+            document: Buffer.from(textContent),
+            mimetype: 'text/plain',
+            fileName: `fetch_${Date.now()}.txt`,
+            caption: `📄 *Contenido muy largo — se envía como archivo*\n> Tamaño: ${(textContent.length / 1024).toFixed(1)} KB`
+          }, { quoted: msg })
+        } else {
+          await reply({
+            text: `📄 *Resultado de la petición Texto/JSON:*\n\n\`\`\`${textContent}\`\`\``
+          })
+        }
+
+      } else {
         const ext = detected?.ext || 'bin'
-        await sock.sendMessage(from, { 
-          document: buffer, 
-          mimetype: mime, 
-          fileName: `fetch_file_${Date.now()}.${ext}` 
+        await sock.sendMessage(from, {
+          document: buffer,
+          mimetype: mime,
+          fileName: `fetch_file_${Date.now()}.${ext}`
         }, { quoted: msg })
       }
 
@@ -96,8 +91,7 @@ export default {
 
     } catch (e) {
       await react('❌')
-      
-      // Manejar errores comunes de conexión de Axios
+
       let errMsg = e.message
       if (e.response) {
         errMsg = `El servidor respondió con código de estado ${e.response.status}`
