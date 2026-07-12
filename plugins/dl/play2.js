@@ -22,7 +22,7 @@ export default {
       }
 
       const apis = [
-        `https://fare.ink/dl/ytv?url=${encodeURIComponent(videoUrl)}`,
+        `https://api.lempi.lat/dl/ytv?url=${encodeURIComponent(videoUrl)}&apikey=Duarte-1311`,
       ]
 
       let data = null
