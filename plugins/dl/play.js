@@ -1,12 +1,12 @@
 import axios from "axios";
 import yts from "yt-search";
 
-const API_KEY = "Irokz444";
+const API_KEY = "Duarte-1311";
 
 export default {
   name: ["play", "yta", "ytmp3", "playaudio"],
   description: "Descarga música de YouTube",
-category: 'dl',
+  category: 'dl',
   ownerOnly: false,
 
   async run({ sock, from, msg, text, reply, react }) {
@@ -32,7 +32,7 @@ category: 'dl',
       }
 
       const api =
-        `https://systemzone.store/v2/player?apikey=${API_KEY}&text=${encodeURIComponent(text)}`;
+        `https://api.lempi.lat/dl/yta?apikey=${API_KEY}&url=${encodeURIComponent(yt.url)}`;
 
       const res = await axios.get(api, {
         timeout: 90000,
@@ -40,32 +40,32 @@ category: 'dl',
 
       const data = res.data;
 
-      if (!data?.status || !data?.download_url) {
+      if (!data?.status || !data?.descarga?.url) {
         return reply({
           text: "⛧ no pude obtener el audio",
         });
       }
 
-      const {
-        title,
-        thumbnail,
-        duration,
-        youtube_url,
-        download_url
-      } = data;
+      const title = data.titulo;
+      const thumbnail = data.miniatura;
+      const youtube_url = data.fuente;
+      const download_url = data.descarga.url;
+      const calidad = data.descarga.calidad || "320kbps";
+      const formato = data.descarga.formato || "mp3";
+      const fileName = data.descarga.archivo || `${title}.mp3`;
 
       const vistas = formatViews(yt.views);
 
       await sock.sendMessage(
         from,
         {
-          image: { url: thumbnail || yt.thumbnail },
+          image: { url: thumbnail },
           caption:
             `⛧ ${title}\n\n` +
             `⛧ vistas › ${vistas}\n` +
-            `⛧ duración › ${formatDuration(duration || yt.seconds)}\n` +
-            `⛧ calidad › 128 kbps\n` +
-            `⛧ formato › mp3\n` +
+            `⛧ duración › ${formatDuration(yt.seconds)}\n` +
+            `⛧ calidad › ${calidad}\n` +
+            `⛧ formato › ${formato}\n` +
             `⛧ link › ${youtube_url}`
         },
         { quoted: msg }
@@ -79,7 +79,7 @@ category: 'dl',
           {
             document: { url: download_url },
             mimetype: "audio/mpeg",
-            fileName: `${title}.mp3`,
+            fileName,
             caption: "⛧ audio enviado como documento por duración/tamaño",
           },
           { quoted: msg }
@@ -131,16 +131,13 @@ function formatViews(views) {
 function formatDuration(duration) {
   if (!duration) return "No disponible";
 
-  // Si ya viene tipo "3:24"
   if (typeof duration === "string") {
     if (duration.includes(":")) {
       return duration;
     }
-
     duration = Number(duration);
   }
 
-  // Evita NaN
   if (isNaN(duration)) {
     return "No disponible";
   }
@@ -149,11 +146,9 @@ function formatDuration(duration) {
   const minutes = Math.floor((duration % 3600) / 60);
   const seconds = Math.floor(duration % 60);
 
-  // Formato HH:MM:SS
   if (hours > 0) {
     return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
 
-  // Formato MM:SS
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
