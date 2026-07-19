@@ -1,10 +1,11 @@
 import fs from "fs";
 import path from "path";
+// Importa tu base de datos (ajusta la ruta según tu estructura de carpetas)
+import { db } from "../database/db.js"; 
 
 const DATA_PATH = path.resolve(process.cwd(), "database/anime.json");
 const DATA = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
 
-// Quita el sufijo ":device" (ej: 5219999:0@s.whatsapp.net -> 5219999@s.whatsapp.net)
 function cleanJid(jid = "") {
   if (!jid) return "";
   const atIndex = jid.lastIndexOf("@");
@@ -36,20 +37,24 @@ export default {
 
       const video = entry.videos[Math.floor(Math.random() * entry.videos.length)];
 
-      // Conseguimos el pushName del autor, si no tiene usa el número (sin @)
-      const authorName = msg.pushName || authorJid.split("@")[0];
-      
-      // Conseguimos el nombre del mencionado, si no tiene usa su número (sin @)
-      const targetName = mentionedJid 
-        ? (contextInfo?.pushName || mentionedJid.split("@")[0])
-        : null;
+      // 1. Intentar obtener el nombre del autor (de msg o de la DB)
+      const dbAuthor = db.getUser(authorJid);
+      const authorName = msg.pushName || dbAuthor.name || dbAuthor.pushName || authorJid.split("@")[0];
 
-      // Texto plano sin @ ni formatos extra
+      // 2. Intentar obtener el nombre del mencionado desde tu DB
+      let targetName = null;
+      if (mentionedJid) {
+        const dbTarget = db.getUser(mentionedJid);
+        // Busca en tu DB si existe 'name' o 'pushName', si no, usa el pushName temporal del contexto o el número limpio
+        targetName = dbTarget.name || dbTarget.pushName || contextInfo?.pushName || mentionedJid.split("@")[0];
+      }
+
+      // Estructura con las comillas invertidas `` que pides
       const caption = isSelf
-        ? `${authorName} ${entry.self}`
-        : `${authorName} ${entry.target} ${targetName}`;
+        ? `\`${authorName}\` ${entry.self}`
+        : `\`${authorName}\` ${entry.target} \`${targetName}\``;
 
-      // Se mantiene el array de mentions para que WhatsApp mantenga la notificación interna en el grupo
+      // Mantenemos las menciones ocultas en el array para que WhatsApp envíe la notificación
       const mentions = isSelf ? [authorJid] : [authorJid, mentionedJid];
 
       await sock.sendMessage(
