@@ -5,7 +5,6 @@ const DATA_PATH = path.resolve(process.cwd(), "database/anime.json");
 const DATA = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
 
 // Quita el sufijo ":device" (ej: 5219999:0@s.whatsapp.net -> 5219999@s.whatsapp.net)
-// Sin esto, WhatsApp no resuelve el mention al nombre guardado del contacto.
 function cleanJid(jid = "") {
   if (!jid) return "";
   const atIndex = jid.lastIndexOf("@");
@@ -28,23 +27,28 @@ export default {
       const entry = DATA[category];
       if (!entry) return;
 
-      const rawMentioned =
-        msg?.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] ||
-        msg?.message?.extendedTextMessage?.contextInfo?.participant ||
-        null;
+      const contextInfo = msg?.message?.extendedTextMessage?.contextInfo;
+      const rawMentioned = contextInfo?.mentionedJid?.[0] || contextInfo?.participant || null;
 
       const authorJid = cleanJid(sender);
       const mentionedJid = rawMentioned ? cleanJid(rawMentioned) : null;
       const isSelf = !mentionedJid || mentionedJid === authorJid;
 
       const video = entry.videos[Math.floor(Math.random() * entry.videos.length)];
-      const authorTag = `\`@${authorJid.split("@")[0]}\``;
-      const targetTag = mentionedJid ? `\`@${mentionedJid.split("@")[0]}\`` : null;
+
+      // Conseguimos el pushName del autor, si no tiene usamos el número
+      const authorName = msg.pushName || `@${authorJid.split("@")[0]}`;
+      
+      // Conseguimos el nombre del mencionado (si está disponible en el contexto), si no, su número
+      const targetName = mentionedJid 
+        ? (contextInfo?.pushName || `@${mentionedJid.split("@")[0]}`)
+        : null;
 
       const caption = isSelf
-        ? `${authorTag} ${entry.self}`
-        : `${authorTag} ${entry.target} ${targetTag}`;
+        ? `*${authorName}* ${entry.self}`
+        : `*${authorName}* ${entry.target} *${targetName}*`;
 
+      // Mantenemos las menciones en el array para que les llegue la notificación (opcional)
       const mentions = isSelf ? [authorJid] : [authorJid, mentionedJid];
 
       await sock.sendMessage(
