@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-// Importa tu base de datos (ajusta la ruta según tu estructura de carpetas)
+// Asegúrate de colocar la ruta exacta a tu archivo de base de datos
 import { db } from "../database/db.js"; 
 
 const DATA_PATH = path.resolve(process.cwd(), "database/anime.json");
@@ -37,24 +37,22 @@ export default {
 
       const video = entry.videos[Math.floor(Math.random() * entry.videos.length)];
 
-      // 1. Intentar obtener el nombre del autor (de msg o de la DB)
+      // 1. Obtener el nombre del autor
       const dbAuthor = db.getUser(authorJid);
       const authorName = msg.pushName || dbAuthor.name || dbAuthor.pushName || authorJid.split("@")[0];
 
-      // 2. Intentar obtener el nombre del mencionado desde tu DB
+      // 2. Obtener el nombre del mencionado
       let targetName = null;
       if (mentionedJid) {
         const dbTarget = db.getUser(mentionedJid);
-        // Busca en tu DB si existe 'name' o 'pushName', si no, usa el pushName temporal del contexto o el número limpio
         targetName = dbTarget.name || dbTarget.pushName || contextInfo?.pushName || mentionedJid.split("@")[0];
       }
 
-      // Estructura con las comillas invertidas `` que pides
+      // Sintaxis corregida usando las comillas invertidas escapadas (\`) para WhatsApp
       const caption = isSelf
         ? `\`${authorName}\` ${entry.self}`
         : `\`${authorName}\` ${entry.target} \`${targetName}\``;
 
-      // Mantenemos las menciones ocultas en el array para que WhatsApp envíe la notificación
       const mentions = isSelf ? [authorJid] : [authorJid, mentionedJid];
 
       await sock.sendMessage(
