@@ -36,19 +36,20 @@ export default {
 
       const video = entry.videos[Math.floor(Math.random() * entry.videos.length)];
 
-      // Conseguimos el pushName del autor, si no tiene usamos el número
-      const authorName = msg.pushName || `@${authorJid.split("@")[0]}`;
+      // Conseguimos el pushName del autor, si no tiene usa el número (sin @)
+      const authorName = msg.pushName || authorJid.split("@")[0];
       
-      // Conseguimos el nombre del mencionado (si está disponible en el contexto), si no, su número
+      // Conseguimos el nombre del mencionado, si no tiene usa su número (sin @)
       const targetName = mentionedJid 
-        ? (contextInfo?.pushName || `@${mentionedJid.split("@")[0]}`)
+        ? (contextInfo?.pushName || mentionedJid.split("@")[0])
         : null;
 
+      // Texto plano sin @ ni formatos extra
       const caption = isSelf
-        ? `*${authorName}* ${entry.self}`
-        : `*${authorName}* ${entry.target} *${targetName}*`;
+        ? `${authorName} ${entry.self}`
+        : `${authorName} ${entry.target} ${targetName}`;
 
-      // Mantenemos las menciones en el array para que les llegue la notificación (opcional)
+      // Se mantiene el array de mentions para que WhatsApp mantenga la notificación interna en el grupo
       const mentions = isSelf ? [authorJid] : [authorJid, mentionedJid];
 
       await sock.sendMessage(
