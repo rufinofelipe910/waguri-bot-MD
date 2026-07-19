@@ -18,7 +18,7 @@ export default {
   description: "Reacciones anime: .hug @user, .kiss @user, etc.",
   category: "diversion",
   adminOnly: false,
-  groupOnly: false,
+  groupOnly: true,
 
   async run({ sock, from, msg, sender, reply, react, cmdName }) {
     try {
@@ -27,18 +27,32 @@ export default {
       if (!entry) return;
 
       const contextInfo = msg?.message?.extendedTextMessage?.contextInfo;
-      const rawMentioned = contextInfo?.mentionedJid?.[0] || contextInfo?.participant || null;
+      
+      let who = sender;
+      if (contextInfo?.mentionedJid?.length > 0) {
+        who = contextInfo.mentionedJid[0];
+      } else if (contextInfo?.participant) {
+        who = contextInfo.participant;
+      }
+
+      if (who.endsWith('@lid') || isNaN(who.split('@')[0])) {
+        try {
+          const groupMeta = await sock.groupMetadata(from);
+          const found = groupMeta.participants.find(p => p.id === who || p.lid === who);
+          if (found?.jid) who = found.jid;
+        } catch {}
+      }
 
       const authorJid = cleanJid(sender);
-      const mentionedJid = rawMentioned ? cleanJid(rawMentioned) : null;
-      const isSelf = !mentionedJid || mentionedJid === authorJid;
+      const mentionedJid = cleanJid(who);
+      const isSelf = mentionedJid === authorJid;
 
       const video = entry.videos[Math.floor(Math.random() * entry.videos.length)];
 
       const authorName = msg.pushName || authorJid.split("@")[0];
-      const targetName = mentionedJid 
-        ? (contextInfo?.pushName || mentionedJid.split("@")[0])
-        : null;
+      const targetName = isSelf 
+        ? null 
+        : (contextInfo?.pushName || mentionedJid.split("@")[0]);
 
       const caption = isSelf
         ? `${authorName} ${entry.self}`
