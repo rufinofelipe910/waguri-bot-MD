@@ -1,10 +1,15 @@
 import fs from "fs";
 import path from "path";
-// Asegúrate de colocar la ruta exacta a tu archivo de base de datos
-import { db } from "../database/db.js"; 
+import { db } from "../database/db.js"; // Tu archivo de SQLite
 
 const DATA_PATH = path.resolve(process.cwd(), "database/anime.json");
-const DATA = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
+let DATA = {};
+
+try {
+  DATA = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
+} catch (error) {
+  console.error("❌ Error al cargar anime.json:", error.message);
+}
 
 function cleanJid(jid = "") {
   if (!jid) return "";
@@ -16,7 +21,8 @@ function cleanJid(jid = "") {
 }
 
 export default {
-  name: Object.keys(DATA), // hug, kiss, pat, slap, cuddle, etc.
+  // Genera dinámicamente los comandos según las llaves de anime.json (ej: pat, hug, kiss)
+  name: Object.keys(DATA), 
   description: "Reacciones anime: .hug @user, .kiss @user, etc.",
   category: "diversion",
   adminOnly: false,
@@ -26,6 +32,8 @@ export default {
     try {
       const category = (cmdName || "").toLowerCase();
       const entry = DATA[category];
+      
+      // Si el comando no coincide con ninguna llave del JSON, frena aquí
       if (!entry) return;
 
       const contextInfo = msg?.message?.extendedTextMessage?.contextInfo;
@@ -37,18 +45,17 @@ export default {
 
       const video = entry.videos[Math.floor(Math.random() * entry.videos.length)];
 
-      // 1. Obtener el nombre del autor
+      // Forzamos el uso de tu SQLite para traer el nombre real guardado
       const dbAuthor = db.getUser(authorJid);
       const authorName = msg.pushName || dbAuthor.name || dbAuthor.pushName || authorJid.split("@")[0];
 
-      // 2. Obtener el nombre del mencionado
       let targetName = null;
       if (mentionedJid) {
         const dbTarget = db.getUser(mentionedJid);
         targetName = dbTarget.name || dbTarget.pushName || contextInfo?.pushName || mentionedJid.split("@")[0];
       }
 
-      // Sintaxis corregida usando las comillas invertidas escapadas (\`) para WhatsApp
+      // Formato limpio con `` y sin arrobas
       const caption = isSelf
         ? `\`${authorName}\` ${entry.self}`
         : `\`${authorName}\` ${entry.target} \`${targetName}\``;
