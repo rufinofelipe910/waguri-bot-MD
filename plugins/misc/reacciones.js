@@ -1,11 +1,8 @@
 import fs from "fs";
-import { fileURLToPath } from "url";
 import path from "path";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA = JSON.parse(
-  fs.readFileSync(path.join(__dirname, "anime.json"), "utf-8")
-);
+const DATA_PATH = path.resolve(process.cwd(), "database/anime.json");
+const DATA = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
 
 export default {
   name: Object.keys(DATA), // hug, kiss, pat, slap, cuddle, etc.
