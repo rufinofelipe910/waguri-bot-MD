@@ -39,7 +39,6 @@ const catNombres = {
   "economy":  "ECONOMY",
   "anime":    "ANIME",
 }
-}
 
 const catDescripciones = {
   "info":     "ᶜᵒᵐᵃⁿᵈᵒˢ ᵈᵉ ⁱⁿᶠᵒʳᵐᵃᶜⁱᵒⁿ·",
