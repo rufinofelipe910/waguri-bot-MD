@@ -17,7 +17,6 @@ async function getBuffer(url) {
   } catch (e) {
     throw new Error(`Error descargando imagen: ${e.message}`);
   }
-}
 
 async function getBannerBuffer(url) {
   if (bannerCache && lastUsedUrl === url && Date.now() - bannerCacheTime < 3600000) return bannerCache
