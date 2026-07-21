@@ -1,7 +1,7 @@
 {
-  "name": "yuta-bot",
+  "name": "waguri-bot",
   "version": "1.0.0",
-  "description": "Yuta Okotsu WhatsApp Bot - Powered by DuarteXV",
+  "description": "waguri bot powrered by 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑",
   "main": "index.js",
   "type": "module",
   "scripts": {
