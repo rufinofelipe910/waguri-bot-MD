@@ -5,19 +5,19 @@ import { promisify } from "util";
 
 const figletAsync = promisify(figlet);
 
-const yuta = gradient(["#7B2FBE", "#E040FB", "#00E5FF"]);
+const waguri = gradient(["#7B2FBE", "#E040FB", "#00E5FF"]);
 const separator = chalk.hex("#7B2FBE")("─".repeat(55));
 
 export async function printBanner() {
-  const art = await figletAsync("YUTA", { font: "ANSI Shadow" });
+  const art = await figletAsync("WAGURI", { font: "ANSI Shadow" });
   console.clear();
-  console.log("\n" + yuta(art));
-  console.log(chalk.hex("#E040FB").bold("        ⚡  Yuta Okotsu Bot  ⚡"));
-  console.log(chalk.hex("#00E5FF")("        ✦  Jujutsu Kaisen Edition  ✦"));
+  console.log("\n" + waguri(art));
+  console.log(chalk.hex("#E040FB").bold("        🌸  waguri Bot  🌈"));
+  console.log(chalk.hex("#00E5FF")("        ✦  La nobleza de las flores edition ✦"));
   console.log(separator);
   console.log(
     chalk.white("        Powered by ") +
-    chalk.hex("#E040FB").bold("DuarteXV") +
+    chalk.hex("#E040FB").bold("Rey Rufino") +
     chalk.white("  |  @whiskeysockets/baileys")
   );
   console.log(separator + "\n");
