@@ -138,12 +138,26 @@ export async function createConnection({
 
     if (choice === "1") {
       useCode = true;
-      let rawPhone = await question(
-        "  Digita el número de teléfono "
-      );
 
-      rawPhone = rawPhone.replace(/\D/g, "");
-      if (!rawPhone.startsWith("+")) rawPhone = `+${rawPhone}`;
+      // FIX: pedir el número en bucle hasta que sea válido (mínimo 10 dígitos).
+      // Antes, si el usuario dejaba el campo vacío o escribía algo sin dígitos,
+      // el código seguía adelante con `phone` vacío/incompleto y aun así se
+      // solicitaba el pairing code a Baileys.
+      let rawPhone = "";
+      while (true) {
+        rawPhone = await question(
+          "  Digita el número de teléfono (con código de país, ej: 521234567890): "
+        );
+        rawPhone = rawPhone.replace(/\D/g, "");
+
+        if (rawPhone.length < 10) {
+          console.log("  ⚠️  Número inválido. Debe incluir código de país y al menos 10 dígitos.\n");
+          continue;
+        }
+        break;
+      }
+
+      rawPhone = `+${rawPhone}`;
       if (rawPhone.startsWith("+521")) {
         rawPhone = rawPhone.replace("+521", "+52");
       } else if (rawPhone.startsWith("+52") && rawPhone[4] === "1") {
@@ -225,18 +239,24 @@ export async function createConnection({
     return;
   }
 
+  // FIX: se agrega guarda extra por seguridad: nunca pedir pairing code
+  // si `phone` está vacío o es inválido, incluso si `useCode` es true.
   if (useCode && !state.creds.registered) {
-    await new Promise((r) => setTimeout(r, 3000));
-    try {
-      let code = await sock.requestPairingCode(phone, "GITHUBUG");
-      code = code?.match(/.{1,4}/g)?.join("-") || code;
-      console.log(
-        `\n  ┌─────────────────────────────┐\n` +
-        `  │  🔑 Tu código: ${String(code).padEnd(14)}│\n` +
-        `  └─────────────────────────────┘\n`
-      );
-    } catch (e) {
-      log.error(`[${botLabel}] Error al pedir código: ${e.message}`);
+    if (!phone || phone.replace(/\D/g, "").length < 10) {
+      log.error(`[${botLabel}] No se puede solicitar código de emparejamiento: número de teléfono vacío o inválido.`);
+    } else {
+      await new Promise((r) => setTimeout(r, 3000));
+      try {
+        let code = await sock.requestPairingCode(phone, "GITHUBUG");
+        code = code?.match(/.{1,4}/g)?.join("-") || code;
+        console.log(
+          `\n  ┌─────────────────────────────┐\n` +
+          `  │  🔑 Tu código: ${String(code).padEnd(14)}│\n` +
+          `  └─────────────────────────────┘\n`
+        );
+      } catch (e) {
+        log.error(`[${botLabel}] Error al pedir código: ${e.message}`);
+      }
     }
   }
 
