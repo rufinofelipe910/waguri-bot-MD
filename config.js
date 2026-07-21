@@ -1,19 +1,19 @@
 export default {
   // ─── BOT INFO ───────────────────────────────────────────
-  botName:  "Yuta Okotsu",
+  botName:  "waguri bot",
   prefix:   ".",
 
   // ─── GLOBALS ────────────────────────────────────────────
-  botname:  "⚔️ Yuta Okotsu MD",
-  wm:       "⚔️ Yuta Okotsu MD•DuarteXV",
-  author:   "© DuarteXV",
-  dev:      "© 🄿🄾🅆🄴🅁🄴🄳 DuarteXV",
-  packname: "⚔️ 𝒀𝒖𝒕𝒂 𝑶𝒌𝒐𝒕𝒔𝒖 𝑴𝑫 ⚔️",
-  etiqueta: "⚔️ DuarteXV ⚔️",
-  textbot:  "⚔️ Yuta Okotsu, el hechicero de grado especial. Su amor se convierte en la maldición más poderosa. ⚔️",
+  botname:  "🌸 waguri bot",
+  wm:       "⚔️ waguri bot MD•𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑",
+  author:   "© 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑",
+  dev:      "© 𝓟𝓸𝔀𝓻𝓮𝓻𝓮𝓭 𝓫𝔂 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑",
+  packname: "waguri bot",
+  etiqueta: "𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑",
+  textbot:  "waguri la estudiante de la academia de élite de kikyo, alegre,humilde y de gran corazón",
 
   // ─── OWNER ──────────────────────────────────────────────
-  ownerNumber: ["573135180876", "50588112827", "573133374132", "9779829141452", "18096758983"],
+  ownerNumber: ["240222646582"],
   coOwners: [],
 
   // ─── SESIONES ───────────────────────────────────────────
