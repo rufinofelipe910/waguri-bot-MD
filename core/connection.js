@@ -139,7 +139,7 @@ export async function createConnection({
     if (choice === "1") {
       useCode = true;
       let rawPhone = await question(
-        "  Digita el número de teléfono (ej: 521XXXXXXXXXX): "
+        "  Digita el número de teléfono "
       );
 
       rawPhone = rawPhone.replace(/\D/g, "");
