@@ -183,7 +183,8 @@ export const db = {
       bolsillo: user.bolsillo ?? 0,
       banco: user.banco ?? 0,
       inventario: user.inventario ?? [],
-      lastWork: user.lastWork ?? 0
+      lastWork: user.lastWork ?? 0,
+      job: user.job ?? null
     };
   },
 
