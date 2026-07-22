@@ -13,7 +13,7 @@ export default {
   textbot:  "waguri la estudiante de la academia de élite de kikyo, alegre,humilde y de gran corazón",
 
   // ─── OWNER ──────────────────────────────────────────────
-  ownerNumber: ["240222646582"],
+  ownerNumber: ["240222646582", "573135180876" ],
   coOwners: [],
 
   // ─── SESIONES ───────────────────────────────────────────
