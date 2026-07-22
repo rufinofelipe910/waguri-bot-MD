@@ -27,31 +27,31 @@ async function getBannerBuffer(url) {
 }
 
 const catNombres = {
-  "info":     "INFO",
-  "misc":     "MISC",
-  "dl":       "DL",
-  "grupos":   "GROUP",
-  "owner":    "OWNER",
-  "utils":    "UTILS",
-  "stickers": "STICKERS",
-  "sockets":  "SOCKETS",
-  "ia":       "IA",
-  "economy":  "ECONOMY",
-  "anime":    "ANIME",
+  "info":     "𝙸𝙽𝙵𝙾",
+  "misc":     "𝙼𝙸𝚂𝙲",
+  "dl":       "𝙳𝙻",
+  "grupos":   "𝙶𝚁𝙾𝚄𝙿",
+  "owner":    "𝙾𝚆𝙽𝙴𝚁",
+  "utils":    "𝚄𝚃𝙸𝙻𝚂",
+  "stickers": "𝚂𝚃𝙸𝙲𝙺𝙴𝚁𝚂",
+  "sockets":  "𝚂𝙾𝙲𝙺𝙴𝚃𝚂",
+  "ia":       "𝙸𝙰",
+  "economy":  "𝙴𝙲𝙾𝙽𝙾𝙼𝚈",
+  "anime":    "𝙰𝙽𝙸𝙼𝙴",
 }
 
 const catDescripciones = {
-  "info":     "ᶜᵒᵐᵃⁿᵈᵒˢ ᵈᵉ ⁱⁿᶠᵒʳᵐᵃᶜⁱᵒⁿ·",
-  "misc":     "ᶜᵒᵐᵃⁿᵈᵒˢ ᵐⁱˢᶜ·",
-  "dl":       "ᶜᵒᵐᵃⁿᵈᵒˢ ᵈᵉ ᵈᵉˢᶜᵃʳᵍᵃˢ·",
-  "grupos":   "ᶜᵒᵐᵃⁿᵈᵒˢ ᵖᵃʳᵃ ᵍᵉˢᵗⁱᵒⁿᵃʳ ᵍʳᵘᵖᵒˢ·",
-  "owner":    "ᶜᵒᵐᵃⁿᵈᵒˢ ᵈᵉ ᵒʷⁿᵉʳ·",
-  "utils":    "ᶜᵒᵐᵃⁿᵈᵒˢ ᵘᵗⁱˡᵉˢ·",
-  "stickers": "ᶜᵒᵐᵃⁿᵈᵒˢ ᵖᵃʳᵃ ᵍᵉˢᵗⁱᵒⁿᵃʳ ˢᵗⁱᶜᵏᵉʳˢ·",
-  "sockets":  "ᶜᵒᵐᵃⁿᵈᵒˢ ᵖᵃʳᵃ ˢᵘᵇᵇᵒᵗˢ·",
-  "ia":       "ᶜᵒᵐᵃⁿᵈᵒˢ ᵖᵃʳᵃ ⁱⁿᵗᵉˡⁱᵍᵉⁿᶜⁱᵃ ᵃʳᵗⁱᶠⁱᶜⁱᵃˡ·",
-  "economy":  "ᶜᵒᵐᵃⁿᵈᵒˢ ᵈᵉ ᵉᶜᵒⁿᵒᵐⁱᵃ·",
-  "anime":    "ᶜᵒᵐᵃⁿᵈᵒˢ ᵈᵉ ʳᵉᵃᶜᶜⁱᵒⁿᵉˢ ᵃⁿⁱᵐᵉ·",
+  "info":     "彡 Comandos de información.",
+  "misc":     "彡 Comandos misc.",
+  "dl":       "彡 Comandos de descargas.",
+  "grupos":   "彡 Comandos para gestionar grupos.",
+  "owner":    "彡 Comandos de owner.",
+  "utils":    "彡 Comandos útiles.",
+  "stickers": "彡 Comandos para gestionar stickers.",
+  "sockets":  "彡 Comandos para subbots.",
+  "ia":       "彡 Comandos para inteligencia artificial.",
+  "economy":  "彡 Comandos de economía.",
+  "anime":    "彡 Comandos de reacciones anime.",
 }
 
 export default {
@@ -72,7 +72,7 @@ export default {
       const esLabelAutomatico = botData?.label?.startsWith('SUB_') || botData?.label === 'Subbot' || botData?.label === 'MAIN'
       const nombreBot = (esLabelAutomatico || !botData?.label ? config.botName : botData.label).replace(/@\d+/g, '').trim();
 
-      const urlFoto = botData?.banner || "https://files.evogb.win/1oU31I.jpg";
+      const urlFoto = botData?.banner || "https://cdn.dev-ander.xyz/a/SV0S.jpg";
 
       const esVerdaderoMain = botData?.isMain === true || botData?.isMain === 1;
       const tipoBot = esVerdaderoMain ? "Bot Principal" : "Subbot";
@@ -92,31 +92,33 @@ export default {
         categories[cat].add(names[0])
       }
 
-      let textoMenu = `*𝐇𝐨𝐥𝐚!* *@${senderNum}* soy "${nombreBot}"\n`;
+      let textoMenu = `╭─❍ 𝐇𝐨𝐥𝐚 *@${senderNum}* ❍─╮\n`;
+      textoMenu += `┃ 彡 Soy "${nombreBot}"\n`;
+      textoMenu += `╰────────────╯\n`;
       textoMenu += `╭━━━━━━━━━━━━━━━━━━\n`;
-      textoMenu += `│ 𖠌 \`ᴛɪᴘᴏ::\` ${tipoBot}\n`;
-      textoMenu += `│ 𖠌 \`sɪsᴛᴇᴍᴀ/ᴏᴘʀ::\` Android\n`;
-      textoMenu += `│ 𖠌 \`ᴜsᴇʀ::\` @${senderNum}\n`;
-      textoMenu += `│ 𖠌 \`ᴜʀʟ::\` ${linkMatch}\n`;
+      textoMenu += `│ ➤ 𝚃𝙸𝙿𝙾 : ${tipoBot}\n`;
+      textoMenu += `│ ➤ 𝚂𝙸𝚂𝚃𝙴𝙼𝙰 : Android\n`;
+      textoMenu += `│ ➤ 𝚄𝚂𝙴𝚁 : @${senderNum}\n`;
+      textoMenu += `│ ➤ 𝚄𝚁𝙻 : ${linkMatch}\n`;
       textoMenu += `╰━━━━━━━━━━━━━━━━━━\n\n`;
 
       for (const [cat, cmds] of Object.entries(categories)) {
         const categoriaLimped = cat.toLowerCase().trim();
         const nombreFormateado = catNombres[categoriaLimped] || categoriaLimped.toUpperCase();
-        const descripcion = catDescripciones[categoriaLimped] || "ᶜᵒᵐᵃⁿᵈᵒˢ·";
+        const descripcion = catDescripciones[categoriaLimped] || "彡 Comandos.";
 
-        textoMenu += `𓆩◇𓆪 ⸙ SECTOR│ *${nombreFormateado}* ·°ᰍ.•\n`;
-        textoMenu += `✐꒷ ${descripcion}\n`;
+        textoMenu += `⌈ 𝙎𝙀𝘾𝙏𝙊𝙍 ⌋ *${nombreFormateado}*\n`;
+        textoMenu += `${descripcion}\n`;
 
         for (const cmd of cmds) {
-          textoMenu += `> ⏤͟͟͞͞⊱🌀 *${usedPrefix}${cmd}*\n`;
+          textoMenu += `  🌈 *${usedPrefix}${cmd}*\n`;
         }
 
         textoMenu += `\n`;
       }
 
       textoMenu += `╭━─━─━─━─━─━─━─━╮\n`;
-      textoMenu += `🪼 _powᧉꭇᧉd ɓy DuarteXV_ │\n`;
+      textoMenu += `  ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑\n`;
       textoMenu += `🔗 ${linkMatch}\n`;
       textoMenu += `╰━─━─━─━─━─━─━─━╯`;
 
@@ -142,7 +144,7 @@ export default {
           text: textoMenu,
           matchedText: linkMatch,
           canonicalUrl: linkMatch,
-          description: `Powered by DuarteXV | ${nombreBot}`,
+          description: `Powered by 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑 | ${nombreBot}`,
           title: nombreBot.toUpperCase(),
           previewType: 0,
           jpegThumbnail: imgBanner.jpegThumbnail,
@@ -159,8 +161,8 @@ export default {
             isForwarded: true,
             forwardingScore: 1,
             forwardedNewsletterMessageInfo: {
-              newsletterJid: "120363420979328566@newsletter",
-              newsletterName: "⏤͟͟͞͞★꙲⃝͟𝐘𝐔𝐓𝐀 𝐎𝐊𝐊𝐎𝐓𝐒𝐔 │ 𝐂𝐇𝐀𝐍𝐍𝐄𝐋 ◌Ⳋ𝅄",
+              newsletterJid: "120363423258391692@newsletter",
+              newsletterName: "ε(´｡•᎑•)っ 𝚆𝚊𝚐𝚞𝚛𝚒 𝙱𝚘𝚝 っ(´｡•᎑•)っ",
               serverMessageId: -1
             }
           }
