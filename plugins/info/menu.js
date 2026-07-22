@@ -41,17 +41,17 @@ const catNombres = {
 }
 
 const catDescripciones = {
-  "info":     "彡 Comandos de información.",
-  "misc":     "彡 Comandos misc.",
-  "dl":       "彡 Comandos de descargas.",
-  "grupos":   "彡 Comandos para gestionar grupos.",
-  "owner":    "彡 Comandos de owner.",
-  "utils":    "彡 Comandos útiles.",
-  "stickers": "彡 Comandos para gestionar stickers.",
-  "sockets":  "彡 Comandos para subbots.",
-  "ia":       "彡 Comandos para inteligencia artificial.",
-  "economy":  "彡 Comandos de economía.",
-  "anime":    "彡 Comandos de reacciones anime.",
+  "info":     "🌸 Comandos de información.",
+  "misc":     "🌸 Comandos misc.",
+  "dl":       "🌸 Comandos de descargas.",
+  "grupos":   "🌸 Comandos para gestionar grupos.",
+  "owner":    "🌸 Comandos de owner.",
+  "utils":    "🌸 Comandos útiles.",
+  "stickers": "🌸 Comandos para gestionar stickers.",
+  "sockets":  "🌸 Comandos para subbots.",
+  "ia":       "🌸 Comandos para inteligencia artificial.",
+  "economy":  "🌸 Comandos de economía.",
+  "anime":    "🌸 Comandos de reacciones anime.",
 }
 
 export default {
@@ -77,8 +77,6 @@ export default {
       const esVerdaderoMain = botData?.isMain === true || botData?.isMain === 1;
       const tipoBot = esVerdaderoMain ? "Bot Principal" : "Subbot";
 
-      const linkMatch = "https://mancosyasociados.kesug.com";
-
       const esOwnerOCoOwner = config.ownerNumber?.includes(senderNum) || config.coOwners?.includes(senderNum)
 
       const plugins    = getPlugins()
@@ -96,10 +94,10 @@ export default {
       textoMenu += `┃ 彡 Soy "${nombreBot}"\n`;
       textoMenu += `╰────────────╯\n`;
       textoMenu += `╭━━━━━━━━━━━━━━━━━━\n`;
-      textoMenu += `│ ➤ 𝚃𝙸𝙿𝙾 : ${tipoBot}\n`;
-      textoMenu += `│ ➤ 𝚂𝙸𝚂𝚃𝙴𝙼𝙰 : Android\n`;
-      textoMenu += `│ ➤ 𝚄𝚂𝙴𝚁 : @${senderNum}\n`;
-      textoMenu += `│ ➤ 𝚄𝚁𝙻 : ${linkMatch}\n`;
+      textoMenu += `│ 🌀 𝚃𝙸𝙿𝙾 : ${tipoBot}\n`;
+      textoMenu += `│ 🖥️ 𝚂𝙸𝚂𝚃𝙴𝙼𝙰 : Android\n`;
+      textoMenu += `│ 👤 𝚄𝚂𝙴𝚁 : @${senderNum}\n`;
+      textoMenu += `│ 🔗 𝚄𝚁𝙻 : ${linkMatch}\n`;
       textoMenu += `╰━━━━━━━━━━━━━━━━━━\n\n`;
 
       for (const [cat, cmds] of Object.entries(categories)) {
