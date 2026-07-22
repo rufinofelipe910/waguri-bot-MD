@@ -2,7 +2,7 @@ import { db } from '../../database/db.js'
 
 export default {
   name: ['depositar', 'retirar'],
-  description: 'Mueve Fragmentos entre bolsillo y banco',
+  description: 'Mueve waguricoins entre bolsillo y banco',
   category: 'economy',
   ownerOnly: false,
 
@@ -27,14 +27,14 @@ export default {
       await react('🏦')
       await reply({
         text: `🏦 *Depósito exitoso*\n\n` +
-          `*Depositado:* ${cantidad} Fragmentos\n` +
-          `*Bolsillo:* ${eco.bolsillo - cantidad} Fragmentos\n` +
-          `*Banco:* ${eco.banco + cantidad} Fragmentos`
+          `*Depositado:* ${cantidad} Waguricoins\n` +
+          `*Bolsillo:* ${eco.bolsillo - cantidad} Waguricoins\n` +
+          `*Banco:* ${eco.banco + cantidad} waguricoins`
       })
 
     } else if (cmdName === 'retirar') {
       if (cantidad > eco.banco) {
-        return await reply({ text: `❌ No tenés suficientes Fragmentos en el banco.\n\n*Banco:* ${eco.banco} Fragmentos` })
+        return await reply({ text: `❌ No tenés suficientes Waguricoins en el banco.\n\n*Banco:* ${eco.banco} Waguricoins` })
       }
 
       db.setEco(sender, {
@@ -45,9 +45,9 @@ export default {
       await react('👜')
       await reply({
         text: `👜 *Retiro exitoso*\n\n` +
-          `*Retirado:* ${cantidad} Fragmentos\n` +
-          `*Bolsillo:* ${eco.bolsillo + cantidad} Fragmentos\n` +
-          `*Banco:* ${eco.banco - cantidad} Fragmentos`
+          `*Retirado:* ${cantidad} Waguricoins\n` +
+          `*Bolsillo:* ${eco.bolsillo + cantidad} Waguricoins\n` +
+          `*Banco:* ${eco.banco - cantidad} Waguricoins`
       })
     }
   }
