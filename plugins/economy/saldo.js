@@ -2,7 +2,7 @@ import { db } from '../../database/db.js'
 
 export default {
   name: ['saldo', 'balance', 'bal'],
-  description: 'Muestra tu balance de Fragmentos',
+  description: 'Muestra tu balance de Waguricoins',
   category: 'economy',
   ownerOnly: false,
 
@@ -10,13 +10,13 @@ export default {
     const eco = db.getEco(sender)
     const total = eco.bolsillo + eco.banco
 
-    await react('💎')
+    await react('💵')
     await reply({
-      text: `💎 *Balance de Fragmentos*\n` +
+      text: `💸 *Balance de Waguricoins*\n` +
         `╰━━━━━━(☆)━━━━━━─╮\n\n` +
-        `*👜 Bolsillo:* ${eco.bolsillo} Fragmentos\n` +
-        `*🏦 Banco:* ${eco.banco} Fragmentos\n` +
-        `*📊 Total:* ${total} Fragmentos`
+        `*👜 Bolsillo:* ${eco.bolsillo} Waguricoins\n` +
+        `*🏦 Banco:* ${eco.banco} waguricoins\n` +
+        `*📊 Total:* ${total} waguricoins`
     })
   }
 }
