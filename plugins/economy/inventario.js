@@ -3,8 +3,8 @@ import { db } from '../../database/db.js'
 const ITEMS_INFO = {
   pala: { nombre: '🪓 Pala', bonus: 50 },
   pico: { nombre: '⛏️ Pico', bonus: 120 },
-  katana_maldita: { nombre: '🗡️ Katana maldita', bonus: 300 },
-  cristal_dominio: { nombre: '💎 Cristal de dominio', bonus: 600 },
+  katana_maldita: { nombre: 'Flor de loto', bonus: 300 },
+  cristal_dominio: { nombre: '💎 Diente de león', bonus: 600 },
 }
 
 export default {
@@ -31,7 +31,7 @@ export default {
       if (info) {
         bonusTotal += info.bonus
         texto += `*${info.nombre}*\n`
-        texto += `   ⚡ Bonus: +${info.bonus} Fragmentos/trabajo\n\n`
+        texto += `   ⚡ Bonus: +${info.bonus} waguricoins/trabajo\n\n`
       }
     }
 
