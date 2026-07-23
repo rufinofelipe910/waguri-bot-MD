@@ -1,7 +1,7 @@
 import axios from "axios";
 import yts from "yt-search";
 
-const API_KEY = "Duarte-1311";
+const API_KEY = "api-uMZCY";
 
 export default {
   name: ["play", "yta", "ytmp3", "playaudio"],
@@ -13,7 +13,7 @@ export default {
     try {
       if (!text.trim()) {
         return reply({
-          text: "⛧ escribe el nombre o link del video",
+          text: "🌈 escribe el nombre o link del video",
         });
       }
 
@@ -27,12 +27,12 @@ export default {
 
       if (!yt) {
         return reply({
-          text: "⛧ no encontré resultados",
+          text: "🥀 no encontré resultados",
         });
       }
 
       const api =
-        `https://api.lempi.lat/dl/yta?apikey=${API_KEY}&url=${encodeURIComponent(yt.url)}`;
+        `https://api.alyacore.xyz/dl/youtubeplay`;
 
       const res = await axios.get(api, {
         timeout: 90000,
@@ -61,12 +61,12 @@ export default {
         {
           image: { url: thumbnail },
           caption:
-            `⛧ ${title}\n\n` +
-            `⛧ vistas › ${vistas}\n` +
-            `⛧ duración › ${formatDuration(yt.seconds)}\n` +
-            `⛧ calidad › ${calidad}\n` +
-            `⛧ formato › ${formato}\n` +
-            `⛧ link › ${youtube_url}`
+            `🌈 ${title}\n\n` +
+            `👀 vistas › ${vistas}\n` +
+            `🕐 duración › ${formatDuration(yt.seconds)}\n` +
+            `✨ calidad › ${calidad}\n` +
+            `📦 formato › ${formato}\n` +
+            `🔗 link › ${youtube_url}`
         },
         { quoted: msg }
       );
