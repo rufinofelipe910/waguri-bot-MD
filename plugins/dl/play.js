@@ -31,8 +31,10 @@ export default {
         });
       }
 
-      const api =
-        `https://api.alyacore.xyz/dl/youtubeplay`;
+      // FIX: faltaba pasarle el link del video y la API key a la API.
+      // Antes se llamaba al endpoint sin ningún parámetro, así que
+      // nunca sabía qué video descargar.
+      const api = `https://api.alyacore.xyz/dl/youtubeplay?url=${encodeURIComponent(yt.url)}&apikey=${API_KEY}`;
 
       const res = await axios.get(api, {
         timeout: 90000,
@@ -41,6 +43,7 @@ export default {
       const data = res.data;
 
       if (!data?.status || !data?.descarga?.url) {
+        console.error("Respuesta inesperada de la API:", data);
         return reply({
           text: "⛧ no pude obtener el audio",
         });
