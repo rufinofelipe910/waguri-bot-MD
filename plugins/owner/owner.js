@@ -13,9 +13,9 @@ export default {
 
     await sock.sendMessage(from, {
       contacts: {
-        displayName: 'DuarteXV',
+        displayName: '𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑',
         contacts: [{
-          vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:DuarteXV\nTEL;type=CELL;type=VOICE;waid=${ownerNum}:+${ownerNum}\nEND:VCARD`
+          vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑\nTEL;type=CELL;type=VOICE;waid=${ownerNum}:+${ownerNum}\nEND:VCARD`
         }]
       }
     }, { quoted: msg })
