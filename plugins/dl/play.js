@@ -65,42 +65,49 @@ export default {
 
       const vistas = formatViews(info.views ?? yt.views);
 
-      await sock.sendMessage(
-        from,
-        {
-          image: { url: thumbnail },
-          caption:
-            `🌈 ${title}\n\n` +
-            `👀 vistas › ${vistas}\n` +
-            `🕐 duración › ${formatDuration(duracionSegundos)}\n` +
-            `✨ calidad › ${calidad}\n` +
-            `📦 formato › ${formato}\n` +
-            `🔗 link › ${youtube_url}`
-        },
-        { quoted: msg }
-      );
-
-      // FIX: Baileys a veces falla al descargar la URL internamente
-      // (el servidor exige headers tipo User-Agent, o la URL expira rápido).
-      // Descargamos el audio nosotros mismos con axios y lo mandamos como buffer.
-      let audioBuffer;
-      try {
-        const audioRes = await axios.get(download_url, {
-          responseType: "arraybuffer",
-          timeout: 90000,
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "*/*",
+      // FIX: mandamos la miniatura y descargamos el audio EN PARALELO.
+      // Así la miniatura le sigue llegando primero al usuario (se manda casi
+      // al instante), pero no perdemos tiempo esperando a que termine de subir
+      // para recién ahí arrancar la descarga del link, que puede expirar rápido.
+      const [, audioBuffer] = await Promise.all([
+        sock.sendMessage(
+          from,
+          {
+            image: { url: thumbnail },
+            caption:
+              `🌈 ${title}\n\n` +
+              `👀 vistas › ${vistas}\n` +
+              `🕐 duración › ${formatDuration(duracionSegundos)}\n` +
+              `✨ calidad › ${calidad}\n` +
+              `📦 formato › ${formato}\n` +
+              `🔗 link › ${youtube_url}`
           },
-        });
-        audioBuffer = Buffer.from(audioRes.data);
-      } catch (dlErr) {
-        console.error("Error descargando el audio:");
-        console.error("  mensaje:", dlErr.message);
-        console.error("  código:", dlErr.code);
-        console.error("  status HTTP:", dlErr.response?.status);
-        console.error("  headers respuesta:", dlErr.response?.headers);
+          { quoted: msg }
+        ),
+        (async () => {
+          try {
+            const audioRes = await axios.get(download_url, {
+              responseType: "arraybuffer",
+              timeout: 90000,
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+              },
+            });
+            return Buffer.from(audioRes.data);
+          } catch (dlErr) {
+            console.error("Error descargando el audio:");
+            console.error("  mensaje:", dlErr.message);
+            console.error("  código:", dlErr.code);
+            console.error("  status HTTP:", dlErr.response?.status);
+            console.error("  headers respuesta:", dlErr.response?.headers);
+            return null;
+          }
+        })(),
+      ]);
+
+      if (!audioBuffer) {
         await react("❌");
         return reply({
           text: "⛧ no pude descargar el audio (el link puede haber expirado, intenta de nuevo)",
