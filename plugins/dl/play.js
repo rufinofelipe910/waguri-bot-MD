@@ -31,8 +31,9 @@ export default {
         });
       }
 
-      // FIX: endpoint correcto es /dl/ytmp3, y el parámetro de la key es "key", no "apikey".
-      const api = `https://api.alyacore.xyz/dl/ytmp3?url=${encodeURIComponent(yt.url)}&key=${API_KEY}`;
+      // FIX: este endpoint busca directamente por texto (parámetro "query"),
+      // no hace falta pasarle una URL de YouTube.
+      const api = `https://api.alyacore.xyz/dl/youtubeplay?query=${encodeURIComponent(text)}&key=${API_KEY}`;
 
       const res = await axios.get(api, {
         timeout: 90000,
@@ -40,27 +41,29 @@ export default {
 
       const data = res.data;
 
-      // FIX: la API devuelve los datos anidados en "data.data", no en "data.descarga".
-      // Estructura real:
-      // { status: true, creator: "...", data: { title, author, duration, thumbnail, quality, dl } }
-      if (!data?.status || !data?.data?.dl) {
+      // Estructura real de este endpoint:
+      // { status: true, creator: "...", result: { title, channel, duration, views, published, dl, fileName } }
+      if (!data?.status || !data?.result?.dl) {
         console.error("Respuesta inesperada de la API:", data);
         return reply({
           text: "⛧ no pude obtener el audio",
         });
       }
 
-      const info = data.data;
+      const info = data.result;
 
+      // Este endpoint no devuelve thumbnail ni el link de YouTube,
+      // así que usamos lo que trajo yt-search (mismo texto buscado) como aproximación.
       const title = info.title || yt.title;
-      const thumbnail = info.thumbnail || yt.thumbnail;
+      const thumbnail = yt.thumbnail;
       const youtube_url = yt.url;
       const download_url = info.dl;
-      const calidad = info.quality || "128kbps";
+      const calidad = "128kbps";
       const formato = "mp3";
-      const fileName = `${title}.mp3`;
+      const fileName = info.fileName || `${title}.mp3`;
+      const duracionSegundos = info.duration || yt.seconds;
 
-      const vistas = formatViews(yt.views);
+      const vistas = formatViews(info.views ?? yt.views);
 
       await sock.sendMessage(
         from,
@@ -69,7 +72,7 @@ export default {
           caption:
             `🌈 ${title}\n\n` +
             `👀 vistas › ${vistas}\n` +
-            `🕐 duración › ${formatDuration(yt.seconds)}\n` +
+            `🕐 duración › ${formatDuration(duracionSegundos)}\n` +
             `✨ calidad › ${calidad}\n` +
             `📦 formato › ${formato}\n` +
             `🔗 link › ${youtube_url}`
@@ -93,14 +96,18 @@ export default {
         });
         audioBuffer = Buffer.from(audioRes.data);
       } catch (dlErr) {
-        console.error("Error descargando el audio:", dlErr.message);
+        console.error("Error descargando el audio:");
+        console.error("  mensaje:", dlErr.message);
+        console.error("  código:", dlErr.code);
+        console.error("  status HTTP:", dlErr.response?.status);
+        console.error("  headers respuesta:", dlErr.response?.headers);
         await react("❌");
         return reply({
           text: "⛧ no pude descargar el audio (el link puede haber expirado, intenta de nuevo)",
         });
       }
 
-      const isLongAudio = yt.seconds > 1800; // 30 minutos
+      const isLongAudio = duracionSegundos > 1800; // 30 minutos
 
       if (isLongAudio) {
         await sock.sendMessage(
