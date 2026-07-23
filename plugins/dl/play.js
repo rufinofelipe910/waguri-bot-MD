@@ -3,151 +3,140 @@ import yts from "yt-search";
 
 const API_KEY = "api-uMZCY";
 
-const ALIAS_AUDIO = ["play", "yta", "ytmp3", "playaudio"];
-const ALIAS_VIDEO = ["play2", "ytv", "ytmp4", "mp4"];
-
-function formatViews(views) {
-  if (!views) return "No disponible";
-  if (views >= 1e9) return `${(views / 1e9).toFixed(1)}B`;
-  if (views >= 1e6) return `${(views / 1e6).toFixed(1)}M`;
-  if (views >= 1e3) return `${(views / 1e3).toFixed(1)}k`;
-  return views.toString();
-}
-
-function formatDuration(duration) {
-  if (!duration) return "No disponible";
-  if (typeof duration === "string") {
-    if (duration.includes(":")) return duration;
-    duration = Number(duration);
-  }
-  if (isNaN(duration)) return "No disponible";
-
-  const hours = Math.floor(duration / 3600);
-  const minutes = Math.floor((duration % 3600) / 60);
-  const seconds = Math.floor(duration % 60);
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  }
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-// Descarga un archivo a Buffer con headers de navegador (evita que Baileys
-// falle al hacer el fetch interno de links con token de un solo uso).
-async function descargarBuffer(url) {
-  const res = await axios.get(url, {
-    responseType: "arraybuffer",
-    timeout: 120000,
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      "Accept": "*/*",
-    },
-  });
-  return Buffer.from(res.data);
-}
-
 export default {
-  name: [...ALIAS_AUDIO, ...ALIAS_VIDEO],
-  description: "Descarga audio o video de YouTube",
-  category: "dl",
+  name: ["play", "yta", "ytmp3", "playaudio"],
+  description: "Descarga música de YouTube",
+  category: 'dl',
   ownerOnly: false,
 
-  async run({ sock, from, msg, text, reply, react, cmdName }) {
+  async run({ sock, from, msg, text, reply, react }) {
     try {
-      if (!text?.trim()) {
-        return reply({ text: "🌈 escribe el nombre o link del video" });
+      if (!text.trim()) {
+        return reply({
+          text: "🌈 escribe el nombre o link del video",
+        });
       }
 
       await react("🎧");
 
       const search = await yts(text);
-      const yt = search.videos?.[0] || search.all?.[0];
+
+      const yt =
+        search.videos?.[0] ||
+        search.all?.[0];
 
       if (!yt) {
-        return reply({ text: "🥀 no encontré resultados" });
+        return reply({
+          text: "🥀 no encontré resultados",
+        });
       }
 
-      const esAudio = ALIAS_AUDIO.includes(cmdName);
-      const vistas = formatViews(yt.views);
+      // FIX: este endpoint busca directamente por texto (parámetro "query"),
+      // no hace falta pasarle una URL de YouTube.
+      const api = `https://api.alyacore.xyz/dl/youtubeplay?query=${encodeURIComponent(text)}&key=${API_KEY}`;
 
-      const infoCaption =
-        `🌈 ${yt.title}\n\n` +
-        `👀 vistas › ${vistas}\n` +
-        `🕐 duración › ${formatDuration(yt.seconds)}\n` +
-        `📺 canal › ${yt.author?.name || "Desconocido"}\n` +
-        `🔗 link › ${yt.url}`;
+      const res = await axios.get(api, {
+        timeout: 90000,
+      });
 
-      if (esAudio) {
-        // ── AUDIO ── endpoint confirmado: /dl/youtubeplay?query=...&key=...
-        const api = `https://api.alyacore.xyz/dl/youtubeplay?query=${encodeURIComponent(text)}&key=${API_KEY}`;
-        const res = await axios.get(api, { timeout: 90000 });
-        const data = res.data;
+      const data = res.data;
 
-        if (!data?.status || !data?.result?.dl) {
-          console.error("Respuesta inesperada de youtubeplay:", data);
-          return reply({ text: "⛧ no pude obtener el audio" });
-        }
+      // Estructura real de este endpoint:
+      // { status: true, creator: "...", result: { title, channel, duration, views, published, dl, fileName } }
+      if (!data?.status || !data?.result?.dl) {
+        console.error("Respuesta inesperada de la API:", data);
+        return reply({
+          text: "⛧ no pude obtener el audio",
+        });
+      }
 
-        const info = data.result;
-        const fileName = info.fileName || `${info.title || yt.title}.mp3`;
-        const duracionSegundos = info.duration || yt.seconds;
+      const info = data.result;
 
-        const [, audioBuffer] = await Promise.all([
-          sock.sendMessage(from, { image: { url: yt.thumbnail }, caption: infoCaption }, { quoted: msg }),
-          descargarBuffer(info.dl).catch((e) => {
-            console.error("Error descargando audio:", e.message, "| status:", e.response?.status);
+      // Este endpoint no devuelve thumbnail ni el link de YouTube,
+      // así que usamos lo que trajo yt-search (mismo texto buscado) como aproximación.
+      const title = info.title || yt.title;
+      const thumbnail = yt.thumbnail;
+      const youtube_url = yt.url;
+      const download_url = info.dl;
+      const calidad = "128kbps";
+      const formato = "mp3";
+      const fileName = info.fileName || `${title}.mp3`;
+      const duracionSegundos = info.duration || yt.seconds;
+
+      const vistas = formatViews(info.views ?? yt.views);
+
+      // FIX: mandamos la miniatura y descargamos el audio EN PARALELO.
+      // Así la miniatura le sigue llegando primero al usuario (se manda casi
+      // al instante), pero no perdemos tiempo esperando a que termine de subir
+      // para recién ahí arrancar la descarga del link, que puede expirar rápido.
+      const [, audioBuffer] = await Promise.all([
+        sock.sendMessage(
+          from,
+          {
+            image: { url: thumbnail },
+            caption:
+              `🌈 ${title}\n\n` +
+              `👀 vistas › ${vistas}\n` +
+              `🕐 duración › ${formatDuration(duracionSegundos)}\n` +
+              `✨ calidad › ${calidad}\n` +
+              `📦 formato › ${formato}\n` +
+              `🔗 link › ${youtube_url}`
+          },
+          { quoted: msg }
+        ),
+        (async () => {
+          try {
+            const audioRes = await axios.get(download_url, {
+              responseType: "arraybuffer",
+              timeout: 90000,
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+                "Referer": "https://api.alyacore.xyz/",
+                "Origin": "https://api.alyacore.xyz",
+              },
+            });
+            return Buffer.from(audioRes.data);
+          } catch (dlErr) {
+            console.error("Error descargando el audio:");
+            console.error("  mensaje:", dlErr.message);
+            console.error("  código:", dlErr.code);
+            console.error("  status HTTP:", dlErr.response?.status);
+            console.error("  headers respuesta:", dlErr.response?.headers);
             return null;
-          }),
-        ]);
+          }
+        })(),
+      ]);
 
-        if (!audioBuffer) {
-          await react("❌");
-          return reply({ text: "⛧ no pude descargar el audio (el link puede haber expirado, intenta de nuevo)" });
-        }
+      if (!audioBuffer) {
+        await react("❌");
+        return reply({
+          text: "⛧ no pude descargar el audio (el link puede haber expirado, intenta de nuevo)",
+        });
+      }
 
-        if (duracionSegundos > 1800) {
-          await sock.sendMessage(
-            from,
-            { document: audioBuffer, mimetype: "audio/mpeg", fileName, caption: "⛧ audio enviado como documento por duración/tamaño" },
-            { quoted: msg }
-          );
-        } else {
-          await sock.sendMessage(from, { audio: audioBuffer, mimetype: "audio/mpeg", ptt: false }, { quoted: msg });
-        }
+      const isLongAudio = duracionSegundos > 1800; // 30 minutos
 
-      } else {
-        // ── VIDEO ── endpoint: /dl/ytmp4?url=...&quality=360&key=...
-        // No pude verificar en vivo la estructura real de este endpoint,
-        // así que dejo logging detallado por si la API devuelve otra cosa.
-        const api = `https://api.alyacore.xyz/dl/ytmp4?url=${encodeURIComponent(yt.url)}&quality=360&key=${API_KEY}`;
-        const res = await axios.get(api, { timeout: 90000 });
-        const data = res.data;
-
-        if (!data?.status || !data?.data?.dl) {
-          console.error("Respuesta inesperada de ytmp4:", JSON.stringify(data));
-          return reply({ text: `⛧ no pude obtener el video${data?.message ? ` (${data.message})` : ""}` });
-        }
-
-        const info = data.data;
-        const fileName = `${info.title || yt.title}_${info.quality || "360"}p.mp4`;
-
-        const [, videoBuffer] = await Promise.all([
-          sock.sendMessage(from, { image: { url: yt.thumbnail }, caption: infoCaption }, { quoted: msg }),
-          descargarBuffer(info.dl).catch((e) => {
-            console.error("Error descargando video:", e.message, "| status:", e.response?.status);
-            return null;
-          }),
-        ]);
-
-        if (!videoBuffer) {
-          await react("❌");
-          return reply({ text: "⛧ no pude descargar el video (el link puede haber expirado, intenta de nuevo)" });
-        }
-
+      if (isLongAudio) {
         await sock.sendMessage(
           from,
-          { document: videoBuffer, mimetype: "video/mp4", fileName, caption: "⛧ video descargado" },
+          {
+            document: audioBuffer,
+            mimetype: "audio/mpeg",
+            fileName,
+            caption: "⛧ audio enviado como documento por duración/tamaño",
+          },
+          { quoted: msg }
+        );
+      } else {
+        await sock.sendMessage(
+          from,
+          {
+            audio: audioBuffer,
+            mimetype: "audio/mpeg",
+            ptt: false,
+          },
           { quoted: msg }
         );
       }
@@ -156,8 +145,55 @@ export default {
 
     } catch (e) {
       console.error(e);
+
       await react("❌");
-      await reply({ text: `⛧ Error: ${e.message}` });
+
+      await reply({
+        text: `⛧ ${e.message}`,
+      });
     }
   },
 };
+
+function formatViews(views) {
+  if (!views) return "No disponible";
+
+  if (views >= 1e9) {
+    return `${(views / 1e9).toFixed(1)}B`;
+  }
+
+  if (views >= 1e6) {
+    return `${(views / 1e6).toFixed(1)}M`;
+  }
+
+  if (views >= 1e3) {
+    return `${(views / 1e3).toFixed(1)}k`;
+  }
+
+  return views.toString();
+}
+
+function formatDuration(duration) {
+  if (!duration) return "No disponible";
+
+  if (typeof duration === "string") {
+    if (duration.includes(":")) {
+      return duration;
+    }
+    duration = Number(duration);
+  }
+
+  if (isNaN(duration)) {
+    return "No disponible";
+  }
+
+  const hours = Math.floor(duration / 3600);
+  const minutes = Math.floor((duration % 3600) / 60);
+  const seconds = Math.floor(duration % 60);
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
