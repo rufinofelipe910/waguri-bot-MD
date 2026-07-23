@@ -8,7 +8,7 @@ function pickRandom(list) {
 }
 
 export default {
-  name: ['work', 'trabajar'],
+  name: ['work', 'trabajar', 'w'],
   description: 'Trabaja para ganar WaguriCoins',
   category: 'economy',
   ownerOnly: false,
