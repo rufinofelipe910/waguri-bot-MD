@@ -77,13 +77,36 @@ export default {
         { quoted: msg }
       );
 
+      // FIX: Baileys a veces falla al descargar la URL internamente
+      // (el servidor exige headers tipo User-Agent, o la URL expira rápido).
+      // Descargamos el audio nosotros mismos con axios y lo mandamos como buffer.
+      let audioBuffer;
+      try {
+        const audioRes = await axios.get(download_url, {
+          responseType: "arraybuffer",
+          timeout: 90000,
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+          },
+        });
+        audioBuffer = Buffer.from(audioRes.data);
+      } catch (dlErr) {
+        console.error("Error descargando el audio:", dlErr.message);
+        await react("❌");
+        return reply({
+          text: "⛧ no pude descargar el audio (el link puede haber expirado, intenta de nuevo)",
+        });
+      }
+
       const isLongAudio = yt.seconds > 1800; // 30 minutos
 
       if (isLongAudio) {
         await sock.sendMessage(
           from,
           {
-            document: { url: download_url },
+            document: audioBuffer,
             mimetype: "audio/mpeg",
             fileName,
             caption: "⛧ audio enviado como documento por duración/tamaño",
@@ -94,7 +117,7 @@ export default {
         await sock.sendMessage(
           from,
           {
-            audio: { url: download_url },
+            audio: audioBuffer,
             mimetype: "audio/mpeg",
             ptt: false,
           },
