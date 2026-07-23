@@ -31,10 +31,8 @@ export default {
         });
       }
 
-      // FIX: faltaba pasarle el link del video y la API key a la API.
-      // Antes se llamaba al endpoint sin ningún parámetro, así que
-      // nunca sabía qué video descargar.
-      const api = `https://api.alyacore.xyz/dl/youtubeplay?url=${encodeURIComponent(yt.url)}&apikey=${API_KEY}`;
+      // FIX: endpoint correcto es /dl/ytmp3, y el parámetro de la key es "key", no "apikey".
+      const api = `https://api.alyacore.xyz/dl/ytmp3?url=${encodeURIComponent(yt.url)}&key=${API_KEY}`;
 
       const res = await axios.get(api, {
         timeout: 90000,
