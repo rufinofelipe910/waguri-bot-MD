@@ -3,13 +3,6 @@ import { TRABAJOS } from './_trabajos.js'
 
 const COOLDOWN = 60 * 1000 // 1 minuto en ms
 
-const BONUS_ITEMS = {
-  'pala':              50,
-  'pico':             120,
-  'katana_maldita':   300,
-  'cristal_dominio':  600,
-}
-
 function pickRandom(list) {
   return list[Math.floor(Math.random() * list.length)]
 }
@@ -56,14 +49,8 @@ export default {
     // Elegimos una tarea al azar dentro del trabajo asignado
     const tarea = pickRandom(trabajoActual.tareas)
 
-    // Calculamos bonus según items en inventario
-    let bonus = 0
-    for (const itemId of eco.inventario) {
-      bonus += BONUS_ITEMS[itemId] ?? 0
-    }
-
-    // Ganancia aleatoria (0-500, como el sistema original) + bonus de items
-    const ganado = Math.floor(Math.random() * 500) + bonus
+    // Ganancia aleatoria (0-500)
+    const ganado = Math.floor(Math.random() * 500)
 
     const nuevoBolsillo = eco.bolsillo + ganado
 
@@ -75,7 +62,7 @@ export default {
     await react('💰')
     await reply({
       text: `${trabajoActual.emoji} *${trabajoActual.nombre}*\n\n` +
-        `${tarea} *${ganado}* WaguriCoins${bonus > 0 ? ` *(+${bonus} bonus de items)*` : ''}\n` +
+        `${tarea} *${ganado}* WaguriCoins\n` +
         `👜 *Bolsillo actual:* ${nuevoBolsillo} WaguriCoins\n\n` +
         `> ⏳ Próximo trabajo en *1 minuto*`
     })
