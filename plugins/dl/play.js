@@ -40,20 +40,25 @@ export default {
 
       const data = res.data;
 
-      if (!data?.status || !data?.descarga?.url) {
+      // FIX: la API devuelve los datos anidados en "data.data", no en "data.descarga".
+      // Estructura real:
+      // { status: true, creator: "...", data: { title, author, duration, thumbnail, quality, dl } }
+      if (!data?.status || !data?.data?.dl) {
         console.error("Respuesta inesperada de la API:", data);
         return reply({
           text: "⛧ no pude obtener el audio",
         });
       }
 
-      const title = data.titulo;
-      const thumbnail = data.miniatura;
-      const youtube_url = data.fuente;
-      const download_url = data.descarga.url;
-      const calidad = data.descarga.calidad || "320kbps";
-      const formato = data.descarga.formato || "mp3";
-      const fileName = data.descarga.archivo || `${title}.mp3`;
+      const info = data.data;
+
+      const title = info.title || yt.title;
+      const thumbnail = info.thumbnail || yt.thumbnail;
+      const youtube_url = yt.url;
+      const download_url = info.dl;
+      const calidad = info.quality || "128kbps";
+      const formato = "mp3";
+      const fileName = `${title}.mp3`;
 
       const vistas = formatViews(yt.views);
 
