@@ -43,7 +43,7 @@ export default {
 
       if (!text) return await reply({
         text:
-          `✨ ═══ 🫧 *PINTEREST* 🫧 ═══ ✨\n\n` +
+          `✨ ═══ 🌈 *PINTEREST* 🌈 ═══ ✨\n\n` +
           `❌ Debes escribir qué buscar.\n\n` +
           `💡 *Uso:*\n` +
           `  ✦ ${usedPrefix}pinterest goku\n` +
@@ -53,7 +53,7 @@ export default {
 
       await reply({
         text:
-          `✨ ═══ 🫧 *PINTEREST* 🫧 ═══ ✨\n\n` +
+          `✨ ═══ 🌈 *PINTEREST* 🌈 ═══ ✨\n\n` +
           `🔍 _Buscando imágenes de_ *${text}*...\n` +
           `⏳ _Espera un momento..._`
       })
@@ -68,7 +68,7 @@ export default {
       if (!data.status || !Array.isArray(data.data) || data.data.length < 2) {
         return await reply({
           text:
-            `✨ ═══ 🫧 *PINTEREST* 🫧 ═══ ✨\n\n` +
+            `✨ ═══ 🌈 *PINTEREST* 🌈 ═══ ✨\n\n` +
             `❌ No se encontraron imágenes para *${text}*.\n\n` +
             `⚔️ _Yuta Okotsu MD | DuarteXV_`
         })
@@ -81,7 +81,7 @@ export default {
       }))
 
       const caption =
-        `✨ ═══ 🫧 *PINTEREST* 🫧 ═══ ✨\n\n` +
+        `✨ ═══ 🌈 *PINTEREST* 🌈 ═══ ✨\n\n` +
         `🔎 *Búsqueda:* ${text}\n` +
         `🖼️ *Imágenes:* ${total}\n\n` +
         `⚔️ _Yuta Okotsu MD | DuarteXV_`
@@ -94,7 +94,7 @@ export default {
       await react("❌")
       await reply({
         text:
-          `✨ ═══ 🫧 *PINTEREST* 🫧 ═══ ✨\n\n` +
+          `✨ ═══ 🌈 *PINTEREST* 🌈 ═══ ✨\n\n` +
           `❌ *Error:* ${error.message}\n\n` +
           `⚔️ _Yuta Okotsu MD | DuarteXV_`
       })
