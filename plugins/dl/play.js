@@ -33,7 +33,7 @@ export default {
 
       // FIX: este endpoint busca directamente por texto (parámetro "query"),
       // no hace falta pasarle una URL de YouTube.
-      const api = `https://api.alyacore.xyz/dl/youtubeplay?query=${encodeURIComponent(text)}&key=${API_KEY}`;
+      const api = `https://api.alyacore.xyz/dl/youtubeplay?query=Another+love&key=api-uMZCY`;
 
       const res = await axios.get(api, {
         timeout: 90000,
