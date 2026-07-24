@@ -41,7 +41,7 @@ function formatDuration(seconds) {
 
 async function downloadFacebookVideo(url) {
   try {
-    const apiKey = 'Duarte-zz12'
+    const apiKey = 'api-uMZCY'
     const endpoint = `https://api.alyacore.xyz/dl/facebook?url=${encodeURIComponent(url)}&key=${apiKey}`
 
     const { data } = await axios.get(endpoint, { timeout: 25000 })
