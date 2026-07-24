@@ -1,7 +1,7 @@
 import axios from "axios";
 import yts from "yt-search";
 
-const API_KEY = "api-uMZCY";
+const API_KEY = "Duarte-1311";
 
 export default {
   name: ["play", "yta", "ytmp3", "playaudio"],
@@ -13,7 +13,7 @@ export default {
     try {
       if (!text.trim()) {
         return reply({
-          text: "🌈 escribe el nombre o link del video",
+          text: "⛧ escribe el nombre o link del video",
         });
       }
 
@@ -27,13 +27,12 @@ export default {
 
       if (!yt) {
         return reply({
-          text: "🥀 no encontré resultados",
+          text: "⛧ no encontré resultados",
         });
       }
 
-      // FIX: este endpoint busca directamente por texto (parámetro "query"),
-      // no hace falta pasarle una URL de YouTube.
-      const api = `https://api.alyacore.xyz/dl/youtubeplay?query=Another+love&key=api-uMZCY`;
+      const api =
+        `https://api.lempi.lat/dl/yta?apikey=${API_KEY}&url=${encodeURIComponent(yt.url)}`;
 
       const res = await axios.get(api, {
         timeout: 90000,
@@ -41,88 +40,44 @@ export default {
 
       const data = res.data;
 
-      // Estructura real de este endpoint:
-      // { status: true, creator: "...", result: { title, channel, duration, views, published, dl, fileName } }
-      if (!data?.status || !data?.result?.dl) {
-        console.error("Respuesta inesperada de la API:", data);
+      if (!data?.status || !data?.descarga?.url) {
         return reply({
           text: "⛧ no pude obtener el audio",
         });
       }
 
-      const info = data.result;
+      const title = data.titulo;
+      const thumbnail = data.miniatura;
+      const youtube_url = data.fuente;
+      const download_url = data.descarga.url;
+      const calidad = data.descarga.calidad || "320kbps";
+      const formato = data.descarga.formato || "mp3";
+      const fileName = data.descarga.archivo || `${title}.mp3`;
 
-      // Este endpoint no devuelve thumbnail ni el link de YouTube,
-      // así que usamos lo que trajo yt-search (mismo texto buscado) como aproximación.
-      const title = info.title || yt.title;
-      const thumbnail = yt.thumbnail;
-      const youtube_url = yt.url;
-      const download_url = info.dl;
-      const calidad = "128kbps";
-      const formato = "mp3";
-      const fileName = info.fileName || `${title}.mp3`;
-      const duracionSegundos = info.duration || yt.seconds;
+      const vistas = formatViews(yt.views);
 
-      const vistas = formatViews(info.views ?? yt.views);
+      await sock.sendMessage(
+        from,
+        {
+          image: { url: thumbnail },
+          caption:
+            `⛧ ${title}\n\n` +
+            `⛧ vistas › ${vistas}\n` +
+            `⛧ duración › ${formatDuration(yt.seconds)}\n` +
+            `⛧ calidad › ${calidad}\n` +
+            `⛧ formato › ${formato}\n` +
+            `⛧ link › ${youtube_url}`
+        },
+        { quoted: msg }
+      );
 
-      // FIX: mandamos la miniatura y descargamos el audio EN PARALELO.
-      // Así la miniatura le sigue llegando primero al usuario (se manda casi
-      // al instante), pero no perdemos tiempo esperando a que termine de subir
-      // para recién ahí arrancar la descarga del link, que puede expirar rápido.
-      const [, audioBuffer] = await Promise.all([
-        sock.sendMessage(
-          from,
-          {
-            image: { url: thumbnail },
-            caption:
-              `🌈 ${title}\n\n` +
-              `👀 vistas › ${vistas}\n` +
-              `🕐 duración › ${formatDuration(duracionSegundos)}\n` +
-              `✨ calidad › ${calidad}\n` +
-              `📦 formato › ${formato}\n` +
-              `🔗 link › ${youtube_url}`
-          },
-          { quoted: msg }
-        ),
-        (async () => {
-          try {
-            const audioRes = await axios.get(download_url, {
-              responseType: "arraybuffer",
-              timeout: 90000,
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept": "*/*",
-                "Referer": "https://api.alyacore.xyz/",
-                "Origin": "https://api.alyacore.xyz",
-              },
-            });
-            return Buffer.from(audioRes.data);
-          } catch (dlErr) {
-            console.error("Error descargando el audio:");
-            console.error("  mensaje:", dlErr.message);
-            console.error("  código:", dlErr.code);
-            console.error("  status HTTP:", dlErr.response?.status);
-            console.error("  headers respuesta:", dlErr.response?.headers);
-            return null;
-          }
-        })(),
-      ]);
-
-      if (!audioBuffer) {
-        await react("❌");
-        return reply({
-          text: "⛧ no pude descargar el audio (el link puede haber expirado, intenta de nuevo)",
-        });
-      }
-
-      const isLongAudio = duracionSegundos > 1800; // 30 minutos
+      const isLongAudio = yt.seconds > 1800; // 30 minutos
 
       if (isLongAudio) {
         await sock.sendMessage(
           from,
           {
-            document: audioBuffer,
+            document: { url: download_url },
             mimetype: "audio/mpeg",
             fileName,
             caption: "⛧ audio enviado como documento por duración/tamaño",
@@ -133,7 +88,7 @@ export default {
         await sock.sendMessage(
           from,
           {
-            audio: audioBuffer,
+            audio: { url: download_url },
             mimetype: "audio/mpeg",
             ptt: false,
           },
