@@ -78,7 +78,7 @@ export default {
       const tipoBot = esVerdaderoMain ? "Bot Principal" : "Subbot";
 
 
-      const linkMatch = "https://whatsapp.com/channel/0029VbBUHyQCsU9IpJ0oIO2i";
+      const linkMatch = "https://starapi-rosy.vercel.app";
 
       const esOwnerOCoOwner = config.ownerNumber?.includes(senderNum) || config.coOwners?.includes(senderNum)
 
