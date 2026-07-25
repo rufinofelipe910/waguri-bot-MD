@@ -66,7 +66,7 @@ export default {
       })
 
       txt += `💡 Descarga con *${usedPrefix}scdl <url>*\n`
-      txt += `⚔️ _Yuta Okotsu MD | DuarteXV_`
+      txt += `waguri bot MD | 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑`
 
       await reply({ text: txt })
       await react('✅')
