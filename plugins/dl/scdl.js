@@ -88,7 +88,7 @@ export default {
         `⏱️ *Duración:* ${msToTime(track.duration)}\n` +
         `▶️ *Plays:* ${track.playback_count?.toLocaleString() || 'N/A'}\n` +
         `❤️ *Likes:* ${track.likes_count?.toLocaleString() || 'N/A'}\n\n` +
-        `⚔️ _Yuta Okotsu MD | DuarteXV_`
+        `Wagiri bot MD | 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑`
 
       if (thumb) {
         await sock.sendMessage(from, {
