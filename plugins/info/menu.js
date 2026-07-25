@@ -38,6 +38,7 @@ const catNombres = {
   "ia":       "𝙸𝙰",
   "economy":  "𝙴𝙲𝙾𝙽𝙾𝙼𝚈",
   "anime":    "𝙰𝙽𝙸𝙼𝙴",
+  "gacha":    "𝙶𝙰𝙲𝙷𝙰",
 }
 
 const catDescripciones = {
@@ -52,6 +53,7 @@ const catDescripciones = {
   "ia":       "🌸 Comandos para inteligencia artificial.",
   "economy":  "🌸 Comandos de economía.",
   "anime":    "🌸 Comandos de reacciones anime.",
+  "gacha":    "🌸 Comandos de gacha y waifus.",
 }
 
 export default {
