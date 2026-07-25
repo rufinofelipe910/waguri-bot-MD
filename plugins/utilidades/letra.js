@@ -14,22 +14,21 @@ export default {
 
       await react('🎵')
 
-      const { data } = await axios.get('https://api.alyacore.xyz/tools/lyrics', {
+      const res = await axios.get('https://api.alyacore.xyz/tools/lyrics', {
         params: { query: text, key: 'api-uMZCY' },
         timeout: 15000
       })
 
-      if (!data || data.error || !data.lyrics) {
+      const body = res.data
+      const song = body?.data?.[0]
+
+      if (!body?.status || !song?.lyrics) {
         await react('❌')
         return reply({ text: `❌ no encontré la letra de *${text}*` })
       }
 
-      const title = data.title || text
-      const artist = data.artist || 'Desconocido'
-      let lyrics = data.lyrics
-
-      const header = `🎼 ${title}\n🎤 artista › ${artist}\n\n`
-      const full = header + lyrics
+      const header = `🎼 ${song.title}\n🎤 artista › ${song.artist}\n\n`
+      const full = header + song.lyrics
 
       if (full.length > 4000) {
         const chunks = full.match(/[\s\S]{1,4000}/g)
