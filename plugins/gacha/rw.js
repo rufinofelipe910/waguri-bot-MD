@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+global.rwCache = global.rwCache || {}
+
 export default {
   name: ['rw', 'waifu'],
   description: 'Trae una waifu aleatoria de la base de datos',
@@ -45,9 +47,10 @@ export default {
         `📖 origen › ${character.source}\n` +
         `💰 valor › ${character.value}\n` +
         `📌 estado › ${character.status || 'Libre'}\n` +
-        `⭐ votos › ${character.votes || 0}`
+        `⭐ votos › ${character.votes || 0}\n\n` +
+        `➜ responde a este mensaje con *.claim* para reclamarla`
 
-      await sock.sendMessage(
+      const sent = await sock.sendMessage(
         from,
         {
           image: { url: image },
@@ -55,6 +58,8 @@ export default {
         },
         { quoted: msg }
       )
+
+      global.rwCache[sent.key.id] = character.id
 
       await react('✅')
 
