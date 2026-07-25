@@ -14,12 +14,15 @@ export default {
 
       await react('🌍')
 
-      const { data } = await axios.get('https://api.alyacore.xyz/tools/country', {
+      const res = await axios.get('https://api.alyacore.xyz/tools/country', {
         params: { name: text, key: 'api-uMZCY' },
         timeout: 15000
       })
 
-      if (!data || data.error || !data.name) {
+      const body = res.data
+      const data = body?.data
+
+      if (!body?.status || !data?.name) {
         await react('❌')
         return reply({ text: `❌ no encontré información sobre *${text}*` })
       }
