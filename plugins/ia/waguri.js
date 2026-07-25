@@ -54,7 +54,7 @@ REGLAS DE RESPUESTA
 - Sé amigable.`
 
 export default {
-  name: ['chatgpt', 'gpt', 'waguri'],
+  name: ['waguri'],
   description: 'Habla con Waguri (IA)',
   category: 'ia',
   ownerOnly: false,
