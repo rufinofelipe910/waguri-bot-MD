@@ -66,8 +66,10 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
 
     if (msg.key?.fromMe && !isCmd) return;
 
-    const cmdName = isCmd ? body.slice(usedPrefix.length).trim().split(/\s+/)[0].toLowerCase() : "";
-    const args = isCmd ? body.slice(usedPrefix.length + cmdName.length).trim().split(/\s+/) : [];
+    const afterPrefix = isCmd ? body.slice(usedPrefix.length).trim() : "";
+    const parts = afterPrefix ? afterPrefix.split(/\s+/) : [];
+    const cmdName = isCmd ? (parts[0]?.toLowerCase() || "") : "";
+    const args = isCmd ? parts.slice(1) : [];
     const text = args.join(" ");
 
     let groupName = "";
@@ -129,9 +131,9 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
     log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel, msgTypeLabel });
 
     if (!isCmd) {
-  await handleAkinatorAnswer({ sock, msg, from, sender, body });
-  return;
-}
+      await handleAkinatorAnswer({ sock, msg, from, sender, body });
+      return;
+    }
 
     const plugins = getPlugins();
     const plugin = plugins.get(cmdName);
