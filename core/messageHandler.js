@@ -127,7 +127,10 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
 
     log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel, msgTypeLabel });
 
-    if (!isCmd) return;
+    if (!isCmd) {
+  await handleAkinatorAnswer({ sock, msg, from, sender, body });
+  return;
+}
 
     const plugins = getPlugins();
     const plugin = plugins.get(cmdName);
