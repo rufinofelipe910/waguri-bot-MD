@@ -19,11 +19,19 @@ export default {
         headers: { 'User-Agent': 'Mozilla/5.0' }
       })
 
-      const linkMatch = html.match(/id="downloadButton"[^>]*href="([^"]+)"/i)
+      // 🔍 DEBUG TEMPORAL — busca la parte relevante del HTML
+      const idx = html.indexOf('downloadButton')
+      console.log('[MEDIAFIRE DEBUG] contexto alrededor de downloadButton:')
+      console.log(html.substring(Math.max(0, idx - 100), idx + 400))
+
+      const linkMatch =
+        html.match(/id="downloadButton"[^>]*href="([^"]+)"/i) ||
+        html.match(/href="([^"]+)"[^>]*id="downloadButton"/i) ||
+        html.match(/downloadButton[^>]*href=["']([^"']+)["']/i)
 
       if (!linkMatch) {
         await react('❌')
-        return reply({ text: '❌ no pude sacar el link de descarga, revisa que el archivo exista o no esté eliminado' })
+        return reply({ text: '❌ no pude sacar el link de descarga (revisa consola para debug)' })
       }
 
       const downloadUrl = linkMatch[1].replace(/&amp;/g, '&')
@@ -43,11 +51,7 @@ export default {
 
       await sock.sendMessage(
         from,
-        {
-          document: { url: downloadUrl },
-          fileName,
-          caption
-        },
+        { document: { url: downloadUrl }, fileName, caption },
         { quoted: msg }
       )
 
