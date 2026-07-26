@@ -32,7 +32,10 @@ export default {
         })
       }
 
-      // La cantidad es el argumento que sea número (por si el mention rompe el orden de args)
+      // 🔍 DEBUG TEMPORAL — mira la consola del bot después de correr el comando
+      console.log('[ADDCOIN DEBUG] targetJid detectado:', targetJid)
+      console.log('[ADDCOIN DEBUG] contextInfo completo:', JSON.stringify(contextInfo, null, 2))
+
       const raw = (args || []).find(a => /^\d+([.,]\d+)?$/.test(a?.toString().trim()))
 
       if (!raw) {
@@ -48,9 +51,16 @@ export default {
       }
 
       const eco = db.getEco(targetJid)
+
+      // 🔍 DEBUG TEMPORAL — vemos qué devuelve getEco con ese jid
+      console.log('[ADDCOIN DEBUG] eco antes de sumar:', eco)
+
       const nuevoBolsillo = eco.bolsillo + cantidad
 
       db.setEco(targetJid, { bolsillo: nuevoBolsillo, banco: eco.banco })
+
+      // 🔍 DEBUG TEMPORAL — confirmamos qué quedó guardado
+      console.log('[ADDCOIN DEBUG] eco después de guardar:', db.getEco(targetJid))
 
       await react('💰')
       await reply({
