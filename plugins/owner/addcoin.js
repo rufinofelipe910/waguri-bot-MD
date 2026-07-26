@@ -1,5 +1,10 @@
 import { db } from '../../database/db.js'
 
+function normalizeJid(jid) {
+  if (!jid) return jid
+  return jid.replace(/:\d+(?=@)/, '')
+}
+
 export default {
   name: ['addcoin', 'addcoins'],
   description: 'Agrega WaguriCoins a un usuario (solo owner)',
@@ -17,12 +22,9 @@ export default {
 
       const contextInfo = rawMessage?.extendedTextMessage?.contextInfo
 
-      // 1. Mencionado con @
       if (contextInfo?.mentionedJid?.length) {
         targetJid = contextInfo.mentionedJid[0]
-      }
-      // 2. Mensaje citado (respondido)
-      else if (contextInfo?.participant) {
+      } else if (contextInfo?.participant) {
         targetJid = contextInfo.participant
       }
 
@@ -32,9 +34,7 @@ export default {
         })
       }
 
-      // 🔍 DEBUG TEMPORAL — mira la consola del bot después de correr el comando
-      console.log('[ADDCOIN DEBUG] targetJid detectado:', targetJid)
-      console.log('[ADDCOIN DEBUG] contextInfo completo:', JSON.stringify(contextInfo, null, 2))
+      targetJid = normalizeJid(targetJid)
 
       const raw = (args || []).find(a => /^\d+([.,]\d+)?$/.test(a?.toString().trim()))
 
@@ -51,16 +51,9 @@ export default {
       }
 
       const eco = db.getEco(targetJid)
-
-      // 🔍 DEBUG TEMPORAL — vemos qué devuelve getEco con ese jid
-      console.log('[ADDCOIN DEBUG] eco antes de sumar:', eco)
-
       const nuevoBolsillo = eco.bolsillo + cantidad
 
       db.setEco(targetJid, { bolsillo: nuevoBolsillo, banco: eco.banco })
-
-      // 🔍 DEBUG TEMPORAL — confirmamos qué quedó guardado
-      console.log('[ADDCOIN DEBUG] eco después de guardar:', db.getEco(targetJid))
 
       await react('💰')
       await reply({
