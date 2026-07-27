@@ -2,7 +2,6 @@ import config from "../config.js";
 import { log } from "./logger.js";
 import { getPlugins } from "./pluginLoader.js";
 import { db } from "../database/db.js";
-import { handleAkinatorAnswer } from "../plugins/games/akinator.js";
 
 const groupCache = new Map();
 const prefixes = Array.isArray(config.prefix) ? config.prefix : [config.prefix];
@@ -118,9 +117,6 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
       isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
     }
 
-    // 🔒 Modo admin del grupo: si está activo, usuarios normales son
-    // ignorados en silencio (sin mensaje de error) para cualquier
-    // mensaje/comando, excepto admins del grupo, owner y coowners.
     if (isGroup) {
       const groupData = db.getGroup(from);
       if (groupData?.adminMode && !isAdmin && !isMod) {
@@ -130,10 +126,7 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
 
     log.message({ from, sender, isGroup, groupName, body, isCmd, cmdName, botLabel, msgTypeLabel });
 
-    if (!isCmd) {
-      await handleAkinatorAnswer({ sock, msg, from, sender, body });
-      return;
-    }
+    if (!isCmd) return;
 
     const plugins = getPlugins();
     const plugin = plugins.get(cmdName);
