@@ -13,6 +13,7 @@ import readline from "readline";
 import Database from "better-sqlite3";
 import fs from "fs";
 import qrcode from "qrcode-terminal";
+import { sendWelcome } from "../plugins/grupos/welcome.js";
 import { log } from "./logger.js";
 import config from "../config.js";
 import { handleMessage, invalidateGroupCache } from "./messageHandler.js";
@@ -332,11 +333,17 @@ export async function createConnection({
     saveCreds();
   });
 
-  sock.ev.on("group-participants.update", ({ id }) => {
-    lastActivity = Date.now();
-    invalidateGroupCache(id);
-    log.info(`[${botLabel}] Cache de grupo invalidado por cambio de participantes → ${id}`);
-  });
+  sock.ev.on("group-participants.update", ({ id, participants, action }) => {
+  lastActivity = Date.now();
+  invalidateGroupCache(id);
+  log.info(`[${botLabel}] Cache de grupo invalidado por cambio de participantes → ${id}`);
+
+  if (action === "add") {
+    sendWelcome(sock, id, participants, botLabel).catch((e) =>
+      log.error(`[${botLabel}] Error en sendWelcome: ${e.message}`)
+    );
+  }
+});
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     lastActivity = Date.now();
