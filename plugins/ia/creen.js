@@ -56,6 +56,10 @@ async function generateImage(prompt, options = {}) {
     })
   })
 
+  // 🔍 DEBUG TEMPORAL
+  console.log('[CREEN DEBUG] statusCode:', createRes.statusCode)
+  console.log('[CREEN DEBUG] body completo:', JSON.stringify(createRes.body, null, 2))
+
   if (createRes.statusCode === 401 || createRes.statusCode === 403) {
     throw new Error('Token de Creen expirado o inválido. Captura uno nuevo y actualiza CREEN_TOKEN.')
   }
