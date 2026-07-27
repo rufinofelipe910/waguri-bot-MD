@@ -14,25 +14,21 @@ export default {
 
       await react('🎨')
 
-      const res = await axios.get('https://api.lempi.lat/ai/freegen', {
+      const res = await axios.get('https://api.lempi.lat/ai/zimg', {
         params: {
           prompt: text,
-          ratio: '1:1',
+          size: '1024x1024',
           apikey: 'lem569'
         },
-        timeout: 90000
+        timeout: 60000
       })
 
       const body = res.data
-
-      // 🔍 DEBUG TEMPORAL
-      console.log('[TTI DEBUG] respuesta completa:', JSON.stringify(body, null, 2))
-
-      const imageUrl = body?.result || body?.data?.url || body?.url
+      const imageUrl = body?.resultado?.url
 
       if (!body?.status || !imageUrl) {
         await react('❌')
-        return reply({ text: '❌ no pude generar la imagen, revisa consola para debug' })
+        return reply({ text: '❌ no pude generar la imagen, intenta de nuevo' })
       }
 
       await sock.sendMessage(
