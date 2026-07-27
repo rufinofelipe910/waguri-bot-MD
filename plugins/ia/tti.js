@@ -1,5 +1,4 @@
-// plugins/ia/tti.js
-import { textToImage } from './creen.js'
+import axios from 'axios'
 
 export default {
   name: ['tti', 'imagine', 'imagen'],
@@ -15,13 +14,32 @@ export default {
 
       await react('🎨')
 
-      const resultado = await textToImage(text)
+      const res = await axios.get('https://api.lempi.lat/ai/freegen', {
+        params: {
+          prompt: text,
+          ratio: '1:1',
+          apikey: 'lem569'
+        },
+        timeout: 90000
+      })
+
+      const body = res.data
+
+      // 🔍 DEBUG TEMPORAL
+      console.log('[TTI DEBUG] respuesta completa:', JSON.stringify(body, null, 2))
+
+      const imageUrl = body?.result || body?.data?.url || body?.url
+
+      if (!body?.status || !imageUrl) {
+        await react('❌')
+        return reply({ text: '❌ no pude generar la imagen, revisa consola para debug' })
+      }
 
       await sock.sendMessage(
         from,
         {
-          image: resultado.buffer,
-          caption: `🎨 *${resultado.prompt}*`
+          image: { url: imageUrl },
+          caption: `🎨 *${text}*`
         },
         { quoted: msg }
       )
