@@ -98,7 +98,7 @@ export default {
         report += `⚠️ No hay ningún bot de este sistema dentro de este grupo.\n\n`
       }
 
-      report += `🪼 _Powered by DuarteXV_`
+      report += `⭐ _Powered by 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸👑_`
 
       await sock.sendMessage(
         from,
