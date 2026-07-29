@@ -78,7 +78,7 @@ export default {
             : botData.label;
         }
       } catch {
-        currentBotName = config.botName || "YUTA OKOTSU";
+        currentBotName = config.botName || "WAGURI BOT";
       }
 
       currentBotName = currentBotName.toUpperCase();
