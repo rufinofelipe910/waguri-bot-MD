@@ -13,7 +13,10 @@ export default {
   textbot:  "waguri la estudiante de la academia de élite de kikyo, alegre,humilde y de gran corazón",
 
   // ─── OWNER ──────────────────────────────────────────────
-  ownerNumber: ["240222646582", "573135180876" ],
+  // Se agregó el LID (210200699113555) junto al número de teléfono,
+  // porque WhatsApp está enviando algunos mensajes de grupo identificados
+  // por LID en vez del número real, y el bot no lo reconocía como owner.
+  ownerNumber: ["240222646582", "573135180876", "210200699113555"],
   coOwners: [],
 
   // ─── SESIONES ───────────────────────────────────────────
