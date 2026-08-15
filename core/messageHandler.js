@@ -21,6 +21,35 @@ function cleanJid(jid = "") {
   return `${userPart}@${domainPart}`;
 }
 
+// Extrae solo la parte numérica/usuario sin dominio, para comparar
+// independientemente de si viene como @s.whatsapp.net o @lid
+function bareUser(jid = "") {
+  const cleaned = cleanJid(jid);
+  const atIndex = cleaned.lastIndexOf("@");
+  return atIndex === -1 ? cleaned : cleaned.slice(0, atIndex);
+}
+
+// Compara un participante de groupMetadata contra un jid dado,
+// probando id, jid y phoneNumber (Baileys puede exponer distintos campos
+// según si el participante está en formato LID o PN)
+function matchesParticipant(participant, targetJid) {
+  const targetClean = cleanJid(targetJid);
+  const targetBare = bareUser(targetJid);
+
+  const candidates = [
+    participant.id,
+    participant.jid,
+    participant.phoneNumber,
+    participant.lid,
+  ].filter(Boolean);
+
+  return candidates.some(c => {
+    const cClean = cleanJid(c);
+    const cBare = bareUser(c);
+    return cClean === targetClean || cBare === targetBare;
+  });
+}
+
 export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum = null, activeBotsLive = []) {
   try {
     const msg = rawMsg;
@@ -107,14 +136,15 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
     let isBotAdmin = false;
 
     if (isGroup && groupMeta?.participants) {
-      const botJidClean = cleanJid(botJid);
-      const senderJidClean = cleanJid(sender);
-
-      const botParticipant = groupMeta.participants.find(p => cleanJid(p.id) === botJidClean);
-      const senderParticipant = groupMeta.participants.find(p => cleanJid(p.id) === senderJidClean);
+      const botParticipant = groupMeta.participants.find(p => matchesParticipant(p, botJid));
+      const senderParticipant = groupMeta.participants.find(p => matchesParticipant(p, sender));
 
       isAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin';
       isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
+
+      // Owner del bot siempre pasa el check de admin, por si el JID
+      // no matchea por temas de LID pero sabemos que es el owner real
+      if (!isAdmin && isOwner) isAdmin = true;
     }
 
     if (isGroup) {
