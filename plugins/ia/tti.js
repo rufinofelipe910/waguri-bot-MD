@@ -20,21 +20,24 @@ export default {
           size: '1024x1024',
           apikey: 'lem569'
         },
-        timeout: 60000
+        timeout: 60000,
+        responseType: 'arraybuffer'
       })
 
-      const body = res.data
-      const imageUrl = body?.resultado?.url
+      const contentType = res.headers['content-type'] || ''
 
-      if (!body?.status || !imageUrl) {
+      // si la API falla, a veces devuelve JSON de error en vez de imagen
+      if (!contentType.startsWith('image/')) {
         await react('❌')
         return reply({ text: '❌ no pude generar la imagen, intenta de nuevo' })
       }
 
+      const buffer = Buffer.from(res.data)
+
       await sock.sendMessage(
         from,
         {
-          image: { url: imageUrl },
+          image: buffer,
           caption: `🎨 *${text}*`
         },
         { quoted: msg }
