@@ -21,17 +21,12 @@ function cleanJid(jid = "") {
   return `${userPart}@${domainPart}`;
 }
 
-// Extrae solo la parte numérica/usuario sin dominio, para comparar
-// independientemente de si viene como @s.whatsapp.net o @lid
 function bareUser(jid = "") {
   const cleaned = cleanJid(jid);
   const atIndex = cleaned.lastIndexOf("@");
   return atIndex === -1 ? cleaned : cleaned.slice(0, atIndex);
 }
 
-// Compara un participante de groupMetadata contra un jid dado,
-// probando id, jid y phoneNumber (Baileys puede exponer distintos campos
-// según si el participante está en formato LID o PN)
 function matchesParticipant(participant, targetJid) {
   const targetClean = cleanJid(targetJid);
   const targetBare = bareUser(targetJid);
@@ -142,8 +137,6 @@ export async function handleMessage(sock, rawMsg, botLabel = "MAIN", mainBotNum 
       isAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin';
       isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
 
-      // Owner del bot siempre pasa el check de admin, por si el JID
-      // no matchea por temas de LID pero sabemos que es el owner real
       if (!isAdmin && isOwner) isAdmin = true;
     }
 
