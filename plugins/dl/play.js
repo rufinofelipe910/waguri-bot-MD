@@ -11,7 +11,7 @@ export default {
 
   async run({ sock, from, msg, text, reply, react }) {
     try {
-      if (!text.trim()) {
+      if (!(text || "").trim()) {
         return reply({
           text: "⛧ escribe el nombre o link del video",
         });
@@ -40,7 +40,7 @@ export default {
 
       const data = res.data;
 
-      if (!data?.status || !data?.descarga?.url) {
+      if (!data?.status || !data?.datos?.url) {
         return reply({
           text: "⛧ no pude obtener el audio",
         });
@@ -48,11 +48,11 @@ export default {
 
       const title = data.titulo;
       const thumbnail = data.miniatura;
-      const youtube_url = data.fuente;
-      const download_url = data.descarga.url;
-      const calidad = data.descarga.calidad || "320kbps";
-      const formato = data.descarga.formato || "mp3";
-      const fileName = data.descarga.archivo || `${title}.mp3`;
+      const youtube_url = yt.url;
+      const download_url = data.datos.url;
+      const calidad = data.datos.calidad || "320kbps";
+      const formato = (data.datos.extension || "mp3").replace(".", "");
+      const fileName = data.datos.archivo || `${title}.mp3`;
 
       const vistas = formatViews(yt.views);
 
@@ -71,13 +71,20 @@ export default {
         { quoted: msg }
       );
 
+      // descarga el audio como buffer para evitar problemas de Baileys con URLs directas
+      const audioRes = await axios.get(download_url, {
+        responseType: "arraybuffer",
+        timeout: 90000,
+      });
+      const buffer = Buffer.from(audioRes.data);
+
       const isLongAudio = yt.seconds > 1800; // 30 minutos
 
       if (isLongAudio) {
         await sock.sendMessage(
           from,
           {
-            document: { url: download_url },
+            document: buffer,
             mimetype: "audio/mpeg",
             fileName,
             caption: "⛧ audio enviado como documento por duración/tamaño",
@@ -88,7 +95,7 @@ export default {
         await sock.sendMessage(
           from,
           {
-            audio: { url: download_url },
+            audio: buffer,
             mimetype: "audio/mpeg",
             ptt: false,
           },
