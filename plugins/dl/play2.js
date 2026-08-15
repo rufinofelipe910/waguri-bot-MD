@@ -31,8 +31,8 @@ export default {
         for (let i = 0; i < 3; i++) {
           try {
             const res = await axios.get(api, { timeout: 30000 })
-            if (res.data?.status && res.data?.descarga?.url) {
-  data = res.data
+            if (res.data?.status && res.data?.datos?.url) {
+              data = res.data
               break
             }
           } catch {}
@@ -43,7 +43,7 @@ export default {
       if (!data) return reply({ text: '❌ Error API' })
 
       const title = data.titulo
-      const mp4 = data.descarga.url
+      const mp4 = data.datos.url
 
       const head = await axios.head(mp4)
       const size = Number(head.headers['content-length']) || 0
@@ -53,15 +53,22 @@ export default {
         text: `🎬 ${title}\n📦 ${sizeMB.toFixed(2)} MB`
       }, { quoted: msg })
 
+      // descarga el video como buffer para evitar problemas de Baileys con URLs directas
+      const videoRes = await axios.get(mp4, {
+        responseType: 'arraybuffer',
+        timeout: 90000
+      })
+      const buffer = Buffer.from(videoRes.data)
+
       if (sizeMB >= LIMIT_MB) {
         await sock.sendMessage(from, {
-          document: { url: mp4 },
+          document: buffer,
           mimetype: 'video/mp4',
           fileName: `${title}.mp4`
         }, { quoted: msg })
       } else {
         await sock.sendMessage(from, {
-          video: { url: mp4 },
+          video: buffer,
           mimetype: 'video/mp4',
           fileName: `${title}.mp4`,
           caption: title
