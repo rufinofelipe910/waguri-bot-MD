@@ -30,6 +30,7 @@ const stmts = {
   getUser: db_instance.prepare("SELECT data FROM users WHERE jid = ?"),
   insertUser: db_instance.prepare("INSERT INTO users (jid, data) VALUES (?, ?)"),
   updateUser: db_instance.prepare("UPDATE users SET data = ? WHERE jid = ?"),
+  getAllUsers: db_instance.prepare("SELECT jid, data FROM users"),
 
   getGroup: db_instance.prepare("SELECT data FROM groups WHERE jid = ?"),
   insertGroup: db_instance.prepare("INSERT INTO groups (jid, data) VALUES (?, ?)"),
@@ -122,6 +123,19 @@ export const db = {
     } catch {}
 
     const rows = stmts.getAllBots.all();
+    return rows.map(row => ({
+      id: row.jid,
+      jid: row.jid,
+      ...JSON.parse(row.data)
+    }));
+  },
+
+  getAllUsers() {
+    try {
+      db_instance.pragma("wal_checkpoint(PASSIVE)");
+    } catch {}
+
+    const rows = stmts.getAllUsers.all();
     return rows.map(row => ({
       id: row.jid,
       jid: row.jid,
