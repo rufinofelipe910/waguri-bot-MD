@@ -1,115 +1,65 @@
-import axios from 'axios';
+import axios from 'axios'
 
-function validateTikTokUrl(url) {
-  if (!url) return null;
-  const regex = /^(https?:\/\/)?(www\.|vm\.|vt\.)?tiktok\.com\/[\w\d@?=&/.-]+/i;
-  const match = url.match(regex);
-  return match ? match[0] : null;
-}
-
-async function downloadTikTokNormal(url) {
-  try {
-    const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
-
-    const { data } = await axios.get(apiUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Referer': 'https://www.tikwm.com/',
-        'Origin': 'https://www.tikwm.com'
-      },
-      timeout: 15000
-    });
-
-    if (data.code === 0 && data.data && data.data.play) {
-      const d = data.data;
-
-      return {
-        videoUrl: d.play,
-        title: d.title,
-        authorNick: d.author?.nickname || 'Desconocido',
-        likes: d.digg_count,
-        shares: d.share_count,
-        downloads: d.download_count,
-        comments: d.comment_count
-      };
-    }
-    throw new Error('No video data found');
-  } catch (error) {
-    throw new Error(`TikWM API error: ${error.message}`);
-  }
-}
-
-async function descargarBuffer(url) {
-  const { data } = await axios.get(url, {
-    responseType: 'arraybuffer',
-    timeout: 30000,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-  });
-  return Buffer.from(data);
-}
+const API_KEY = 'NEX-832E11D2E71E43248B668FF2'
 
 export default {
   name: ['tiktok', 'tt'],
-  description: 'Descarga videos de TikTok rápido',
+  description: 'Busca y descarga videos de TikTok',
   category: 'dl',
-  groupOnly: false,
+  ownerOnly: false,
 
-  async run({ sock, from, msg, args, usedPrefix, cmdName, reply, react }) {
-    if (!args[0]) {
-      return await reply({
-        text: `🎵 Por favor, ingresa un enlace de TikTok.\n\n📝 *Ejemplo:* ${usedPrefix}${cmdName} https://www.tiktok.com/@usuario/video/1234567890`
-      });
-    }
-
-    const tiktokUrl = validateTikTokUrl(args[0]);
-    if (!tiktokUrl) {
-      return await reply({
-        text: `❌ URL de TikTok inválida. Por favor verifica el enlace.\n\n✅ *URLs válidas:*\n• https://www.tiktok.com/@usuario/video/...\n• https://vm.tiktok.com/...\n• https://vt.tiktok.com/...`
-      });
-    }
-
-    await react('🔄');
-    await reply({ text: `> ✎...Descargando video.` });
-
+  async run({ sock, from, msg, text, reply, react }) {
     try {
-      const result = await downloadTikTokNormal(tiktokUrl);
-
-      if (!result || !result.videoUrl) {
-        await react('❌');
-        return await reply({ text: `❌ No se pudo descargar el video. El enlace podría ser privado o no válido.` });
+      if (!text) {
+        return reply({ text: '🎬 pega un link de TikTok' })
       }
 
-      const buffer = await descargarBuffer(result.videoUrl);
-      const titulo = result.title?.trim() || 'Sin título';
+      await react('🔍')
 
-      let caption = `☑ *Video de TikTok descargado*\n`;
-      caption += `─╮\n`;
-      caption += `   ╰━━━━━━(☆)━━━━━━─╮\n`;
-      caption += `*👤 ᴀᴜᴛᴏʀ:* ${result.authorNick || 'Desconocido'}\n`;
-      caption += `*♡ ʟɪᴋᴇs:* ${result.likes ?? 'N/A'}\n`;
-      caption += `*⌲ sʜᴀʀᴇ:* ${result.shares ?? 'N/A'}\n`;
-      caption += `*⎙ sᴀᴠᴇ:* ${result.downloads ?? 'N/A'}\n`;
-      caption += `*○ ᴄᴏᴍᴍᴇɴᴛ:* ${result.comments ?? 'N/A'}\n`;
-      caption += `*📹 ᴛɪᴛᴜʟᴏ:* ${titulo}`;
+      const res = await axios.get('https://nexevo.boxmine.xyz/download/tiktok', {
+        params: { url: text, apikey: API_KEY },
+        timeout: 30000
+      })
 
-      await sock.sendMessage(from, {
-        video: buffer,
-        mimetype: 'video/mp4',
-        fileName: 'tiktok.mp4',
-        caption
-      }, { quoted: msg });
+      const body = res.data
+      const data = body?.result?.data
 
-      await react('✅');
+      if (!body?.status || !data?.play) {
+        await react('❌')
+        return reply({ text: '❌ no pude descargar ese video, revisa el link' })
+      }
+
+      const caption =
+        `🎬 ${data.title || 'Sin título'}\n\n` +
+        `👤 autor › ${data.author?.nickname || 'Desconocido'}\n` +
+        `⏱️ duración › ${data.duration || 'N/A'}s\n` +
+        `❤️ likes › ${(data.digg_count || 0).toLocaleString()}\n` +
+        `👁️ vistas › ${(data.play_count || 0).toLocaleString()}\n` +
+        `💬 comentarios › ${(data.comment_count || 0).toLocaleString()}`
+
+      const videoRes = await axios.get(data.play, {
+        responseType: 'arraybuffer',
+        timeout: 60000,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+      const videoBuffer = Buffer.from(videoRes.data)
+
+      await sock.sendMessage(
+        from,
+        {
+          video: videoBuffer,
+          mimetype: 'video/mp4',
+          caption
+        },
+        { quoted: msg }
+      )
+
+      await react('✅')
 
     } catch (error) {
-      console.error('Error en TikTok download:', error);
-      await react('❌');
-      await reply({
-        text: `❌ Error al procesar la descarga: ${error.message}`
-      });
+      await react('❌')
+      await reply({ text: `❌ Error: ${error.message}` })
+      console.error('Error en tiktok:', error)
     }
   }
-};
+}
