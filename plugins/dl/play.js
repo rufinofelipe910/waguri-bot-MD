@@ -1,7 +1,7 @@
 import axios from "axios";
 import yts from "yt-search";
 
-const API_KEY = "lem569";
+const API_KEY = "NEX-832E11D2E71E43248B668FF2";
 
 export default {
   name: ["play", "yta", "ytmp3", "playaudio"],
@@ -11,7 +11,7 @@ export default {
 
   async run({ sock, from, msg, text, reply, react }) {
     try {
-      if (!(text || "").trim()) {
+      if (!text.trim()) {
         return reply({
           text: "⛧ escribe el nombre o link del video",
         });
@@ -32,29 +32,31 @@ export default {
       }
 
       const api =
-        `https://api.lempi.lat/dl/yta?apikey=${API_KEY}&url=${encodeURIComponent(yt.url)}`;
+        `https://nexevo.boxmine.xyz/download/audio?url=${encodeURIComponent(yt.url)}&apikey=${API_KEY}`;
 
       const res = await axios.get(api, {
         timeout: 90000,
       });
 
-      const data = res.data;
+      const body = res.data;
+      const result = body?.result;
 
-      if (!data?.status || !data?.datos?.url) {
+      if (!body?.status || !result?.url) {
         return reply({
           text: "⛧ no pude obtener el audio",
         });
       }
 
-      const title = data.titulo;
-      const thumbnail = data.miniatura;
-      const youtube_url = yt.url;
-      const download_url = data.datos.url;
-      const calidad = data.datos.calidad || "320kbps";
-      const formato = (data.datos.extension || "mp3").replace(".", "");
-      const fileName = data.datos.archivo || `${title}.mp3`;
+      const title = result.info?.title || yt.title;
+      const thumbnail = result.info?.thumbnail || yt.thumbnail;
+      const channel = result.info?.channel || yt.author?.name;
+      const download_url = result.url;
+      const calidad = result.quality || "128kbps";
+      const formato = result.format || "mp3";
+      const fileName = `${title}.mp3`;
 
       const vistas = formatViews(yt.views);
+      const duracion = result.info?.duration || yt.seconds;
 
       await sock.sendMessage(
         from,
@@ -62,21 +64,15 @@ export default {
           image: { url: thumbnail },
           caption:
             `⛧ ${title}\n\n` +
+            `⛧ canal › ${channel || 'Desconocido'}\n` +
             `⛧ vistas › ${vistas}\n` +
-            `⛧ duración › ${formatDuration(yt.seconds)}\n` +
+            `⛧ duración › ${formatDuration(duracion)}\n` +
             `⛧ calidad › ${calidad}\n` +
             `⛧ formato › ${formato}\n` +
-            `⛧ link › ${youtube_url}`
+            `⛧ link › ${yt.url}`
         },
         { quoted: msg }
       );
-
-      // descarga el audio como buffer para evitar problemas de Baileys con URLs directas
-      const audioRes = await axios.get(download_url, {
-        responseType: "arraybuffer",
-        timeout: 90000,
-      });
-      const buffer = Buffer.from(audioRes.data);
 
       const isLongAudio = yt.seconds > 1800; // 30 minutos
 
@@ -84,7 +80,7 @@ export default {
         await sock.sendMessage(
           from,
           {
-            document: buffer,
+            document: { url: download_url },
             mimetype: "audio/mpeg",
             fileName,
             caption: "⛧ audio enviado como documento por duración/tamaño",
@@ -95,7 +91,7 @@ export default {
         await sock.sendMessage(
           from,
           {
-            audio: buffer,
+            audio: { url: download_url },
             mimetype: "audio/mpeg",
             ptt: false,
           },
