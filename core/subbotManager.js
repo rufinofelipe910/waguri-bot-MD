@@ -40,9 +40,6 @@ function broadcastBotsList() {
   }
 }
 
-// 📡 Le pide a TODOS los subbots que reaccionen a un mensaje de canal.
-// El Main hace lo suyo aparte (en connection.js), porque corre en este
-// mismo proceso y no necesita pasar por un worker.
 export function broadcastReaccionCanal({ invite, serverId, emoji }) {
   for (const worker of workers.values()) {
     worker.postMessage({ type: "react_canal", invite, serverId, emoji });
@@ -234,9 +231,15 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
     workers.set(id, worker);
     worker.postMessage({ type: "bots_list", data: getActiveBotsSnapshot() });
 
+    // ⏳ Antes eran 15s — muy poco tiempo real: fetchLatestBaileysVersion()
+    // (llamada de red) + 3s de espera fija + requestPairingCode() (otra
+    // llamada de red) fácilmente pasan de 15s, sobre todo con varios
+    // subbots conectándose a la vez. Subido a 45s para dar margen real.
     const timeout = setTimeout(() => {
+      worker.terminate();
+      workers.delete(id);
       reject(new Error("Timeout esperando código"));
-    }, 15000);
+    }, 45000);
 
     const cleanupTimeout = setTimeout(() => {
       const bot = db.getBot(id);
@@ -244,7 +247,7 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
         log.warn(`[MANAGER] Subbot ${id} nunca se conectó — eliminado`);
         removeSubbot(id);
       }
-    }, 2 * 60 * 1000);
+    }, 3 * 60 * 1000);
 
     worker.on("message", (msg) => {
       if (msg.type === "code") {
