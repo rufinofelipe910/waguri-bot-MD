@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_KEY = "api-uMZCY";
-const API_URL = "https://api.alyacore.xyz/ai/gemini";
+const API_KEY = "NEX-832E11D2E71E43248B668FF2";
+const API_URL = "https://nexevo.boxmine.xyz/ai/gemini";
 
 export default {
   name: ["gemini"],
@@ -23,7 +23,7 @@ export default {
     });
 
     try {
-      const url = `${API_URL}?text=${encodeURIComponent(text)}&key=${API_KEY}`;
+      const url = `${API_URL}?text=${encodeURIComponent(text)}&apikey=${API_KEY}`;
 
       const { data } = await axios.get(url, { timeout: 60000 });
 
