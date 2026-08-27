@@ -22,6 +22,14 @@ db_instance.exec(`
     jid TEXT PRIMARY KEY,
     data TEXT DEFAULT '{}'
   );
+  CREATE TABLE IF NOT EXISTS user_waifus (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jid TEXT,
+    name TEXT,
+    image TEXT,
+    rarity TEXT,
+    FOREIGN KEY (jid) REFERENCES users(jid)
+  );
 `);
 
 const hierarchy = ["user", "premium", "mod", "coowner", "owner"];
@@ -48,6 +56,11 @@ function getUser(jid) {
     const defaultUser = {
       role: "user",
       banned: false,
+      bolsillo: 0,
+      banco: 0,
+      inventario: [],
+      lastWork: 0,
+      job: null,
       registeredAt: new Date().toISOString()
     };
     stmts.insertUser.run(jid, JSON.stringify(defaultUser));
@@ -60,7 +73,8 @@ function getGroup(jid) {
   const row = stmts.getGroup.get(jid);
   if (!row) {
     const defaultGroup = {
-      welcome: false,
+      welcome: true, // Activado por defecto para las bienvenidas
+      welcomeText: null,
       antilink: false,
       primaryBot: null,
       adminMode: false
@@ -68,7 +82,10 @@ function getGroup(jid) {
     stmts.insertGroup.run(jid, JSON.stringify(defaultGroup));
     return defaultGroup;
   }
-  return JSON.parse(row.data);
+  const data = JSON.parse(row.data);
+  // Asegurar compatibilidad si el grupo ya existía sin estas propiedades
+  if (data.welcome === undefined) data.welcome = true;
+  return data;
 }
 
 function getBot(jid) {
@@ -190,7 +207,7 @@ export const db = {
     stmts.updateGroup.run(JSON.stringify(group), groupJid);
   },
 
-  // 💰 ECONOMÍA — Fragmentos
+  // 💰 ECONOMÍA
   getEco(jid) {
     const user = getUser(jid);
     return {
@@ -205,4 +222,22 @@ export const db = {
   setEco(jid, dataObject) {
     db.setUser(jid, dataObject);
   },
+
+  updateBalance(jid, amount) {
+    const user = getUser(jid);
+    const nuevoBolsillo = (user.bolsillo ?? 0) + amount;
+    db.setUser(jid, { bolsillo: nuevoBolsillo });
+  },
+
+  // 💕 WAIFUS (Tabla independiente para evitar pérdida de datos)
+  addWaifu(jid, waifu) {
+    getUser(jid); // Asegura que el usuario exista
+    db_instance.prepare(
+      "INSERT INTO user_waifus (jid, name, image, rarity) VALUES (?, ?, ?, ?)"
+    ).run(jid, waifu.name, waifu.image || "", waifu.rarity || "Común");
+  },
+
+  getWaifus(jid) {
+    return db_instance.prepare("SELECT * FROM user_waifus WHERE jid = ?").all(jid);
+  }
 };
