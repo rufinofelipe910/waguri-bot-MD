@@ -74,8 +74,9 @@ export default {
     const avatarSize = 260
     const avatarY = (height - avatarSize) / 2
 
+    // Corregido aquí de getProfilePid a getProfilePic
     const [imgA, imgB] = await Promise.all([
-      getProfilePid(sock, userA), // Nota: corregido a getProfilePic abajo por seguridad
+      getProfilePic(sock, userA),
       getProfilePic(sock, userB)
     ])
 
