@@ -27,7 +27,7 @@ export default {
 
     const trabajoActual = TRABAJOS.find(t => t.id === eco.job)
 
-    // Por si el trabajo guardado ya no existe en la lista (ej. cambiaste los ids)
+    // Por si el trabajo guardado ya no existe en la lista
     if (!trabajoActual) {
       db.setEco(sender, { job: null })
       return await reply({
@@ -36,7 +36,7 @@ export default {
     }
 
     const ahora = Date.now()
-    const tiempoRestante = COOLDOWN - (ahora - eco.lastWork)
+    const tiempoRestante = COOLDOWN - (ahora - (eco.lastWork || 0))
 
     if (tiempoRestante > 0) {
       const mins = Math.floor(tiempoRestante / 60000)
@@ -52,14 +52,15 @@ export default {
     // Ganancia aleatoria (0-500)
     const ganado = Math.floor(Math.random() * 500)
 
-    const nuevoBolsillo = eco.bolsillo + ganado
+    const nuevoBolsillo = (eco.bolsillo || 0) + ganado
 
+    // Usamos setEco (que internamente hace un spread con los datos actuales del usuario)
     db.setEco(sender, {
       bolsillo: nuevoBolsillo,
       lastWork: ahora
     })
 
-    await react('💰')
+    if (react) await react('💰')
     await reply({
       text: `${trabajoActual.emoji} *${trabajoActual.nombre}*\n\n` +
         `${tarea} *${ganado}* WaguriCoins\n` +
