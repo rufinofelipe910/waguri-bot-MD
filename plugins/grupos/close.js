@@ -6,48 +6,36 @@ export default {
   botAdmin: true,
 
   async run({ sock, from, msg, reply }) {
-    const groupMetaReal = await sock.groupMetadata(from)
-    const participants = groupMetaReal.participants || []
-
-    // Función robusta para limpiar JIDs (remueve suficios de dispositivos y dominios extra)
-    const cleanJid = (jid = "") => {
-      if (!jid) return "";
-      const atIndex = jid.lastIndexOf("@");
-      if (atIndex === -1) return jid.split(":")[0];
-      const userPart = jid.slice(0, atIndex).split(":")[0];
-      const domainPart = jid.slice(atIndex + 1);
-      return `${userPart}@${domainPart}`;
-    }
-
-    const senderRaw = msg.key.participant || msg.participant || from
-    const senderJid = cleanJid(senderRaw)
-    const botJidClean = cleanJid(sock.user?.id)
-
-    // Validar si el remitente es administrador
-    const senderParticipant = participants.find(p => cleanJid(p.id) === senderJid)
-    const isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin'
-
-    if (!isSenderAdmin) {
-      return await reply({ text: "❌ Solo admins del grupo pueden usar este comando." })
-    }
-
-    // Validar si el bot es administrador comparando limpiamente los JIDs o el número base
-    const botParticipant = participants.find(p => {
-      const pClean = cleanJid(p.id)
-      return pClean === botJidClean || pClean.split('@')[0] === botJidClean.split('@')[0]
-    })
-    
-    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
-
-    if (!isBotAdmin) {
-      return await reply({ text: "❌ El bot necesita ser admin para cerrar el grupo." })
-    }
-
     try {
+      const groupMeta = await sock.groupMetadata(from)
+      const participants = groupMeta.participants || []
+
+      // Función para limpiar JIDs
+      const cleanJid = (jid = "") => {
+        if (!jid) return "";
+        const atIndex = jid.lastIndexOf("@");
+        if (atIndex === -1) return jid.split(":")[0];
+        return `${jid.slice(0, atIndex).split(":")[0]}@${jid.slice(atIndex + 1)}`;
+      }
+
+      // Validar únicamente si el usuario que ejecuta el comando es admin
+      const senderRaw = msg.key.participant || msg.participant || from
+      const senderJid = cleanJid(senderRaw)
+      
+      const senderParticipant = participants.find(p => cleanJid(p.id) === senderJid)
+      const isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin'
+
+      if (!isSenderAdmin) {
+        return await reply({ text: "❌ Solo los administradores del grupo pueden usar este comando." })
+      }
+
+      // Ejecutar el cierre del grupo directamente
       await sock.groupSettingUpdate(from, 'announcement')
-      await reply({ text: "꒰ 𑁍 ꒱ E𝗅 gꭇᥙ⍴o ⍺ 𝗌іძo ᥴᧉꭇꭇ⍺ძo ᥴoꭇꭇᧉƚ⍺mᧉnƚᧉ.\n> ¡Ahora solo los administradores pueden enviar mensajes!." })
+      await reply({ text: "꒰ 𑁍 ꒱ E𝗅 gꭇᥙ⍴o ⍺ 𝗌іძo ᥴᧉꭇꭇ⍺ძo ᥴoꭇꭇᧉƚ⍺mᧉnƚᧉ.\n> ¡Ahora solo los administradores pueden enviar mensajes!" })
+      
     } catch (e) {
-      await reply({ text: `❌ Hubo un error al cerrar el grupo: ${e.message}` })
+      console.error('Error en cerrar:', e)
+      await reply({ text: `❌ Hubo un error al cerrar el grupo. Asegúrate de que el bot sea administrador.\n> Detalles: ${e.message}` })
     }
   }
 }
