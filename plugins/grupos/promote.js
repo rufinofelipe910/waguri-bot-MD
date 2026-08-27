@@ -20,10 +20,19 @@ export default {
     const groupMetaReal = await sock.groupMetadata(from)
     const participants = groupMetaReal.participants || []
 
-    // 1. Validar que el BOT sea administrador
-    const botJidClean = cleanJid(sock.user?.id)
-    const botParticipant = participants.find(p => cleanJid(p.id) === botJidClean)
-    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
+    // 1. Validar que el BOT sea administrador (Búsqueda flexible por número base o ID)
+    const botRawId = sock.user?.id || ''
+    const botNumBase = botRawId.split('@')[0].split(':')[0]
+
+    const botParticipant = participants.find(p => {
+      const pClean = cleanJid(p.id)
+      const pNum = pClean.split('@')[0].split(':')[0]
+      return pClean === cleanJid(botRawId) || pNum === botNumBase
+    })
+
+    // Si por alguna razón extraña la metadata no trae al bot listado, permitimos continuar 
+    // confiando en el decorador botAdmin o lanzará el error al intentar la acción de WhatsApp.
+    const isBotAdmin = botParticipant ? (botParticipant.admin === 'admin' || botParticipant.admin === 'superadmin') : true
 
     if (!isBotAdmin) {
       return await reply({ text: "❌ Necesito ser administrador del grupo para poder promover a alguien." })
@@ -62,7 +71,12 @@ export default {
     }
 
     // 4. Ejecutar la promoción
-    await sock.groupParticipantsUpdate(from, [targetJid], "promote")
+    try {
+      await sock.groupParticipantsUpdate(from, [targetJid], "promote")
+    } catch (e) {
+      return await reply({ text: `❌ No se pudo promover al usuario. Asegúrate de que el bot sea administrador del grupo.` })
+    }
+
     if (typeof clearGroupCache === 'function') {
       clearGroupCache()
     }
@@ -73,7 +87,7 @@ export default {
 
     await sock.sendMessage(from, {
       text: textoPromote,
-      contextInfo: { mentionedJid: [targetJid, senderJid] }
+      contextInfo: { mentionedJid: [targetJid, `${senderNum}@s.whatsapp.net`] }
     }, { quoted: msg })
   }
 }
