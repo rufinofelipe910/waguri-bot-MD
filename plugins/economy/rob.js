@@ -64,7 +64,7 @@ export default {
         return reply({ text: `❌ esa persona no tiene suficiente dinero en el bolsillo para valer la pena robarle (mínimo ${MIN_ROBABLE} WaguriCoins)` })
       }
 
-      await react('🔪')
+      if (react) await react('🔪')
 
       const exito = Math.random() < PROBABILIDAD_EXITO
 
@@ -72,32 +72,46 @@ export default {
         const porcentaje = Math.random() * (PORCENTAJE_ROBO[1] - PORCENTAJE_ROBO[0]) + PORCENTAJE_ROBO[0]
         const cantidad = Math.floor(ecoObjetivo.bolsillo * porcentaje)
 
-        db.setEco(targetJid, { bolsillo: ecoObjetivo.bolsillo - cantidad })
-        db.setEco(senderClean, { bolsillo: ecoLadron.bolsillo + cantidad, lastRob: ahora })
+        const nuevoBolsilloObjetivo = ecoObjetivo.bolsillo - cantidad
+        const nuevoBolsilloLadron = ecoLadron.bolsillo + cantidad
+
+        // Actualizamos al objetivo
+        db.setEco(targetJid, { bolsillo: nuevoBolsilloObjetivo })
+
+        // Actualizamos al ladrón (incluyendo el cooldown lastRob)
+        db.setEco(senderClean, { 
+          bolsillo: nuevoBolsilloLadron, 
+          lastRob: ahora 
+        })
 
         await reply({
           text: `🔪 *¡Robo exitoso!*\n\n` +
             `Le robaste *${cantidad}* WaguriCoins a @${targetJid.split('@')[0]}\n` +
-            `👜 tu bolsillo ahora: ${ecoLadron.bolsillo + cantidad} WaguriCoins`,
+            `👜 tu bolsillo ahora: ${nuevoBolsilloLadron} WaguriCoins`,
           mentions: [targetJid]
         })
       } else {
         const multa = randomEntre(MULTA_FALLO[0], MULTA_FALLO[1])
         const multaReal = Math.min(multa, ecoLadron.bolsillo)
+        const nuevoBolsilloLadron = ecoLadron.bolsillo - multaReal
 
-        db.setEco(senderClean, { bolsillo: ecoLadron.bolsillo - multaReal, lastRob: ahora })
+        // Actualizamos al ladrón descontando la multa y guardando el cooldown
+        db.setEco(senderClean, { 
+          bolsillo: nuevoBolsilloLadron, 
+          lastRob: ahora 
+        })
 
         await reply({
           text: `🚨 *¡Te atraparon!*\n\n` +
             `Fallaste el robo y pagaste una multa de *${multaReal}* WaguriCoins\n` +
-            `👜 tu bolsillo ahora: ${ecoLadron.bolsillo - multaReal} WaguriCoins`
+            `👜 tu bolsillo ahora: ${nuevoBolsilloLadron} WaguriCoins`
         })
       }
 
-      await react('✅')
+      if (react) await react('✅')
 
     } catch (error) {
-      await react('❌')
+      if (react) await react('❌')
       await reply({ text: `❌ Error: ${error.message}` })
       console.error('Error en rob:', error)
     }
