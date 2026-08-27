@@ -1,10 +1,10 @@
 import axios from 'axios'
 
-const API_KEY = 'NEX-832E11D2E71E43248B668FF2'
+const API_KEY = 'lem569'
 
 export default {
   name: ['tiktok', 'tt'],
-  description: 'Busca y descarga videos de TikTok',
+  description: 'Descarga videos de TikTok',
   category: 'dl',
   ownerOnly: false,
 
@@ -16,28 +16,35 @@ export default {
 
       await react('🔍')
 
-      const res = await axios.get('https://nexevo.boxmine.xyz/download/tiktok', {
+      const res = await axios.get('https://api.lempi.lat/dl/tiktok', {
         params: { url: text, apikey: API_KEY },
         timeout: 30000
       })
 
       const body = res.data
-      const data = body?.result?.data
 
-      if (!body?.status || !data?.play) {
+      // 🔍 DEBUG TEMPORAL — por si el endpoint real difiere
+      console.log('[TIKTOK DEBUG] respuesta completa:', JSON.stringify(body, null, 2))
+
+      const videoUrl = body?.datos?.url
+
+      if (!body?.status || !videoUrl) {
         await react('❌')
-        return reply({ text: '❌ no pude descargar ese video, revisa el link' })
+        return reply({ text: '❌ no pude descargar ese video, revisa el link (ver consola para debug)' })
       }
 
-      const caption =
-        `🎬 ${data.title || 'Sin título'}\n\n` +
-        `👤 autor › ${data.author?.nickname || 'Desconocido'}\n` +
-        `⏱️ duración › ${data.duration || 'N/A'}s\n` +
-        `❤️ likes › ${(data.digg_count || 0).toLocaleString()}\n` +
-        `👁️ vistas › ${(data.play_count || 0).toLocaleString()}\n` +
-        `💬 comentarios › ${(data.comment_count || 0).toLocaleString()}`
+      const stats = body.estadisticas || {}
 
-      const videoRes = await axios.get(data.play, {
+      const caption =
+        `🎬 ${body.titulo || 'Sin título'}\n\n` +
+        `👤 autor › ${body.autor?.nombre || 'Desconocido'}\n` +
+        `⏱️ duración › ${body.duracion || 'N/A'}s\n` +
+        `💾 calidad › ${body.datos?.calidad || 'N/A'} (${body.datos?.tamaño || 'N/A'})\n` +
+        `❤️ likes › ${(stats.likes || 0).toLocaleString()}\n` +
+        `👁️ vistas › ${(stats.vistas || 0).toLocaleString()}\n` +
+        `💬 comentarios › ${(stats.comentarios || 0).toLocaleString()}`
+
+      const videoRes = await axios.get(videoUrl, {
         responseType: 'arraybuffer',
         timeout: 60000,
         headers: { 'User-Agent': 'Mozilla/5.0' }
@@ -46,11 +53,7 @@ export default {
 
       await sock.sendMessage(
         from,
-        {
-          video: videoBuffer,
-          mimetype: 'video/mp4',
-          caption
-        },
+        { video: videoBuffer, mimetype: 'video/mp4', caption },
         { quoted: msg }
       )
 
