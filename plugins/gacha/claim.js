@@ -12,7 +12,7 @@ function writeDB(data) {
 }
 
 export default {
-  name: ['claim'],
+  name: ['claim', 'c'],
   description: 'Reclama la waifu del mensaje citado',
   category: 'gacha',
   ownerOnly: false,
