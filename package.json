@@ -4,16 +4,15 @@
   "description": "waguri bot powrered by 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑",
   "main": "index.js",
   "type": "module",
-    "engines": {
-      "node": ">= 22.x"
-   },
+  "engines": {
+    "node": ">= 22.x"
+  },
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0-rc14"
-,
     "@napi-rs/canvas": "^0.1.53",
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
     "axios": "^1.7.2",
     "better-sqlite3": "^13.0.0",
     "chalk": "^4.1.2",
