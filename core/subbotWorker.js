@@ -27,17 +27,13 @@ parentPort.on("message", (msg) => {
     activeBotsLive = msg.data || [];
   }
 
-  // 📡 El manager nos pide reaccionar a un mensaje de canal con nuestra
-  // propia conexión (currentSock). newsletterReactMessage necesita el
-  // JID real del canal (xxxx@newsletter), así que primero resolvemos
-  // el código corto de invitación a JID con newsletterMetadata.
   if (msg.type === "react_canal" && currentSock) {
     (async () => {
       try {
         const meta = await currentSock.newsletterMetadata('invite', msg.invite);
         await currentSock.newsletterReactMessage(meta.id, msg.serverId, msg.emoji);
       } catch {
-        // si falla para este subbot en particular, simplemente lo ignoramos
+        // Ignorar si falla para este subbot
       }
     })();
   }
@@ -153,14 +149,27 @@ async function startWorker(_attempt = 0) {
     return;
   }
 
+  // 🛠️ Bloque de emparejamiento mejorado con reintentos para evitar fallos de socket cerrado
   if (useCode) {
-    await new Promise((r) => setTimeout(r, 3000));
-    try {
-      let code = await sock.requestPairingCode(phoneNumber.replace(/\D/g, ""));
+    let code = null;
+    let intentos = 0;
+    
+    while (!code && intentos < 3) {
+      try {
+        await new Promise((r) => setTimeout(r, 4000 + (intentos * 2000)));
+        code = await sock.requestPairingCode(phoneNumber.replace(/\D/g, ""));
+      } catch (e) {
+        intentos++;
+        if (intentos >= 3) {
+          parentPort.postMessage({ type: "error", message: e.message });
+          return;
+        }
+      }
+    }
+
+    if (code) {
       code = code?.match(/.{1,4}/g)?.join("-") || code;
       parentPort.postMessage({ type: "code", code });
-    } catch (e) {
-      parentPort.postMessage({ type: "error", message: e.message });
     }
   }
 
