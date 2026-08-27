@@ -39,7 +39,7 @@ const catNombres = {
   "economy":  "𝙴𝙲𝙾𝙽𝙾𝙼𝚈",
   "anime":    "𝙰𝙽𝙸𝙼𝙴",
   "gacha":    "𝙶𝙰𝙲𝙷𝙰",
-  "fun":      "𝙵𝚄𝙽", // 👈 Categoría fun añadida
+  "fun":      "𝙵𝚄𝙽",
 }
 
 const catDescripciones = {
@@ -55,7 +55,7 @@ const catDescripciones = {
   "economy":  "🌸 Comandos de economía.",
   "anime":    "🌸 Comandos de reacciones anime.",
   "gacha":    "🌸 Comandos de gacha y waifus.",
-  "fun":      "🌸 Comandos de entretenimiento y diversión.", // 👈 Descripción para fun añadida
+  "fun":      "🌸 Comandos de entretenimiento y diversión.",
 }
 
 export default {
@@ -67,6 +67,9 @@ export default {
   async run({ sock, from, senderNum, isGroup, groupName, usedPrefix, msg }) {
     try {
       const lugar = isGroup ? groupName : "Chat Privado";
+
+      // Obtener el JID limpio del remitente para las menciones
+      const senderJid = msg.key.participant || msg.key.remoteJid || `${senderNum}@s.whatsapp.net`
 
       const currentBotNum = sock.user?.id ? sock.user.id.split('@')[0].split(':')[0].replace(/\D/g, '') : '';
       const currentBotJid = currentBotNum ? `${currentBotNum}@s.whatsapp.net` : '';
@@ -80,7 +83,6 @@ export default {
 
       const esVerdaderoMain = botData?.isMain === true || botData?.isMain === 1;
       const tipoBot = esVerdaderoMain ? "Bot Principal" : "Subbot";
-
 
       const linkMatch = "https://starapi-rosy.vercel.app";
 
@@ -162,7 +164,8 @@ export default {
           thumbnailWidth: imgBanner.width || 1920,
           inviteLinkGroupTypeV2: 0,
           contextInfo: {
-            mentionedJid: [`${senderNum}@s.whatsapp.net`],
+            // Aseguramos pasar el JID completo en mentionedJid para que se mencione de verdad
+            mentionedJid: [senderJid],
             isForwarded: true,
             forwardingScore: 1,
             forwardedNewsletterMessageInfo: {
