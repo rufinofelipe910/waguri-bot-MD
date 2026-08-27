@@ -5,6 +5,7 @@ import makeWASocket, {
   initAuthCreds,
   BufferJSON,
   proto,
+  jidNormalizedUser,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import { mkdir } from "fs/promises";
@@ -140,10 +141,6 @@ export async function createConnection({
     if (choice === "1") {
       useCode = true;
 
-      // FIX: pedir el número en bucle hasta que sea válido (mínimo 10 dígitos).
-      // Antes, si el usuario dejaba el campo vacío o escribía algo sin dígitos,
-      // el código seguía adelante con `phone` vacío/incompleto y aun así se
-      // solicitaba el pairing code a Baileys.
       let rawPhone = "";
       while (true) {
         rawPhone = await question(
@@ -240,8 +237,6 @@ export async function createConnection({
     return;
   }
 
-  // FIX: se agrega guarda extra por seguridad: nunca pedir pairing code
-  // si `phone` está vacío o es inválido, incluso si `useCode` es true.
   if (useCode && !state.creds.registered) {
     if (!phone || phone.replace(/\D/g, "").length < 10) {
       log.error(`[${botLabel}] No se puede solicitar código de emparejamiento: número de teléfono vacío o inválido.`);
@@ -333,17 +328,48 @@ export async function createConnection({
     saveCreds();
   });
 
-  sock.ev.on("group-participants.update", ({ id, participants, action }) => {
-  lastActivity = Date.now();
-  invalidateGroupCache(id);
-  log.info(`[${botLabel}] Cache de grupo invalidado por cambio de participantes → ${id}`);
+  sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
+    lastActivity = Date.now();
+    invalidateGroupCache(id);
+    log.info(`[${botLabel}] Cache de grupo invalidado por cambio de participantes → ${id}`);
 
-  if (action === "add") {
-    sendWelcome(sock, id, participants, botLabel).catch((e) =>
-      log.error(`[${botLabel}] Error en sendWelcome: ${e.message}`)
-    );
-  }
-});
+    if (action === "add") {
+      sendWelcome(sock, id, participants, botLabel).catch((e) =>
+        log.error(`[${botLabel}] Error en sendWelcome: ${e.message}`)
+      );
+    } 
+    
+    else if (action === "remove") {
+      try {
+        const metadata = await sock.groupMetadata(id).catch(() => null);
+        const groupName = metadata?.subject || "este grupo";
+
+        for (const user of participants) {
+          const userJid = jidNormalizedUser(user);
+          const userNumber = userJid.split("@")[0];
+
+          let ppUrl;
+          try {
+            ppUrl = await sock.profilePictureUrl(userJid, "image");
+          } catch {
+            ppUrl = "https://cdn.dix.lat/me/oupq_20260827-c91x-heg0-3ef3.jpg";
+          }
+
+          const byeText = `👋 Se nos fue @${userNumber} del grupo *${groupName}*.\n\n` +
+            `🥀 Esperamos que te vaya bien, ¡hasta luego!\n\n` +
+            `> 🌸 Powered by 𝓡𝓮𝔂 𝓡𝓾𝚏𝚒𝓷𝓸 👑`;
+
+          await sock.sendMessage(id, {
+            image: { url: ppUrl },
+            caption: byeText,
+            mentions: [userJid]
+          });
+        }
+      } catch (e) {
+        log.error(`[${botLabel}] Error en despedida: ${e.message}`);
+      }
+    }
+  });
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     lastActivity = Date.now();
