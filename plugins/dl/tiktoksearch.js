@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_KEY = 'lem569'
+const API_KEY = 'lem_316fcbcd534c8fb6ffec8fafa112dbd0685a4370'
 
 export default {
   name: ['tts', 'tiktoksearch'],
