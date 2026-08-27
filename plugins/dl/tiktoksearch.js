@@ -1,49 +1,59 @@
 import axios from 'axios'
 
+const API_KEY = 'lem569'
+
 export default {
-  name: ['tiktok', 'tt'],
-  description: 'Busca y descarga videos de TikTok',
+  name: ['tts', 'tiktoksearch'],
+  description: 'Busca videos de TikTok por texto',
   category: 'dl',
   ownerOnly: false,
 
   async run({ sock, from, msg, text, reply, react }) {
     try {
       if (!text) {
-        return reply({ text: '🎬 escribe qué video de TikTok quieres buscar' })
+        return reply({ text: '🔍 escribe qué quieres buscar en TikTok' })
       }
 
       await react('🔍')
 
-      const res = await axios.get('https://api.alyacore.xyz/search/tiktok', {
-        params: { query: text, key: 'api-uMZCY' },
+      const res = await axios.get('https://api.lempi.lat/search/tiktok', {
+        params: { query: text, apikey: API_KEY },
         timeout: 30000
       })
 
       const body = res.data
-      const video = body?.data?.[0]
 
-      if (!body?.status || !video?.dl) {
+      // 🔍 DEBUG TEMPORAL — por si el endpoint/params reales difieren
+      console.log('[TTS DEBUG] respuesta completa:', JSON.stringify(body, null, 2))
+
+      const resultados = body?.resultados
+
+      if (!body?.status || !Array.isArray(resultados) || !resultados.length) {
         await react('❌')
-        return reply({ text: `❌ no encontré ningún video para *${text}*` })
+        return reply({ text: `❌ no encontré resultados para *${text}* (ver consola para debug)` })
       }
 
-      const stats = video.stats || {}
+      const video = resultados[0]
 
       const caption =
-        `🎬 ${video.title || 'Sin título'}\n\n` +
-        `👤 autor › ${video.author?.nickname || 'Desconocido'}\n` +
-        `⏱️ duración › ${video.duration || 'N/A'}\n` +
-        `❤️ likes › ${stats.likes?.toLocaleString() || 0}\n` +
-        `👁️ vistas › ${stats.views?.toLocaleString() || 0}\n` +
-        `💬 comentarios › ${stats.comments?.toLocaleString() || 0}`
+        `🎬 ${video.titulo || 'Sin título'}\n\n` +
+        `👤 autor › ${video.autor?.nombre || 'Desconocido'}\n` +
+        `⏱️ duración › ${video.duracion || 'N/A'}s\n` +
+        `❤️ likes › ${(video.estadisticas?.likes || 0).toLocaleString()}\n` +
+        `👁️ vistas › ${(video.estadisticas?.vistas || 0).toLocaleString()}\n` +
+        `💬 comentarios › ${(video.estadisticas?.comentarios || 0).toLocaleString()}\n` +
+        `🔗 link › ${video.url}`
+
+      const videoRes = await axios.get(video.video, {
+        responseType: 'arraybuffer',
+        timeout: 60000,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+      const videoBuffer = Buffer.from(videoRes.data)
 
       await sock.sendMessage(
         from,
-        {
-          video: { url: video.dl },
-          mimetype: 'video/mp4',
-          caption
-        },
+        { video: videoBuffer, mimetype: 'video/mp4', caption },
         { quoted: msg }
       )
 
@@ -52,7 +62,7 @@ export default {
     } catch (error) {
       await react('❌')
       await reply({ text: `❌ Error: ${error.message}` })
-      console.error('Error en tiktok:', error)
+      console.error('Error en tts:', error)
     }
   }
 }
