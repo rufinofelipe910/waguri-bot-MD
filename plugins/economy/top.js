@@ -16,13 +16,19 @@ export default {
         })
       }
 
+      // Como getAllUsers() deserializa el JSON, parseamos o accedemos a los valores planos de data
       const ranking = allUsers
-        .map(user => ({
-          jid: user.jid,
-          bolsillo: user.bolsillo ?? 0,
-          banco: user.banco ?? 0,
-          total: (user.bolsillo ?? 0) + (user.banco ?? 0)
-        }))
+        .map(user => {
+          // Extraemos los datos de la economía, ya sea que estén planos o dentro de user (dependiendo de tu DB actual)
+          const bolsillo = user.bolsillo ?? 0
+          const banco = user.banco ?? 0
+          return {
+            jid: user.jid,
+            bolsillo: bolsillo,
+            banco: banco,
+            total: bolsillo + banco
+          }
+        })
         .filter(user => user.total > 0)
         .sort((a, b) => b.total - a.total)
         .slice(0, 10)
@@ -72,12 +78,12 @@ export default {
 
       const mentions = ranking.map(u => u.jid)
 
-      await react('🏆')
+      if (react) await react('🏆')
       await reply({ text: texto, mentions })
 
     } catch (error) {
       console.error('Error en top:', error)
-      await react('❌')
+      if (react) await react('❌')
       await reply({
         text: `❌ Error al obtener el ranking: ${error.message}`
       })
