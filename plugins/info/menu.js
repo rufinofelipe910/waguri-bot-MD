@@ -74,7 +74,7 @@ export default {
       const esLabelAutomatico = botData?.label?.startsWith('SUB_') || botData?.label === 'Subbot' || botData?.label === 'MAIN'
       const nombreBot = (esLabelAutomatico || !botData?.label ? config.botName : botData.label).replace(/@\d+/g, '').trim();
 
-      const urlFoto = botData?.banner || "https://n.uguu.se/uZtZRfRv.jpg";
+      const urlFoto = botData?.banner || "https://cdn.dix.lat/me/oupq_20260827-c91x-heg0-3ef3.jpg";
 
       const esVerdaderoMain = botData?.isMain === true || botData?.isMain === 1;
       const tipoBot = esVerdaderoMain ? "Bot Principal" : "Subbot";
