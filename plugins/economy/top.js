@@ -16,10 +16,8 @@ export default {
         })
       }
 
-      // Como getAllUsers() deserializa el JSON, parseamos o accedemos a los valores planos de data
       const ranking = allUsers
         .map(user => {
-          // Extraemos los datos de la economía, ya sea que estén planos o dentro de user (dependiendo de tu DB actual)
           const bolsillo = user.bolsillo ?? 0
           const banco = user.banco ?? 0
           return {
@@ -39,20 +37,6 @@ export default {
         })
       }
 
-      let groupMetadata = null
-      try {
-        groupMetadata = await sock.groupMetadata(from)
-      } catch {
-        // No es grupo o falló
-      }
-
-      const participantsMap = new Map()
-      if (groupMetadata?.participants) {
-        for (const p of groupMetadata.participants) {
-          participantsMap.set(p.id, p)
-        }
-      }
-
       const medallas = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
 
       let texto = '🏆 *TOP 10 - WaguriCoins* 🏆\n'
@@ -63,19 +47,13 @@ export default {
         const posicion = medallas[i] || `${i + 1}.`
         const numero = user.jid.split('@')[0]
 
-        let nombre = `@${numero}`
-        const participant = participantsMap.get(user.jid)
-        if (participant?.notify) {
-          nombre = participant.notify
-        } else if (participant?.name) {
-          nombre = participant.name
-        }
-
-        texto += `${posicion} *${nombre}*\n`
+        // Para que WhatsApp lo convierta en mención interactiva, usamos @número
+        texto += `${posicion} @${numero}\n`
         texto += `   💰 *${user.total}* WaguriCoins`
         texto += `  (👜${user.bolsillo} | 🏦${user.banco})\n\n`
       }
 
+      // El array de mentions le indica a WhatsApp a qué JIDs debe marcar como menciones reales
       const mentions = ranking.map(u => u.jid)
 
       if (react) await react('🏆')
