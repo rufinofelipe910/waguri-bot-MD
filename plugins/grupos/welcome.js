@@ -3,18 +3,26 @@ import { db } from '../../database/db.js'
 
 export async function sendWelcome(sock, chatId, participants, botLabel) {
   try {
-    // Verificar si la bienvenida está activa en este grupo (puedes adaptar la función a tu DB)
-    // Si no tienes una tabla específica de grupos, puedes guardarlo en db.getGroup(chatId) o similar.
-    let groupSettings = db.getGroup ? db.getGroup(chatId) : null
-    
-    // Si está explícitamente desactivada (por defecto asumiremos que está activa, o pon true)
+    // Verificación segura de la base de datos por si getGroup no está definido
+    let groupSettings = null
+    try {
+      if (typeof db.getGroup === 'function') {
+        groupSettings = db.getGroup(chatId)
+      }
+    } catch (e) {
+      // Ignoramos error de DB si la tabla no existe
+    }
+
+    // Si está explícitamente desactivada
     if (groupSettings && groupSettings.welcome === false) return
 
     const metadata = await sock.groupMetadata(chatId).catch(() => null)
     const groupName = metadata?.subject || 'este grupo'
 
     for (const user of participants) {
-      const userJid = jidNormalizedUser(user)
+      // Normalizamos el JID de forma segura sin importar si viene como objeto o string
+      const rawUser = typeof user === 'string' ? user : (user.id || user)
+      const userJid = jidNormalizedUser(rawUser)
       const userNumber = userJid.split('@')[0]
 
       let ppUrl
@@ -24,11 +32,11 @@ export async function sendWelcome(sock, chatId, participants, botLabel) {
         ppUrl = 'https://cdn.dix.lat/me/oupq_20260827-c91x-heg0-3ef3.jpg'
       }
 
-      // Obtener texto personalizado o usar uno por defecto
+      // Texto de bienvenida por defecto
       let customText = groupSettings?.welcomeText || 
-        `🌸 ¡Bienvenido/a @${user} a *{group}*! 🎉\n\n✨ Nos alegra mucho tenerte por acá.\n📜 Por favor lee las reglas del grupo y pásala genial.\n\n> 🌸 Powered by 𝓡𝓮𝔂 𝓡𝓾𝚏𝓲𝓷𝓸 👑`
+        `🌸 ¡Bienvenido/a @{user} a *{group}*! 🎉\n\n✨ Nos alegra mucho tenerte por acá.\n📜 Por favor lee las reglas del grupo y pásala genial.\n\n> 🌸 Powered by 𝓡𝓮𝔂 𝓡𝓾𝚏𝚒𝓷𝓸 👑`
 
-      // Reemplazar variables dinámicas
+      // Reemplazar variables dinámicas de forma limpia
       const welcomeText = customText
         .replace(/{user}/g, `@${userNumber}`)
         .replace(/{group}/g, groupName)
