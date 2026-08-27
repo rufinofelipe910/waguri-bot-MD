@@ -20,13 +20,26 @@ export default {
     const groupMetaReal = await sock.groupMetadata(from)
     const participants = groupMetaReal.participants || []
 
+    // 1. Validar que el BOT sea administrador
+    const botJidClean = cleanJid(sock.user?.id)
+    const botParticipant = participants.find(p => cleanJid(p.id) === botJidClean)
+    const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin'
+
+    if (!isBotAdmin) {
+      return await reply({ text: "❌ Necesito ser administrador del grupo para poder promover a alguien." })
+    }
+
+    // 2. Validar que el SENDER (remitente) sea administrador
     const senderRaw = msg.key.participant || msg.key.remoteJid
     const senderJid = cleanJid(senderRaw)
     const senderParticipant = participants.find(p => cleanJid(p.id) === senderJid)
     const isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin'
 
-    if (!isSenderAdmin) return await reply({ text: "❌ Solo admins del grupo pueden usar este comando." })
+    if (!isSenderAdmin) {
+      return await reply({ text: "❌ Solo los administradores del grupo pueden usar este comando." })
+    }
 
+    // 3. Obtener el objetivo (target) del mensaje (mención o respuesta)
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo || msg.message?.imageMessage?.contextInfo || msg.message?.videoMessage?.contextInfo
     const mentioned = contextInfo?.mentionedJid || []
 
@@ -37,7 +50,9 @@ export default {
       target = mentioned[0]
     }
 
-    if (!target) return await reply({ text: `❌ Menciona o responde al usuario para darle admin.` })
+    if (!target) {
+      return await reply({ text: `❌ Menciona o responde al usuario para darle admin.` })
+    }
 
     const targetJid = cleanJid(target)
     const targetParticipant = participants.find(p => cleanJid(p.id) === targetJid)
@@ -46,8 +61,11 @@ export default {
       return await reply({ text: `❌ Este usuario ya es administrador.` })
     }
 
+    // 4. Ejecutar la promoción
     await sock.groupParticipantsUpdate(from, [targetJid], "promote")
-    clearGroupCache()
+    if (typeof clearGroupCache === 'function') {
+      clearGroupCache()
+    }
 
     const targetNum = targetJid.split('@')[0]
     let textoPromote = `│✐꒷★ @${targetNum} h⍺ sıdo pꭇomovıdo ⍺ ⍺dmını𝗌tꭇ⍺doꭇ.\n`
