@@ -39,6 +39,7 @@ const catNombres = {
   "economy":  "𝙴𝙲𝙾𝙽𝙾𝙼𝚈",
   "anime":    "𝙰𝙽𝙸𝙼𝙴",
   "gacha":    "𝙶𝙰𝙲𝙷𝙰",
+  "fun":      "𝙵𝚄𝙽", // 👈 Categoría fun añadida
 }
 
 const catDescripciones = {
@@ -54,6 +55,7 @@ const catDescripciones = {
   "economy":  "🌸 Comandos de economía.",
   "anime":    "🌸 Comandos de reacciones anime.",
   "gacha":    "🌸 Comandos de gacha y waifus.",
+  "fun":      "🌸 Comandos de entretenimiento y diversión.", // 👈 Descripción para fun añadida
 }
 
 export default {
@@ -121,7 +123,7 @@ export default {
       }
 
       textoMenu += `╭━─━─━─━─━─━─━─━╮\n`;
-      textoMenu += `  ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑\n`;
+      textoMenu += `  ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝓡𝓮𝔂 𝓡𝓾𝚏𝚒𝓷𝓸 👑\n`;
       textoMenu += `🔗 ${linkMatch}\n`;
       textoMenu += `╰━─━─━─━─━─━─━─━╯`;
 
@@ -147,7 +149,7 @@ export default {
           text: textoMenu,
           matchedText: linkMatch,
           canonicalUrl: linkMatch,
-          description: `Powered by 𝓡𝓮𝔂 𝓡𝓾𝓯𝓲𝓷𝓸 👑 | ${nombreBot}`,
+          description: `Powered by 𝓡𝓮𝔂 𝓡𝓾𝚏𝚒𝓷𝓸 👑 | ${nombreBot}`,
           title: nombreBot.toUpperCase(),
           previewType: 0,
           jpegThumbnail: imgBanner.jpegThumbnail,
