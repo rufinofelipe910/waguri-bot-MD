@@ -10,6 +10,10 @@ export function invalidateGroupCache(groupJid) {
   groupCache.delete(groupJid);
 }
 
+export function registerGroupCacheEvents(sock) {
+  sock.ev.on("group-participants.update", ({ id }) => invalidateGroupCache(id));
+}
+
 function cleanJid(jid = "") {
   if (!jid) return "";
   const atIndex = jid.lastIndexOf("@");
