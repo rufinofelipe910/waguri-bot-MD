@@ -1,8 +1,54 @@
 import axios from 'axios'
 import yts from 'yt-search'
 
-const API_KEY = 'lem_316fcbcd534c8fb6ffec8fafa112dbd0685a4370'
 const LIMIT_MB = 80
+const LONG_VIDEO_SECONDS = 1200 // sin peso conocido, más de 20 min va como documento
+const ID_RE = /(?:youtu\.be\/|v=|shorts\/)([\w-]{11})/
+
+const APIS = [
+  {
+    name: 'alyacore',
+    endpoint: 'https://api.alyacore.xyz/dl/ytmp4v2',
+    apikey: 'Duarte-zz12',
+    tries: 2,
+    timeout: 60000,
+    parse: data =>
+      data?.status && data?.data?.dl
+        ? { url: data.data.dl, title: data.data.title }
+        : null
+  }
+]
+
+const fetchData = async url => {
+  for (const api of APIS) {
+    for (let i = 0; i < api.tries; i++) {
+      try {
+        const { data } = await axios.get(api.endpoint, {
+          params: { url, apikey: api.apikey },
+          timeout: api.timeout
+        })
+        const media = api.parse(data)
+        if (media?.url) return media
+      } catch (e) {
+        console.error(`[play2] ${api.name} falló (${i + 1}/${api.tries}):`, e.message)
+      }
+    }
+  }
+  return null
+}
+
+// Un solo HEAD con límite corto: si no responde rápido, se sigue sin peso
+const getSize = async url => {
+  try {
+    const head = await axios.head(url, { timeout: 4000, maxRedirects: 5 })
+    return Number(head.headers['content-length']) || 0
+  } catch {
+    return 0
+  }
+}
+
+const cleanFileName = name =>
+  String(name).replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100) || 'video'
 
 export default {
   name: ['play2'],
@@ -16,57 +62,53 @@ export default {
 
       await react('🔍')
 
-      let videoUrl = text
+      const id = text.match(ID_RE)?.[1]
+      const info = id ? await yts({ videoId: id }).catch(() => null) : (await yts(text)).videos[0]
+      if (!info && !id) return reply({ text: '❌ Sin resultados' })
 
-      if (!text.includes('youtube.com') && !text.includes('youtu.be')) {
-        const search = await yts(text)
-        if (!search.videos.length) return reply({ text: '❌ Sin resultados' })
-        videoUrl = search.videos[0].url
-      }
+      const data = await fetchData(info?.url ?? text)
 
-      const res = await axios.get('https://api.lempi.lat/dl/ytv', {
-        params: { url: videoUrl, apikey: API_KEY },
-        timeout: 60000
-      })
-
-      const body = res.data
-
-      if (!body?.status || !body?.datos?.url) {
+      if (!data) {
+        await react('❌')
         return reply({ text: '❌ Error API' })
       }
 
-      const title = body.titulo
-      const mp4 = body.datos.url
-      const sizeMB = parseFloat(body.datos.tamaño) || 0
+      const mp4 = data.url
+      const title = data.title || info?.title || 'video'
 
-      await sock.sendMessage(from, {
-        text: `🎬 ${title}\n📦 ${body.datos.tamaño}`
-      }, { quoted: msg })
+      const size = await getSize(mp4)
+      const sizeMB = size / 1024 / 1024
+      const sizeLabel = size ? ` ( ${sizeMB.toFixed(2)} MB )` : ''
+      const caption = `> ${title}${sizeLabel}`
 
-      const videoRes = await axios.get(mp4, {
-        responseType: 'arraybuffer',
-        timeout: 90000,
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      })
-      const videoBuffer = Buffer.from(videoRes.data)
+      const asDocument = size
+        ? sizeMB >= LIMIT_MB
+        : (info?.seconds || 0) > LONG_VIDEO_SECONDS
 
-      if (sizeMB >= LIMIT_MB) {
-        await sock.sendMessage(from, {
-          document: videoBuffer,
-          mimetype: 'video/mp4',
-          fileName: `${title}.mp4`
-        }, { quoted: msg })
+      if (asDocument) {
+        await sock.sendMessage(
+          from,
+          {
+            document: { url: mp4 },
+            mimetype: 'video/mp4',
+            fileName: `${cleanFileName(title)}.mp4`,
+            caption
+          },
+          { quoted: msg }
+        )
       } else {
-        await sock.sendMessage(from, {
-          video: videoBuffer,
-          mimetype: 'video/mp4',
-          fileName: `${title}.mp4`,
-          caption: title
-        }, { quoted: msg })
+        await sock.sendMessage(
+          from,
+          {
+            video: { url: mp4 },
+            mimetype: 'video/mp4',
+            caption
+          },
+          { quoted: msg }
+        )
       }
 
       await react('✅')
-
     } catch (error) {
       await react('❌')
       await reply({ text: `❌ Error: ${error.message}` })
