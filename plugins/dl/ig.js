@@ -5,37 +5,6 @@ const API_URL = 'https://nexevo.boxmine.xyz/download/instagram'
 const MAX_MB = 100
 const MAX_ITEMS = 10
 
-const isVideoUrl = (url, hint) => {
-  if (hint) return /video|mp4|reel/i.test(String(hint))
-  return /\.(mp4|mov|webm|mkv)(\?|$)/i.test(url) || /video/i.test(url)
-}
-
-const extractMedia = (body) => {
-  const d = body?.data ?? body?.result ?? body?.resultado ?? body
-  const list = []
-
-  const push = (item) => {
-    if (!item) return
-    if (typeof item === 'string') {
-      if (/^https?:\/\//i.test(item)) list.push({ url: item, video: isVideoUrl(item) })
-      return
-    }
-    const url =
-      item.url ?? item.download ?? item.downloadUrl ?? item.download_url ??
-      item.link ?? item.video ?? item.image
-    const finalUrl = typeof url === 'object' ? url?.url : url
-    if (typeof finalUrl === 'string' && /^https?:\/\//i.test(finalUrl)) {
-      list.push({ url: finalUrl, video: isVideoUrl(finalUrl, item.type ?? item.mediaType ?? item.kind) })
-    }
-  }
-
-  const arr = [d?.media, d?.medias, d?.items, d?.links, d?.urls, d?.result, d].find(Array.isArray)
-  if (arr) arr.forEach(push)
-  else push(d)
-
-  return [...new Map(list.map((m) => [m.url, m])).values()]
-}
-
 export default {
   name: ['instagram', 'ig', 'igdl'],
   description: 'Descarga videos, reels e imágenes de Instagram',
@@ -65,25 +34,34 @@ export default {
       })
 
       const body = res.data
-      console.log('[instagram] HTTP', res.status, JSON.stringify(body)?.slice(0, 600))
+      console.log('[instagram] HTTP', res.status, JSON.stringify(body)?.slice(0, 300))
 
       if (res.status !== 200) {
         return reply({ text: `⛧ la API respondió ${res.status}: ${body?.error || body?.message || body?.mensaje || 'sin detalle'}` })
       }
 
-      const media = extractMedia(body).slice(0, MAX_ITEMS)
-      if (!media.length) {
-        return reply({ text: '⛧ la API no devolvió ningún archivo para ese link' })
+      if (!body?.status || !Array.isArray(body?.result?.downloads)) {
+        return reply({ text: `⛧ la API no devolvió archivos: ${body?.error || body?.message || 'respuesta inesperada'}` })
       }
 
-      const d = body?.data ?? body?.result ?? body
-      const title = d?.title ?? d?.caption ?? d?.description ?? ''
-      const caption = title ? `⛧ ${String(title).slice(0, 300)}` : undefined
+      const downloads = body.result.downloads.filter((d) => d?.url)
+
+      // Si hay videos, se mandan solo ellos (la imagen del reel es la portada).
+      // Si no hay videos, se mandan las imágenes (fotos o carrusel).
+      const videos = downloads.filter((d) => d.type === 'video')
+      const items = (videos.length ? videos : downloads.filter((d) => d.type === 'image')).slice(0, MAX_ITEMS)
+
+      if (!items.length) {
+        return reply({ text: '⛧ no encontré videos ni imágenes en ese link' })
+      }
+
+      const title = body.result.title
+      const caption = title && title !== 'Instagram Media' ? `⛧ ${String(title).slice(0, 300)}` : undefined
 
       let sent = 0
-      for (let i = 0; i < media.length; i++) {
-        step = `descarga ${i + 1}/${media.length}`
-        const file = await axios.get(media[i].url, {
+      for (let i = 0; i < items.length; i++) {
+        step = `descarga ${i + 1}/${items.length}`
+        const file = await axios.get(items[i].url, {
           responseType: 'arraybuffer',
           timeout: 180000,
           maxContentLength: MAX_MB * 1024 * 1024,
@@ -92,15 +70,12 @@ export default {
         const buffer = Buffer.from(file.data)
         console.log('[instagram] bytes:', buffer.length)
 
-        if (buffer.length < 100) continue
+        if (buffer.length < 1000) continue
 
-        const contentType = String(file.headers['content-type'] || '')
-        const isVideo = contentType.startsWith('video/') || (!contentType.startsWith('image/') && media[i].video)
-
-        step = `envío ${i + 1}/${media.length}`
+        step = `envío ${i + 1}/${items.length}`
         await sock.sendMessage(
           from,
-          isVideo
+          items[i].type === 'video'
             ? { video: buffer, mimetype: 'video/mp4', caption: i === 0 ? caption : undefined }
             : { image: buffer, caption: i === 0 ? caption : undefined },
           { quoted: msg }
