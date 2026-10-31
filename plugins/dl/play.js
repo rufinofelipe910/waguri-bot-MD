@@ -1,118 +1,169 @@
-import ytdl from '@distube/ytdl-core'
-import yts from 'yt-search'
+import axios from 'axios'
+import { prepareWAMessageMedia } from '@whiskeysockets/baileys'
 
-const MAX_MB = 50
+const API_URL = 'https://api.alyacore.xyz/dl/fastytmp3'
+const SEARCH_URL = 'https://api.alyacore.xyz/search/yt'
+const API_KEY = 'Duarte-zz12'
+const LIMIT_MB = 80
+const LONG_AUDIO_SECONDS = 1800
+const ID_RE = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/|v\/))([\w-]{11})/
 
-const formatDuration = (seconds) => {
-  const s = Number(seconds) || 0
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  const pad = (n) => String(n).padStart(2, '0')
-  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`
+const MEDIA_OPTS = {
+  options: { timeout: 0, maxRedirects: 10, maxContentLength: Infinity, maxBodyLength: Infinity, headers: { 'user-agent': 'Mozilla/5.0' } },
+  mediaUploadTimeoutMs: 1000 * 60 * 60
 }
 
-const streamToBuffer = async (stream) => {
-  const chunks = []
-  for await (const chunk of stream) chunks.push(chunk)
-  return Buffer.concat(chunks)
+const pedirDescarga = (url) => {
+  const p = axios.get(API_URL, { params: { url, key: API_KEY }, timeout: 60000 }).then(r => r.data)
+  p.catch(() => {})
+  return p
+}
+
+const toSeconds = t => String(t || '').split(':').reduce((a, v) => a * 60 + (parseInt(v, 10) || 0), 0)
+const toNumber = v => parseInt(String(v || '').replace(/\D/g, ''), 10) || 0
+
+async function buscarVideo(query, id) {
+  try {
+    const { data } = await axios.get(SEARCH_URL, { params: { query: id || query, key: API_KEY }, timeout: 30000 })
+    const results = data?.status && Array.isArray(data.result) ? data.result : []
+    const v = id ? results.find(r => r.url?.includes(id)) : results[0]
+    if (!v) return null
+    return {
+      url: v.url,
+      title: v.title,
+      timestamp: v.duration,
+      seconds: toSeconds(v.duration),
+      views: toNumber(v.views),
+      thumbnail: v.banner,
+      author: { name: v.autor?.trim() }
+    }
+  } catch {
+    return null
+  }
+}
+
+async function buildLinkPreview(sock, imagen, title, description, url) {
+  try {
+    const { imageMessage } = await prepareWAMessageMedia(
+      { image: { url: imagen } },
+      { upload: sock.waUploadToServer, mediaTypeOverride: 'thumbnail-link' }
+    )
+    return {
+      'canonical-url': url,
+      'matched-text': url,
+      title,
+      description,
+      jpegThumbnail: imageMessage?.jpegThumbnail ? Buffer.from(imageMessage.jpegThumbnail) : undefined,
+      highQualityThumbnail: imageMessage || undefined
+    }
+  } catch {
+    return undefined
+  }
+}
+
+const getSize = async url => {
+  try {
+    const head = await axios.head(url, { timeout: 4000, maxRedirects: 5 })
+    return Number(head.headers['content-length']) || 0
+  } catch {
+    return 0
+  }
+}
+
+const cleanFileName = name =>
+  String(name).replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100) || 'audio'
+
+function formatViews(views) {
+  if (!views) return 'No disponible'
+  if (views >= 1_000_000_000) return `${(views / 1_000_000_000).toFixed(1)}B`
+  if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M`
+  if (views >= 1_000) return `${(views / 1_000).toFixed(1)}k`
+  return views.toString()
 }
 
 export default {
-  name: ['play', 'yta', 'ytmp3', 'playaudio'],
-  description: 'Descarga música de YouTube',
-  category: 'dl',
+  name: "play",
+  description: "Descarga música de YouTube",
+  category: "dl",
   ownerOnly: false,
 
-  async run({ sock, from, msg, text, reply, react }) {
-    let step = 'inicio'
+  async run({ sock, from, msg, react, reply, text, args }) {
     try {
-      if (!text?.trim()) {
+      const query = (text || args.join(" ")).trim()
+      if (!query) {
         return reply({ text: '⛧ escribe el nombre o link del video' })
       }
 
       await react('🎧')
 
-      let videoUrl = text.trim()
+      const id = query.match(ID_RE)?.[1]
+      const urlDirecta = id ? `https://youtu.be/${id}` : null
 
-      step = 'búsqueda'
-      if (!ytdl.validateURL(videoUrl)) {
-        const search = await yts(videoUrl)
-        const yt = search.videos?.[0] || search.all?.[0]
-        if (!yt) return reply({ text: '⛧ no encontré resultados' })
-        videoUrl = yt.url
+      let descarga = urlDirecta ? pedirDescarga(urlDirecta) : null
+
+      const info = await buscarVideo(query, id)
+
+      if (!info && !urlDirecta) {
+        await react('❌')
+        return reply({ text: '⛧ no encontré resultados' })
       }
 
-      step = 'info del video'
-      const info = await ytdl.getInfo(videoUrl)
-      const details = info.videoDetails
+      const url = info?.url || urlDirecta
+      const title = info?.title || 'Sin título'
+      const duration = info?.timestamp || 'No disponible'
+      const vistas = formatViews(info?.views)
+      const thumbnail = info?.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
-      const formats = ytdl.filterFormats(info.formats, 'audioonly')
-      if (!formats.length) {
-        return reply({ text: '⛧ no encontré un formato de audio disponible' })
-      }
+      descarga ??= pedirDescarga(url)
 
-      // Preferimos m4a (mp4) porque WhatsApp lo reproduce bien; webm/opus a veces no
-      const format =
-        formats
-          .filter((f) => f.container === 'mp4')
-          .sort((a, b) => (b.audioBitrate || 0) - (a.audioBitrate || 0))[0] ||
-        ytdl.chooseFormat(formats, { quality: 'highestaudio' })
-
-      const sizeMB = format.contentLength ? Number(format.contentLength) / (1024 * 1024) : null
-      if (sizeMB && sizeMB > MAX_MB) {
-        return reply({ text: `⛧ el audio pesa ${sizeMB.toFixed(1)} MB, el límite es ${MAX_MB} MB` })
-      }
-
-      const title = details.title
-      const channel = details.author?.name
-      const duracion = formatDuration(details.lengthSeconds)
-      const thumbnail = details.thumbnails?.[details.thumbnails.length - 1]?.url
-      const calidad = format.audioBitrate ? `${format.audioBitrate}kbps` : 'N/A'
-      const formato = format.container || 'm4a'
-      const fileName = `${title.replace(/[\\/:*?"<>|]/g, '')}.${formato === 'mp4' ? 'm4a' : formato}`
-
-      step = 'envío de info'
-      const caption =
+      const captionText =
         `⛧ ${title}\n\n` +
-        `⛧ canal › ${channel || 'Desconocido'}\n` +
-        `⛧ duración › ${duracion}\n` +
-        `⛧ calidad › ${calidad}\n` +
-        `⛧ formato › ${formato}\n` +
-        `⛧ tamaño › ${sizeMB ? sizeMB.toFixed(2) + ' MB' : 'N/A'}`
+        `⛧ vistas › ${vistas}\n` +
+        `⛧ duración › ${duration}\n` +
+        `⛧ link › ${url}`
 
-      if (thumbnail) {
-        await sock.sendMessage(from, { image: { url: thumbnail }, caption }, { quoted: msg })
+      const linkPreview = await buildLinkPreview(sock, thumbnail, title, info?.author?.name || 'YouTube', url)
+
+      await sock.sendMessage(from, { text: captionText, linkPreview }, { quoted: msg })
+
+      const resDl = await descarga.catch(() => null)
+      const dl = resDl?.data?.dl || resDl?.data?.url || resDl?.result?.url || resDl?.url
+      if (!dl) {
+        await react('❌')
+        return reply({ text: '⛧ error: la API no dio un link de audio' })
+      }
+
+      const fileName = `${cleanFileName(resDl?.data?.title || title)}.mp3`
+
+      const size = await getSize(dl)
+      const sizeMB = size / 1024 / 1024
+
+      // Con peso conocido usa el límite de 80 MB; si no, cae a la duración
+      const asDocument = size
+        ? sizeMB >= LIMIT_MB
+        : (info?.seconds || 0) > LONG_AUDIO_SECONDS
+
+      if (asDocument) {
+        await sock.sendMessage(from, {
+          document: { url: dl },
+          mimetype: 'audio/mpeg',
+          fileName,
+          caption: '⛧ audio enviado como documento por peso'
+        }, { quoted: msg, ...MEDIA_OPTS })
       } else {
-        await reply({ text: caption })
+        await sock.sendMessage(from, {
+          audio: { url: dl },
+          mimetype: 'audio/mpeg',
+          fileName,
+          ptt: false
+        }, { quoted: msg, ...MEDIA_OPTS })
       }
-
-      step = 'descarga del audio'
-      const audioBuffer = await streamToBuffer(ytdl.downloadFromInfo(info, { format }))
-      console.log('[play] audio bytes:', audioBuffer.length)
-
-      if (audioBuffer.length < 1000) {
-        throw new Error('el archivo descargado está vacío o es inválido')
-      }
-
-      step = 'envío del audio'
-      await sock.sendMessage(
-        from,
-        {
-          audio: audioBuffer,
-          mimetype: 'audio/mp4',
-          ptt: false,
-          fileName
-        },
-        { quoted: msg }
-      )
 
       await react('✅')
-
     } catch (e) {
-      console.error(`[play] falló en "${step}":`, e.message)
+      console.error('[dl:play]', e?.message || e)
       await react('❌')
-      await reply({ text: `⛧ error en ${step}: ${e.message}` })
+      await reply({ text: `⛧ error: ${e.message}` })
     }
   }
 }
