@@ -24,6 +24,7 @@ let mainSock = null;
 
 const logger = pino({ level: "silent" });
 const PAIRING_TIMEOUT_MS = 60_000;
+const CODE_TIMEOUT_MS = 45_000;
 
 // Lock en memoria para evitar que varios bots/subbots respondan
 // el mismo comando (ej: setprimary/delprimary) por duplicado.
@@ -183,6 +184,14 @@ export function getAllSockets() {
   return lista;
 }
 
+export function getActiveBotsSnapshot() {
+  const snapshot = [];
+  for (const [key, value] of activeBots.entries()) {
+    snapshot.push({ id: key, ...value });
+  }
+  return snapshot;
+}
+
 export function updateBotStatus(id, data) {
   const current = activeBots.get(id) || {};
   activeBots.set(id, { ...current, ...data });
@@ -244,7 +253,7 @@ function handleSockExit(id) {
   }
 }
 
-async function startSubbotConnection(id, sessionDir, phoneNumber = null, onCode = null, _attempt = 0) {
+async function startSubbotConnection(id, sessionDir, phoneNumber = null, onCode = null, _attempt = 0, onError = null) {
   await mkdir(sessionDir, { recursive: true });
 
   const { state, saveCreds, closeDb } = await useSQLiteAuthState(sessionDir);
@@ -291,7 +300,11 @@ async function startSubbotConnection(id, sessionDir, phoneNumber = null, onCode 
   } catch (e) {
     try { closeDb(); } catch {}
     log.error(`[${id}] Error al crear socket: ${e.message}`);
-    setTimeout(() => startSubbotConnection(id, sessionDir, phoneNumber, onCode, _attempt + 1), backoffDelay(_attempt));
+    if (onError) {
+      onError(e);
+      return;
+    }
+    setTimeout(() => startSubbotConnection(id, sessionDir, phoneNumber, onCode, _attempt + 1, onError), backoffDelay(_attempt));
     return;
   }
 
@@ -301,8 +314,10 @@ async function startSubbotConnection(id, sessionDir, phoneNumber = null, onCode 
   if (useCode) {
     await new Promise((r) => setTimeout(r, 3000));
     try {
+      log.info(`[MANAGER] Pidiendo código de vinculación para ${phoneNumber} (${id})`);
       let code = await sock.requestPairingCode(phoneNumber.replace(/\D/g, ""));
       code = code?.match(/.{1,4}/g)?.join("-") || code;
+      log.info(`[MANAGER] Código generado para ${id}`);
       onCode?.(code);
 
       pairingTimer = setTimeout(() => {
@@ -317,6 +332,7 @@ async function startSubbotConnection(id, sessionDir, phoneNumber = null, onCode 
       log.error(`[${id}] Error al pedir código: ${e.message}`);
       try { closeDb(); } catch {}
       sockets.delete(id);
+      onError?.(e);
       return;
     }
   }
@@ -380,7 +396,7 @@ async function startSubbotConnection(id, sessionDir, phoneNumber = null, onCode 
       if (msg.key?.remoteJid === "status@broadcast") continue;
       if (!connected) {
         pendingMessages.push(msg);
-        return;
+        continue;
       }
       handleMessage(sock, msg, id.toUpperCase()).catch(() => {});
     }
@@ -410,9 +426,16 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
   }
 
   return new Promise((resolve, reject) => {
+    let finished = false;
+
     const timeout = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(cleanupTimeout);
+      log.warn(`[MANAGER] Timeout esperando código de ${id}`);
+      removeSubbot(id);
       reject(new Error("Timeout esperando código"));
-    }, 15000);
+    }, CODE_TIMEOUT_MS);
 
     const cleanupTimeout = setTimeout(() => {
       const bot = activeBots.get(id);
@@ -420,16 +443,30 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
         log.warn(`[MANAGER] Subbot ${id} nunca se conectó — eliminado`);
         removeSubbot(id);
       }
-    }, 70_000);
+    }, 70_000 + CODE_TIMEOUT_MS);
 
-    startSubbotConnection(id, sessionDir, phoneNumber, (code) => {
-      clearTimeout(timeout);
-      resolve(code);
-    }).catch((e) => {
+    const fail = (e) => {
+      if (finished) return;
+      finished = true;
       clearTimeout(timeout);
       clearTimeout(cleanupTimeout);
-      reject(e);
-    });
+      removeSubbot(id);
+      reject(e instanceof Error ? e : new Error(String(e)));
+    };
+
+    startSubbotConnection(
+      id,
+      sessionDir,
+      phoneNumber,
+      (code) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timeout);
+        resolve(code);
+      },
+      0,
+      fail
+    ).catch(fail);
 
     const checkOnline = setInterval(() => {
       const bot = activeBots.get(id);
@@ -446,7 +483,7 @@ export async function requestSubbotCode(id, phoneNumber, sock, from) {
       }
     }, 2000);
 
-    setTimeout(() => clearInterval(checkOnline), 75_000);
+    setTimeout(() => clearInterval(checkOnline), 75_000 + CODE_TIMEOUT_MS);
   });
 }
 
@@ -474,13 +511,30 @@ export function launchAllSubbots() {
 // Reacción masiva a mensajes de canal
 // Todos los bots (principal + subbots) reaccionan
 // repartidos al azar dentro de `ventanaMs` (5 s por defecto).
+// Acepta `canalJid` directo o `invite` (como el manager anterior).
 // ─────────────────────────────────────────────
-export async function broadcastReaccionCanal({ canalJid, serverId, emoji, ventanaMs = 5000 }) {
+export async function broadcastReaccionCanal({ canalJid, invite, serverId, emoji, ventanaMs = 5000 }) {
   const bots = getAllSockets().filter((s) => s && s.user);
+
+  let jid = canalJid;
+  if (!jid && invite) {
+    for (const s of bots) {
+      try {
+        const meta = await s.newsletterMetadata("invite", invite);
+        jid = meta?.id;
+        if (jid) break;
+      } catch {}
+    }
+  }
+
+  if (!jid) {
+    log.error("[MANAGER] broadcastReaccionCanal: no se pudo resolver el canal");
+    return { ok: 0, fail: bots.length, total: bots.length };
+  }
 
   const tareas = bots.map(async (s) => {
     await new Promise((r) => setTimeout(r, Math.random() * ventanaMs));
-    await s.newsletterReactMessage(canalJid, serverId, emoji);
+    await s.newsletterReactMessage(jid, serverId, emoji);
   });
 
   const resultados = await Promise.allSettled(tareas);
