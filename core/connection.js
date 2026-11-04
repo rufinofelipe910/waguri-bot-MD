@@ -129,7 +129,7 @@ export async function createConnection({
   let useCode = false;
   let phone = phoneNumber;
 
-  if (!isSubbot && !state.creds.registered && _attempt === 0) {
+  if (!isSubbot && !state.creds.registered && _attempt === 0 && !phone) {
     const choice = await question(
       "\n  ╔══════════════════════════════════╗\n" +
       "  ║  [1] Código de emparejamiento     ║\n" +
@@ -139,8 +139,6 @@ export async function createConnection({
     );
 
     if (choice === "1") {
-      useCode = true;
-
       let rawPhone = "";
       while (true) {
         rawPhone = await question(
@@ -164,6 +162,12 @@ export async function createConnection({
 
       phone = rawPhone.replace(/\D/g, "");
     }
+  }
+
+  // Si hay un número (elegido ahora o heredado de un reintento) y la sesión
+  // aún no está registrada, se sigue en modo código y NUNCA se muestra QR.
+  if (phone && !state.creds.registered) {
+    useCode = true;
   }
 
   let sock;
@@ -218,7 +222,7 @@ export async function createConnection({
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
       },
-      printQRInTerminal: !useCode,
+      printQRInTerminal: false,
       logger: pino({ level: "silent" }),
       browser: useCode ? ["Ubuntu", "Chrome", "20.0.04"] : ["YutaBot", "Chrome", "1.0.0"],
       syncFullHistory: false,
@@ -232,7 +236,7 @@ export async function createConnection({
   } catch (e) {
     log.error(`[${botLabel}] Error al crear socket: ${e.message}`);
     if (_attempt < config.maxReconnectAttempts) {
-      return createConnection({ sessionDir, botLabel, isSubbot, phoneNumber, _attempt: _attempt + 1 });
+      return createConnection({ sessionDir, botLabel, isSubbot, phoneNumber: phone, _attempt: _attempt + 1 });
     }
     return;
   }
@@ -256,15 +260,18 @@ export async function createConnection({
     }
   }
 
+  // En modo código se da más tiempo para escribirlo en el teléfono
+  const connectTimeoutMs = useCode ? 180000 : 75000;
   connectionTimeout = setTimeout(() => {
     if (!connected) {
       log.warn(`[${botLabel}] Timeout de conexión alcanzado, reconectando...`);
       try { sock.end(new Error("timeout")); } catch {}
     }
-  }, 75000);
+  }, connectTimeoutMs);
 
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
-    if (qr) {
+    // El QR solo se muestra si NO se eligió el modo código
+    if (qr && !useCode) {
       log.info(`[${botLabel}] QR listo para escanear`);
       qrcode.generate(qr, { small: true });
     }
@@ -308,7 +315,7 @@ export async function createConnection({
 
       if (_attempt < config.maxReconnectAttempts) {
         log.info(`[${botLabel}] Reconectando (intento ${_attempt + 1}/${config.maxReconnectAttempts})...`);
-        createConnection({ sessionDir, botLabel, isSubbot, phoneNumber, _attempt: _attempt + 1 });
+        createConnection({ sessionDir, botLabel, isSubbot, phoneNumber: phone, _attempt: _attempt + 1 });
       } else {
         log.error(`[${botLabel}] Se agotaron los intentos de reconexión.`);
       }
@@ -338,7 +345,7 @@ export async function createConnection({
         log.error(`[${botLabel}] Error en sendWelcome: ${e.message}`)
       );
     } 
-    
+
     else if (action === "remove") {
       try {
         const metadata = await sock.groupMetadata(id).catch(() => null);
