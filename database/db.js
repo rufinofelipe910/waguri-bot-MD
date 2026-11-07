@@ -8,6 +8,7 @@ const db_instance = new Database("./database/yuta.sqlite");
 db_instance.pragma("journal_mode = WAL");
 db_instance.pragma("synchronous = NORMAL");
 db_instance.pragma("wal_autocheckpoint = 1");
+db_instance.pragma("busy_timeout = 3000");
 
 db_instance.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -34,10 +35,17 @@ db_instance.exec(`
 
 const hierarchy = ["user", "premium", "mod", "coowner", "owner"];
 
+// Los usuarios se guardan SIEMPRE por número (sin @dominio ni :dispositivo).
+// Así "123@s.whatsapp.net", "123:5@s.whatsapp.net" y "123" son la misma fila.
+function normalizeJid(jid = "") {
+  return String(jid).split("@")[0].split(":")[0];
+}
+
 const stmts = {
   getUser: db_instance.prepare("SELECT data FROM users WHERE jid = ?"),
   insertUser: db_instance.prepare("INSERT INTO users (jid, data) VALUES (?, ?)"),
   updateUser: db_instance.prepare("UPDATE users SET data = ? WHERE jid = ?"),
+  deleteUser: db_instance.prepare("DELETE FROM users WHERE jid = ?"),
   getAllUsers: db_instance.prepare("SELECT jid, data FROM users"),
 
   getGroup: db_instance.prepare("SELECT data FROM groups WHERE jid = ?"),
@@ -48,11 +56,63 @@ const stmts = {
   insertBot: db_instance.prepare("INSERT INTO bots (jid, data) VALUES (?, ?)"),
   updateBot: db_instance.prepare("UPDATE bots SET data = ? WHERE jid = ?"),
   deleteBot: db_instance.prepare("DELETE FROM bots WHERE jid = ?"),
-  getAllBots: db_instance.prepare("SELECT jid, data FROM bots")
+  getAllBots: db_instance.prepare("SELECT jid, data FROM bots"),
+
+  moveWaifus: db_instance.prepare("UPDATE user_waifus SET jid = ? WHERE jid = ?")
 };
 
+// Migración única: junta las filas viejas con JID completo en una sola fila por número.
+// Si una persona tiene varias filas, se toma como base la que tiene más dinero
+// (bolsillo + banco) para no duplicar saldos, y se completan los campos que falten.
+function migrateUserKeys() {
+  const rows = db_instance
+    .prepare("SELECT jid, data FROM users WHERE jid LIKE '%@%' OR jid LIKE '%:%'")
+    .all();
+  if (!rows.length) return;
+
+  const total = (u) => (Number(u.bolsillo) || 0) + (Number(u.banco) || 0);
+
+  const run = db_instance.transaction(() => {
+    const groups = new Map();
+    for (const row of rows) {
+      const key = normalizeJid(row.jid);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ jid: row.jid, data: JSON.parse(row.data) });
+    }
+
+    for (const [key, olds] of groups) {
+      const existing = stmts.getUser.get(key);
+      const all = [...olds.map((o) => o.data)];
+      if (existing) all.push(JSON.parse(existing.data));
+
+      const sorted = [...all].sort((a, b) => total(b) - total(a));
+      const merged = Object.assign({}, ...[...sorted].reverse());
+      Object.assign(merged, sorted[0]);
+
+      merged.role =
+        [...all].map((u) => u.role).filter((r) => r && r !== "user")[0] || "user";
+      merged.banned = all.some((u) => u.banned === true);
+      merged.registeredAt =
+        all.map((u) => u.registeredAt).filter(Boolean).sort()[0] || new Date().toISOString();
+
+      if (existing) stmts.updateUser.run(JSON.stringify(merged), key);
+      else stmts.insertUser.run(key, JSON.stringify(merged));
+
+      // Primero se mueven las waifus a la fila nueva, luego se borran las filas viejas
+      for (const old of olds) {
+        stmts.moveWaifus.run(key, old.jid);
+        stmts.deleteUser.run(old.jid);
+      }
+    }
+  });
+  run();
+}
+
+migrateUserKeys();
+
 function getUser(jid) {
-  const row = stmts.getUser.get(jid);
+  const key = normalizeJid(jid);
+  const row = stmts.getUser.get(key);
   if (!row) {
     const defaultUser = {
       role: "user",
@@ -64,7 +124,7 @@ function getUser(jid) {
       job: null,
       registeredAt: new Date().toISOString()
     };
-    stmts.insertUser.run(jid, JSON.stringify(defaultUser));
+    stmts.insertUser.run(key, JSON.stringify(defaultUser));
     return defaultUser;
   }
   return JSON.parse(row.data);
@@ -111,7 +171,7 @@ export const db = {
   setUser(jid, dataObject) {
     const currentData = getUser(jid);
     const updatedData = { ...currentData, ...dataObject };
-    stmts.updateUser.run(JSON.stringify(updatedData), jid);
+    stmts.updateUser.run(JSON.stringify(updatedData), normalizeJid(jid));
   },
 
   setGroup(jid, dataObject) {
@@ -171,7 +231,7 @@ export const db = {
   },
 
   hasRole(jid, role) {
-    const numeroLimpio = jid.split('@')[0];
+    const numeroLimpio = normalizeJid(jid);
 
     const esOwnerGlobal = config.ownerNumber?.includes(numeroLimpio);
     const esCoOwnerGlobal = config.coOwners?.includes(numeroLimpio);
@@ -237,13 +297,16 @@ export const db = {
 
   // 💕 WAIFUS (Tabla independiente para evitar pérdida de datos)
   addWaifu(jid, waifu) {
-    getUser(jid); // Asegura que el usuario exista
+    const key = normalizeJid(jid);
+    getUser(key); // Asegura que el usuario exista
     db_instance.prepare(
       "INSERT INTO user_waifus (jid, name, image, rarity) VALUES (?, ?, ?, ?)"
-    ).run(jid, waifu.name, waifu.image || "", waifu.rarity || "Común");
+    ).run(key, waifu.name, waifu.image || "", waifu.rarity || "Común");
   },
 
   getWaifus(jid) {
-    return db_instance.prepare("SELECT * FROM user_waifus WHERE jid = ?").all(jid);
+    return db_instance
+      .prepare("SELECT * FROM user_waifus WHERE jid = ?")
+      .all(normalizeJid(jid));
   }
 };
