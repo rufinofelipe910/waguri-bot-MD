@@ -20,7 +20,7 @@ const formatDuration = (seconds) => {
 }
 
 export default {
-  name: ['playvideo', 'ytv', 'ytmp4', 'video'],
+  name: ['play2', 'ytv', 'ytmp4', 'video'],
   description: 'Descarga videos de YouTube',
   category: 'dl',
   ownerOnly: false,
