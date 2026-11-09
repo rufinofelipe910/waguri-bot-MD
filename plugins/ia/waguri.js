@@ -1,7 +1,7 @@
 import axios from 'axios'
 import fs from 'fs'
 
-const API_KEY = 'TU_API_KEY_DE_EVOGB'
+const API_KEY = 'evogb-ZZCObxwB'
 const API_URL = 'https://api.evogb.org/ai/claude'
 
 const BOT_NAME = 'Waguri'
