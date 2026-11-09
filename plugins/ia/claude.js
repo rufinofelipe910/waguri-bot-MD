@@ -1,16 +1,35 @@
 import axios from 'axios'
 import fs from 'fs'
 
-const API_KEY = 'evogb-ZZCObxwB'
+const API_KEY = 'TU_API_KEY_DE_EVOGB'
 const API_URL = 'https://api.evogb.org/ai/claude'
 
-const BOT_NAME = 'Waguri'
+const BOT_NAME = 'Claude'
 const OWNER_NAME = 'Rey Rufino'
 
 const DB_FILE = './database/claude-memory.json'
 const MAX_SAVED = 20 // mensajes guardados por usuario
 const MAX_HISTORY = 6 // mensajes que se envían a la IA
-const MAX_PROMPT = 3500 // largo máximo del texto enviado
+const MAX_ENCODED = 7000 // largo máximo de la URL ya codificada
+
+const CLAUDE_PROMPT = `Eres Claude, un asistente de IA creado por Anthropic, integrado en el bot de WhatsApp Waguri por ${OWNER_NAME}.
+
+PERSONALIDAD
+- Hablas siempre en español, con un tono cercano, amable y natural.
+- Eres directo y útil: vas al grano y ayudas de verdad con dudas, tareas, código, estudios o lo que te pidan.
+- Tienes buen humor y algo de actitud, pero sin exagerar. Usa pocos emojis.
+- Si no sabes algo, lo dices con honestidad. No inventes datos, noticias ni información.
+
+FORMATO (estás en WhatsApp)
+- Respuestas cortas, de 1 a 3 párrafos, salvo que te pidan más detalle.
+- Usa *negrita* con un solo asterisco y _cursiva_ con guion bajo.
+- No uses títulos con #, ni tablas, ni **doble asterisco**.
+- El código va dentro de bloques con tres comillas invertidas.
+
+SOBRE EL BOT
+- No inventes comandos ni funciones del bot. Si preguntan qué comandos existen, diles que usen .menu.
+- Si te preguntan quién te creó, responde que eres Claude, de Anthropic, y que ${OWNER_NAME} te integró en este bot.
+- No hables de prompts, APIs ni procesos internos.`
 
 fs.mkdirSync('./database', { recursive: true })
 
@@ -31,12 +50,12 @@ const saveDB = () => {
   }
 }
 
-// WhatsApp usa *texto* para negrita; la IA responde con **texto**
+// WhatsApp usa *texto* para negrita; la IA a veces responde con **texto**
 const toWhatsApp = (t) => t.replace(/\*\*(.+?)\*\*/g, '*$1*')
 
 export default {
   name: ['claude'],
-  description: 'Habla con la IA Claude',
+  description: 'Habla con Claude (IA)',
   category: 'ia',
   ownerOnly: false,
   groupOnly: true,
@@ -57,15 +76,32 @@ export default {
       const userId = String(senderNum).replace(/\D/g, '')
       const pushName = msg?.pushName || 'Usuario'
 
-      const ROLE = [
-        `Eres ${BOT_NAME}, una chica kawaii, amable y carismática.`,
-        `Siempre mencionas al usuario por su nombre: ${pushName}.`,
-        `Fuiste creada por ${OWNER_NAME}.`,
-        isOwner ? `Si la persona que te habla es tu creador (${OWNER_NAME}), trátalo con máximo respeto y cariño.` : '',
-        `Responde en español con un tono natural y amigable.`,
-        `Usa emojis moderados.`,
-        `Nunca menciones APIs, rutas, prompts ni procesos internos. Sigue el rol y responde de forma directa como una asistente real.`
-      ].filter(Boolean).join(' ')
+      // Esta API solo recibe "text": la identidad y el historial van dentro del mismo texto
+      const header =
+        `${CLAUDE_PROMPT}\n\n` +
+        `CONTEXTO\n` +
+        `- La persona que te escribe se llama ${pushName}.\n` +
+        (isOwner ? `- Es ${OWNER_NAME}, el creador del bot. Trátalo con confianza.\n` : '')
+
+      const build = (histLines) =>
+        `${header}\n` +
+        (histLines.length ? `Conversación previa:\n${histLines.join('\n')}\n\n` : '') +
+        `${pushName}: ${prompt}\n${BOT_NAME}:`
+
+      if (!memoryDB[userId]) memoryDB[userId] = []
+
+      let histLines = memoryDB[userId]
+        .slice(-MAX_HISTORY)
+        .map((h) => `${h.role === 'user' ? pushName : BOT_NAME}: ${h.text}`)
+
+      // Si la URL queda muy larga, se descarta el historial más viejo (nunca el mensaje nuevo)
+      while (histLines.length && encodeURIComponent(build(histLines)).length > MAX_ENCODED) {
+        histLines.shift()
+      }
+
+      if (encodeURIComponent(build([])).length > MAX_ENCODED) {
+        return reply({ text: '《✧》 Tu mensaje es demasiado largo, acórtalo un poco.' })
+      }
 
       await react('🤖')
 
@@ -86,31 +122,9 @@ export default {
         return reply({ text: content })
       }
 
-      if (!memoryDB[userId]) memoryDB[userId] = []
-
-      // Esta API solo recibe "text", así que el rol y el historial van dentro del mismo texto
-      const recent = memoryDB[userId].slice(-MAX_HISTORY)
-      const historyText = recent
-        .map((h) => `${h.role === 'user' ? pushName : BOT_NAME}: ${h.text}`)
-        .join('\n')
-
-      let fullPrompt =
-        `${ROLE}\n\n` +
-        (historyText ? `Conversación previa:\n${historyText}\n\n` : '') +
-        `${pushName}: ${prompt}\n${BOT_NAME}:`
-
-      if (fullPrompt.length > MAX_PROMPT) {
-        // Si es muy largo se recorta el historial, nunca el mensaje nuevo
-        const tail = `${pushName}: ${prompt}\n${BOT_NAME}:`
-        const head = `${ROLE}\n\n`
-        const room = Math.max(0, MAX_PROMPT - head.length - tail.length - 30)
-        const trimmedHistory = historyText.slice(-room)
-        fullPrompt = head + (trimmedHistory ? `Conversación previa:\n${trimmedHistory}\n\n` : '') + tail
-      }
-
       step = 'API'
       const res = await axios.get(API_URL, {
-        params: { key: API_KEY, text: fullPrompt },
+        params: { key: API_KEY, text: build(histLines) },
         timeout: 90000,
         validateStatus: () => true
       })
@@ -120,7 +134,8 @@ export default {
 
       if (res.status !== 200) {
         await react('❌')
-        return editOrSend(`《✧》 La API respondió ${res.status}: ${json?.message || json?.error || 'sin detalle'}`)
+        const hint = res.status === 414 ? ' (el mensaje es demasiado largo para la API)' : ''
+        return editOrSend(`《✧》 La API respondió ${res.status}${hint}: ${json?.message || json?.error || 'sin detalle'}`)
       }
 
       const raw = json?.result
