@@ -1,117 +1,127 @@
 import axios from 'axios'
 import yts from 'yt-search'
 
-const LIMIT_MB = 80
-const LONG_VIDEO_SECONDS = 1200 // sin peso conocido, más de 20 min va como documento
-const ID_RE = /(?:youtu\.be\/|v=|shorts\/)([\w-]{11})/
+const API_KEY = 'evogb-ZZCObxwB'
+const API_URL = 'https://api.evogb.org/dl/ytmp4'
+const MAX_MB = 100
+const DOC_MB = 50 // por encima de esto se manda como documento
 
-const APIS = [
-  {
-    name: 'alyacore',
-    endpoint: 'https://api.alyacore.xyz/dl/ytmp4v2',
-    apikey: 'Duarte-zz12',
-    tries: 2,
-    timeout: 60000,
-    parse: data =>
-      data?.status && data?.data?.dl
-        ? { url: data.data.dl, title: data.data.title }
-        : null
-  }
-]
+const isYoutube = (s) => /(youtube\.com|youtu\.be)/i.test(s)
+const getVideoId = (s) => s.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/)?.[1]
 
-const fetchData = async url => {
-  for (const api of APIS) {
-    for (let i = 0; i < api.tries; i++) {
-      try {
-        const { data } = await axios.get(api.endpoint, {
-          params: { url, apikey: api.apikey },
-          timeout: api.timeout
-        })
-        const media = api.parse(data)
-        if (media?.url) return media
-      } catch (e) {
-        console.error(`[play2] ${api.name} falló (${i + 1}/${api.tries}):`, e.message)
-      }
-    }
-  }
-  return null
+const formatDuration = (seconds) => {
+  const s = Number(seconds) || 0
+  if (!s) return 'N/A'
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const pad = (n) => String(n).padStart(2, '0')
+  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`
 }
-
-// Un solo HEAD con límite corto: si no responde rápido, se sigue sin peso
-const getSize = async url => {
-  try {
-    const head = await axios.head(url, { timeout: 4000, maxRedirects: 5 })
-    return Number(head.headers['content-length']) || 0
-  } catch {
-    return 0
-  }
-}
-
-const cleanFileName = name =>
-  String(name).replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100) || 'video'
 
 export default {
-  name: ['play2'],
-  description: 'Descarga video de YouTube',
+  name: ['playvideo', 'ytv', 'ytmp4', 'video'],
+  description: 'Descarga videos de YouTube',
   category: 'dl',
   ownerOnly: false,
 
-  async run({ sock, from, msg, react, reply, text }) {
+  async run({ sock, from, msg, text, reply, react }) {
+    let step = 'inicio'
     try {
-      if (!text) return reply({ text: '✧ Ingresa un nombre o link' })
-
-      await react('🔍')
-
-      const id = text.match(ID_RE)?.[1]
-      const info = id ? await yts({ videoId: id }).catch(() => null) : (await yts(text)).videos[0]
-      if (!info && !id) return reply({ text: '❌ Sin resultados' })
-
-      const data = await fetchData(info?.url ?? text)
-
-      if (!data) {
-        await react('❌')
-        return reply({ text: '❌ Error API' })
+      const input = (text || '').trim()
+      if (!input) {
+        return reply({ text: '⛧ escribe el nombre o link del video' })
       }
 
-      const mp4 = data.url
-      const title = data.title || info?.title || 'video'
+      await react('🎬')
 
-      const size = await getSize(mp4)
-      const sizeMB = size / 1024 / 1024
-      const sizeLabel = size ? ` ( ${sizeMB.toFixed(2)} MB )` : ''
-      const caption = `> ${title}${sizeLabel}`
+      // Resolver el video
+      step = 'búsqueda'
+      let videoUrl = input
+      let video = null
 
-      const asDocument = size
-        ? sizeMB >= LIMIT_MB
-        : (info?.seconds || 0) > LONG_VIDEO_SECONDS
+      if (!isYoutube(input)) {
+        const search = await yts(input)
+        video = search.videos?.[0] || search.all?.[0]
+        if (!video) return reply({ text: '⛧ no encontré resultados' })
+        videoUrl = video.url
+      }
 
-      if (asDocument) {
+      // Pedir el video a la API
+      step = 'API'
+      const res = await axios.get(API_URL, {
+        params: { key: API_KEY, url: videoUrl },
+        timeout: 120000,
+        validateStatus: () => true
+      })
+
+      const body = res.data
+      console.log('[playvideo] HTTP', res.status, JSON.stringify(body)?.slice(0, 400))
+
+      if (res.status !== 200) {
+        return reply({ text: `⛧ la API respondió ${res.status}: ${body?.message || body?.error || 'sin detalle'}` })
+      }
+
+      const data = body?.data
+      const dl = data?.dl ?? data?.url ?? data?.download ?? data?.link
+
+      if (!body?.status || !dl || typeof dl !== 'string') {
+        return reply({ text: `⛧ la API no devolvió el video: ${body?.message || body?.error || 'respuesta inesperada'}` })
+      }
+
+      const title = data.title || video?.title || 'video'
+      const channel = video?.author?.name || data.author?.name || 'Desconocido'
+      const duracion = data.duration ? formatDuration(data.duration) : (video?.timestamp || 'N/A')
+      const calidad = data.quality || 'N/A'
+
+      // Descargar el video
+      step = 'descarga del video'
+      await reply({ text: `⛧ ${title}\n\n⛧ descargando video...` })
+
+      const file = await axios.get(dl, {
+        responseType: 'arraybuffer',
+        timeout: 300000,
+        maxContentLength: MAX_MB * 1024 * 1024,
+        maxBodyLength: MAX_MB * 1024 * 1024,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+      const buffer = Buffer.from(file.data)
+      const sizeMB = buffer.length / (1024 * 1024)
+      console.log('[playvideo] bytes:', buffer.length)
+
+      if (buffer.length < 1000) {
+        throw new Error('el archivo descargado está vacío o es inválido')
+      }
+
+      const caption =
+        `⛧ ${title}\n\n` +
+        `⛧ canal › ${channel}\n` +
+        `⛧ duración › ${duracion}\n` +
+        `⛧ calidad › ${calidad}\n` +
+        `⛧ peso › ${sizeMB.toFixed(2)} MB`
+
+      step = 'envío del video'
+      if (sizeMB > DOC_MB) {
+        const fileName = `${title.replace(/[\\/:*?"<>|]/g, '')}.mp4`
         await sock.sendMessage(
           from,
-          {
-            document: { url: mp4 },
-            mimetype: 'video/mp4',
-            fileName: `${cleanFileName(title)}.mp4`,
-            caption
-          },
+          { document: buffer, mimetype: 'video/mp4', fileName, caption },
           { quoted: msg }
         )
       } else {
         await sock.sendMessage(
           from,
-          {
-            video: { url: mp4 },
-            mimetype: 'video/mp4',
-            caption
-          },
+          { video: buffer, mimetype: 'video/mp4', caption },
           { quoted: msg }
         )
       }
 
       await react('✅')
-    } catch (error) {
+
+    } catch (e) {
+      console.error(`[playvideo] falló en "${step}":`, e.response?.status, e.message)
       await react('❌')
-      await reply({ text: `❌ Error: ${error.message}` })
+      await reply({ text: `⛧ error en ${step}: ${e.message}` })
     }
   }
 }
